@@ -1,0 +1,5 @@
+File=slidedesktops.kcfg
+ClassName=SlideDesktopsConfig
+NameSpace=KWin
+Singleton=true
+Mutators=true

@@ -92,6 +92,7 @@ set( kwin4_effect_builtins_sources
     resize/resize.cpp
     showfps/showfps.cpp
     slide/slide.cpp
+    slidedesktops/slidedesktops.cpp
     thumbnailaside/thumbnailaside.cpp
     touchpoints/touchpoints.cpp
     trackmouse/trackmouse.cpp
@@ -121,6 +122,7 @@ kconfig_add_kcfg_files(kwin4_effect_builtins_sources
     resize/resizeconfig.kcfgc
     showfps/showfpsconfig.kcfgc
     slide/slideconfig.kcfgc
+    slidedesktops/slidedesktopsconfig.kcfgc
     slidingpopups/slidingpopupsconfig.kcfgc
     thumbnailaside/thumbnailasideconfig.kcfgc
     trackmouse/trackmouseconfig.kcfgc
@@ -162,6 +164,7 @@ add_subdirectory( showfps )
 include( showpaint/CMakeLists.txt )
 add_subdirectory( slide )
 include( slideback/CMakeLists.txt )
+add_subdirectory( slidedesktops )
 include( slidingpopups/CMakeLists.txt )
 add_subdirectory( thumbnailaside )
 add_subdirectory( windowgeometry )

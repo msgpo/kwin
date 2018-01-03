@@ -41,6 +41,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "showpaint/showpaint.h"
 #include "slide/slide.h"
 #include "slideback/slideback.h"
+#include "slidedesktops/slidedesktops.h"
 #include "thumbnailaside/thumbnailaside.h"
 #include "touchpoints/touchpoints.h"
 #include "windowgeometry/windowgeometry.h"
@@ -544,6 +545,21 @@ EFFECT_FALLBACK
 #ifdef EFFECT_BUILTINS
         &createHelper<SlideBackEffect>,
         nullptr,
+        nullptr
+#endif
+EFFECT_FALLBACK
+    }, {
+        QStringLiteral("slidedesktops"),
+        i18ndc("kwin_effects", "Name of a KWin Effect", "Slide Desktops"),
+        i18ndc("kwin_effects", "Comment describing the KWin Effect", "Slide desktops when switching virtual desktops"),
+        QStringLiteral("Virtual Desktop Switching Animation"),
+        QStringLiteral("desktop-animations"),
+        QUrl(),
+        false,
+        false,
+#ifdef EFFECT_BUILTINS
+        &createHelper<SlideDesktopsEffect>,
+        &SlideDesktopsEffect::supported,
         nullptr
 #endif
 EFFECT_FALLBACK

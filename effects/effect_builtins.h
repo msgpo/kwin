@@ -64,6 +64,7 @@ enum class BuiltInEffect
     ShowPaint,
     Slide,
     SlideBack,
+    SlideDesktops,
     SlidingPopups,
     SnapHelper,
     StartupFeedback,

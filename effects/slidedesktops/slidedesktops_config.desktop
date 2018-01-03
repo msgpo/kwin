@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Service
+X-KDE-ServiceTypes=KCModule
+
+X-KDE-Library=kwin_slidedesktops_config
+X-KDE-ParentComponents=slidedesktops
+
+Name=Slide Desktops

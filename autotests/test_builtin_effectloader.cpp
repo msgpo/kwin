@@ -110,6 +110,7 @@ void TestBuiltInEffectLoader::testHasEffect_data()
     QTest::newRow("ShowPaint")                      << QStringLiteral("showpaint")         << true;
     QTest::newRow("Slide")                          << QStringLiteral("slide")             << true;
     QTest::newRow("SlideBack")                      << QStringLiteral("slideback")         << true;
+    QTest::newRow("SlideDesktops")                  << QStringLiteral("slidedesktops")     << true;
     QTest::newRow("SlidingPopups")                  << QStringLiteral("slidingpopups")     << true;
     QTest::newRow("SnapHelper")                     << QStringLiteral("snaphelper")        << true;
     QTest::newRow("StartupFeedback")                << QStringLiteral("startupfeedback")   << true;
@@ -166,6 +167,7 @@ void TestBuiltInEffectLoader::testKnownEffects()
                     << QStringLiteral("showpaint")
                     << QStringLiteral("slide")
                     << QStringLiteral("slideback")
+                    << QStringLiteral("slidedesktops")
                     << QStringLiteral("slidingpopups")
                     << QStringLiteral("snaphelper")
                     << QStringLiteral("startupfeedback")
@@ -246,6 +248,7 @@ void TestBuiltInEffectLoader::testSupported_data()
     QTest::newRow("ShowPaint")                      << QStringLiteral("showpaint")         << true  << xc << true;
     QTest::newRow("Slide")                          << QStringLiteral("slide")             << true  << xc << true;
     QTest::newRow("SlideBack")                      << QStringLiteral("slideback")         << true  << xc << true;
+    QTest::newRow("SlideDesktops")                  << QStringLiteral("slidedesktops")     << true  << xc << true;
     QTest::newRow("SlidingPopups")                  << QStringLiteral("slidingpopups")     << true  << xc << true;
     QTest::newRow("SnapHelper")                     << QStringLiteral("snaphelper")        << true  << xc << true;
     QTest::newRow("StartupFeedback")                << QStringLiteral("startupfeedback")   << false << xc << true;
@@ -334,6 +337,7 @@ void TestBuiltInEffectLoader::testLoadEffect_data()
     QTest::newRow("ShowPaint")                      << QStringLiteral("showpaint")         << true  << xc;
     QTest::newRow("Slide")                          << QStringLiteral("slide")             << true  << xc;
     QTest::newRow("SlideBack")                      << QStringLiteral("slideback")         << true  << xc;
+    QTest::newRow("SlideDesktops")                  << QStringLiteral("slidedesktops")     << true  << xc;
     QTest::newRow("SlidingPopups")                  << QStringLiteral("slidingpopups")     << true  << xc;
     QTest::newRow("SnapHelper")                     << QStringLiteral("snaphelper")        << true  << xc;
     QTest::newRow("StartupFeedback")                << QStringLiteral("startupfeedback")   << false << xc;
