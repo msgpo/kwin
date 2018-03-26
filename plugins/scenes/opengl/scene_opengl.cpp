@@ -40,6 +40,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "deleted.h"
 #include "effects.h"
 #include "lanczosfilter.h"
+#include "kwinglmultisampletexture.h"
 #include "main.h"
 #include "overlaywindow.h"
 #include "screens.h"
@@ -361,6 +362,14 @@ SceneOpenGL::SceneOpenGL(OpenGLBackend *backend, QObject *parent)
         } else {
             qCDebug(KWIN_OPENGL) << "Explicit synchronization with the X command stream disabled by environment variable";
         }
+    }
+
+    // TODO: make number of samples configurable.
+    if (hasGLVersion(3, 2)) {
+        GLint maxSamples = 0;
+        glGetIntegerv(GL_MAX_SAMPLES, &maxSamples);
+        m_multisampling.samples = qMin(maxSamples, 8);
+        m_multisampling.supported = true;
     }
 }
 
@@ -738,6 +747,55 @@ qint64 SceneOpenGL::paint(QRegion damage, ToplevelList toplevels)
     return m_backend->renderTime();
 }
 
+void SceneOpenGL::finalPrePaintScreen(ScreenPrePaintData& data, int time)
+{
+    Q_UNUSED(time);
+
+    if (! m_multisampling.supported) {
+        return;
+    }
+
+    // Because the multisampled render buffer is a little bit heavy resource, we
+    // create it on-demand and keep it till the PAINT_SCREEN_MULTISAMPLE flag
+    // is being set by effects in subsequent prePaintScreen calls.
+    if ((data.mask & PAINT_SCREEN_MULTISAMPLE) == 0) {
+        if (m_multisampling.fbo) {
+            m_multisampling.fbo.reset();
+            m_multisampling.rbo.reset();
+        }
+        return;
+    }
+
+    if (! m_multisampling.fbo) {
+        m_multisampling.rbo.reset(new GLMultisampleTexture(screens()->size(), m_multisampling.samples));
+        m_multisampling.fbo.reset(new GLRenderTarget(*m_multisampling.rbo));
+    }
+
+    // Screens can have different resolution and scale. Set appropriate viewport
+    // so multisampled results don't look stretched or downscaled.
+    const QSize screenSize(GLRenderTarget::virtualScreenGeometry().size() * GLRenderTarget::virtualScreenScale());
+    m_multisampling.fbo->setViewport(QRect(QPoint(0, 0), screenSize));
+
+    GLRenderTarget::pushRenderTarget(m_multisampling.fbo.data());
+    m_multisampling.pushed = true;
+    glEnable(GL_MULTISAMPLE);
+}
+
+void SceneOpenGL::finalPostPaintScreen()
+{
+    if (! m_multisampling.pushed) {
+        return;
+    }
+    glDisable(GL_MULTISAMPLE);
+    GLRenderTarget::popRenderTarget();
+    m_multisampling.pushed = false;
+
+    const QRect screenGeo(GLRenderTarget::virtualScreenGeometry());
+    const QSize screenSize(screenGeo.size() * GLRenderTarget::virtualScreenScale());
+    const QRect fboGeo(QPoint(0, 0), screenSize);
+    m_multisampling.fbo->blitToFramebuffer(fboGeo, screenGeo, GL_NEAREST);
+}
+
 QMatrix4x4 SceneOpenGL::transformation(int mask, const ScreenPaintData &data) const
 {
     QMatrix4x4 matrix;
@@ -890,6 +948,9 @@ void SceneOpenGL::screenGeometryChanged(const QSize &size)
     glViewport(0,0, size.width(), size.height());
     m_backend->screenGeometryChanged(size);
     GLRenderTarget::setVirtualScreenSize(size);
+    if (m_multisampling.rbo) {
+        m_multisampling.rbo->resize(screens()->size());
+    }
 }
 
 void SceneOpenGL::paintDesktop(int desktop, int mask, const QRegion &region, ScreenPaintData &data)
