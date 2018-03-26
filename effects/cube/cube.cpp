@@ -160,6 +160,7 @@ void CubeEffect::reconfigure(ReconfigureFlags)
     backgroundColor = CubeConfig::backgroundColor();
     capColor = CubeConfig::capColor();
     paintCaps = CubeConfig::caps();
+    multisampling = CubeConfig::multisampling();
     closeOnMouseRelease = CubeConfig::closeOnMouseRelease();
     zPosition = CubeConfig::zPosition();
 
@@ -367,6 +368,9 @@ void CubeEffect::prePaintScreen(ScreenPrePaintData& data, int time)
 {
     if (activated) {
         data.mask |= PAINT_SCREEN_TRANSFORMED | Effect::PAINT_SCREEN_WITH_TRANSFORMED_WINDOWS | PAINT_SCREEN_BACKGROUND_FIRST;
+        if (multisampling) {
+            data.mask |= PAINT_SCREEN_MULTISAMPLE;
+        }
         if (animationState == AnimationState::None && !animations.empty()) {
             startAnimation(animations.dequeue());
         }

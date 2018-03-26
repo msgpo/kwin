@@ -109,6 +109,7 @@ private:
     bool windowMoving;
     bool desktopChangedWhileMoving;
     double progressRestriction;
+    bool multisampling;
 };
 }
 

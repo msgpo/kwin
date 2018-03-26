@@ -256,6 +256,8 @@ private:
     QAction *m_cubeAction;
     QAction *m_cylinderAction;
     QAction *m_sphereAction;
+
+    bool multisampling;
 };
 
 } // namespace

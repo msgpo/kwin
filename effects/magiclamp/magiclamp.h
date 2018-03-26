@@ -55,6 +55,7 @@ public Q_SLOTS:
 private:
     std::chrono::milliseconds m_duration;
     QHash<const EffectWindow*, TimeLine> m_animations;
+    bool m_multisampling;
 
     enum IconPosition {
         Top,
