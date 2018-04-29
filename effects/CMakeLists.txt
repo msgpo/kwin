@@ -112,6 +112,7 @@ kconfig_add_kcfg_files(kwin4_effect_builtins_sources
     coverswitch/coverswitchconfig.kcfgc
     desktopgrid/desktopgridconfig.kcfgc
     diminactive/diminactiveconfig.kcfgc
+    disappear1/disappear1config.kcfgc
     fallapart/fallapartconfig.kcfgc
     flipswitch/flipswitchconfig.kcfgc
     glide/glideconfig.kcfgc
@@ -156,6 +157,7 @@ include( appear3/CMakeLists.txt )
 add_subdirectory( desktopgrid )
 add_subdirectory( diminactive )
 include( dimscreen/CMakeLists.txt )
+include( disappear1/CMakeLists.txt )
 include( fallapart/CMakeLists.txt )
 include( highlightwindow/CMakeLists.txt )
 include( kscreen/CMakeLists.txt )

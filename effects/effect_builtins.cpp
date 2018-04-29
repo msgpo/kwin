@@ -35,6 +35,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "desktopgrid/desktopgrid.h"
 #include "diminactive/diminactive.h"
 #include "dimscreen/dimscreen.h"
+#include "disappear1/disappear1.h"
 #include "fallapart/fallapart.h"
 #include "highlightwindow/highlightwindow.h"
 #include "magiclamp/magiclamp.h"
@@ -277,6 +278,21 @@ EFFECT_FALLBACK
 #ifdef EFFECT_BUILTINS
         &createHelper<DimScreenEffect>,
         nullptr,
+        nullptr
+#endif
+EFFECT_FALLBACK
+    }, {
+        QStringLiteral("disappear1"),
+        i18ndc("kwin_effects", "Name of a KWin Effect", "Disappear 1"),
+        i18ndc("kwin_effects", "Comment describing the KWin Effect", "Animate the disappearing of windows"),
+        QStringLiteral("Appearance"),
+        QString("close-window"),
+        QUrl(),
+        false,
+        false,
+#ifdef EFFECT_BUILTINS
+        &createHelper<Disappear1Effect>,
+        &Disappear1Effect::supported,
         nullptr
 #endif
 EFFECT_FALLBACK
