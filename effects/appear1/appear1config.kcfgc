@@ -1,0 +1,5 @@
+File=appear1.kcfg
+ClassName=Appear1Config
+NameSpace=KWin
+Singleton=true
+Mutators=true

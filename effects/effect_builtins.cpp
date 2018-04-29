@@ -29,6 +29,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "screenshot/screenshot.h"
 #include "slidingpopups/slidingpopups.h"
 // Common effects only relevant to desktop
+#include "appear1/appear1.h"
 #include "desktopgrid/desktopgrid.h"
 #include "diminactive/diminactive.h"
 #include "dimscreen/dimscreen.h"
@@ -97,6 +98,21 @@ static const QVector<EffectData> s_effectData = {
         nullptr,
         nullptr,
         nullptr
+    }, {
+        QStringLiteral("appear1"),
+        i18ndc("kwin_effects", "Name of a KWin Effect", "Appear 1"),
+        i18ndc("kwin_effects", "Comment describing the KWin Effect", "Animate the appearing of windows"),
+        QStringLiteral("Appearance"),
+        QString("open-window"),
+        QUrl(),
+        false,
+        false,
+#ifdef EFFECT_BUILTINS
+        &createHelper<Appear1Effect>,
+        &Appear1Effect::supported,
+        nullptr
+#endif
+EFFECT_FALLBACK
     }, {
         QStringLiteral("blur"),
         i18ndc("kwin_effects", "Name of a KWin Effect", "Blur"),
