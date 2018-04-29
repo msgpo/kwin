@@ -35,6 +35,7 @@ enum class BuiltInEffect
 {
     Invalid, ///< not a valid Effect
     Appear1,
+    Appear2,
     Blur,
     ColorPicker,
     Contrast,

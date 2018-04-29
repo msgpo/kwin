@@ -104,6 +104,7 @@ qt5_add_resources( kwin4_effect_builtins_sources shaders.qrc )
 
 kconfig_add_kcfg_files(kwin4_effect_builtins_sources
     appear1/appear1config.kcfgc
+    appear2/appear2config.kcfgc
     blur/blurconfig.kcfgc
     cube/cubeslideconfig.kcfgc
     cube/cubeconfig.kcfgc
@@ -149,6 +150,7 @@ add_subdirectory( windowaperture )
 
 # Common effects
 include( appear1/CMakeLists.txt )
+include( appear2/CMakeLists.txt )
 add_subdirectory( desktopgrid )
 add_subdirectory( diminactive )
 include( dimscreen/CMakeLists.txt )
