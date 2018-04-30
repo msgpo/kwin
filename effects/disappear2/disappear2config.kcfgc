@@ -1,0 +1,5 @@
+File=disappear2.kcfg
+ClassName=Disappear2Config
+NameSpace=KWin
+Singleton=true
+Mutators=true
