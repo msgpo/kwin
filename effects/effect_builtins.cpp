@@ -31,6 +31,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 // Common effects only relevant to desktop
 #include "appear1/appear1.h"
 #include "appear2/appear2.h"
+#include "appear3/appear3.h"
 #include "desktopgrid/desktopgrid.h"
 #include "diminactive/diminactive.h"
 #include "dimscreen/dimscreen.h"
@@ -126,6 +127,21 @@ EFFECT_FALLBACK
 #ifdef EFFECT_BUILTINS
         &createHelper<Appear2Effect>,
         &Appear2Effect::supported,
+        nullptr
+#endif
+EFFECT_FALLBACK
+    }, {
+        QStringLiteral("appear3"),
+        i18ndc("kwin_effects", "Name of a KWin Effect", "Appear 3"),
+        i18ndc("kwin_effects", "Comment describing the KWin Effect", "Animate the appearing of windows"),
+        QStringLiteral("Appearance"),
+        QString("open-window"),
+        QUrl(),
+        true,
+        false,
+#ifdef EFFECT_BUILTINS
+        &createHelper<Appear3Effect>,
+        &Appear3Effect::supported,
         nullptr
 #endif
 EFFECT_FALLBACK
