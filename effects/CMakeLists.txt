@@ -114,6 +114,7 @@ kconfig_add_kcfg_files(kwin4_effect_builtins_sources
     diminactive/diminactiveconfig.kcfgc
     disappear1/disappear1config.kcfgc
     disappear2/disappear2config.kcfgc
+    disappear3/disappear3config.kcfgc
     fallapart/fallapartconfig.kcfgc
     flipswitch/flipswitchconfig.kcfgc
     glide/glideconfig.kcfgc
@@ -160,6 +161,7 @@ add_subdirectory( diminactive )
 include( dimscreen/CMakeLists.txt )
 include( disappear1/CMakeLists.txt )
 include( disappear2/CMakeLists.txt )
+include( disappear3/CMakeLists.txt )
 include( fallapart/CMakeLists.txt )
 include( highlightwindow/CMakeLists.txt )
 include( kscreen/CMakeLists.txt )

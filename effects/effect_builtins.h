@@ -48,6 +48,7 @@ enum class BuiltInEffect
     DimScreen,
     Disappear1,
     Disappear2,
+    Disappear3,
     FallApart,
     FlipSwitch,
     Glide,
