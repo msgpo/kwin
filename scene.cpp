@@ -898,6 +898,8 @@ WindowQuadList Scene::Window::makeDecorationQuads(const QRect *rects, const QReg
         Qt::Horizontal, // Bottom
     };
 
+    const qreal halfPixel = effects->isOpenGLCompositing() ? 0.5 : 0;
+
     for (int i = 0; i < 4; i++) {
         const QRegion intersectedRegion = (region & rects[i]);
         for (const QRect &r : intersectedRegion) {
@@ -906,15 +908,15 @@ WindowQuadList Scene::Window::makeDecorationQuads(const QRect *rects, const QReg
 
             const bool swap = orientations[i] == Qt::Vertical;
 
-            const int x0 = r.x();
-            const int y0 = r.y();
-            const int x1 = r.x() + r.width();
-            const int y1 = r.y() + r.height();
+            const qreal x0 = r.x();
+            const qreal y0 = r.y();
+            const qreal x1 = r.x() + r.width();
+            const qreal y1 = r.y() + r.height();
 
-            const int u0 = (x0 + offsets[i].x()) * textureScale;
-            const int v0 = (y0 + offsets[i].y()) * textureScale;
-            const int u1 = (x1 + offsets[i].x()) * textureScale;
-            const int v1 = (y1 + offsets[i].y()) * textureScale;
+            const qreal u0 = (x0 + offsets[i].x()) * textureScale + halfPixel;
+            const qreal v0 = (y0 + offsets[i].y()) * textureScale + halfPixel;
+            const qreal u1 = (x1 + offsets[i].x()) * textureScale - halfPixel;
+            const qreal v1 = (y1 + offsets[i].y()) * textureScale - halfPixel;
 
             WindowQuad quad(WindowQuadDecoration);
             quad.setUVAxisSwapped(swap);
@@ -942,20 +944,30 @@ WindowQuadList Scene::Window::makeQuads(WindowQuadType type, const QRegion& reg,
 {
     WindowQuadList ret;
     ret.reserve(reg.rectCount());
+
+    const qreal halfPixel = effects->isOpenGLCompositing() ? 0.5 : 0;
+
     for (const QRect &r : reg) {
         WindowQuad quad(type);
-        // TODO asi mam spatne pravy dolni roh - bud tady, nebo v jinych castech
-        quad[ 0 ] = WindowVertex(QPointF(r.x(), r.y()),
-                                 QPointF(r.x() + textureOffset.x(), r.y() + textureOffset.y()) * scale);
-        quad[ 1 ] = WindowVertex(QPointF(r.x() + r.width(), r.y()),
-                                 QPointF(r.x() + r.width() + textureOffset.x(), r.y() + textureOffset.y()) * scale);
-        quad[ 2 ] = WindowVertex(QPointF(r.x() + r.width(), r.y() + r.height()),
-                                 QPointF(r.x() + r.width() + textureOffset.x(), r.y() + r.height() + textureOffset.y()) * scale);
-        quad[ 3 ] = WindowVertex(QPointF(r.x(), r.y() + r.height()),
-                                 QPointF(r.x() + textureOffset.x(), r.y() + r.height() + textureOffset.y()) * scale);
+
+        const qreal x0 = r.x();
+        const qreal y0 = r.y();
+        const qreal x1 = r.x() + r.width();
+        const qreal y1 = r.y() + r.height();
+
+        const qreal u0 = (x0 + textureOffset.x()) * scale + halfPixel;
+        const qreal v0 = (y0 + textureOffset.y()) * scale + halfPixel;
+        const qreal u1 = (x1 + textureOffset.x()) * scale - halfPixel;
+        const qreal v1 = (y1 + textureOffset.y()) * scale - halfPixel;
+
+        quad[0] = WindowVertex(x0, y0, u0, v0);
+        quad[1] = WindowVertex(x1, y0, u1, v0);
+        quad[2] = WindowVertex(x1, y1, u1, v1);
+        quad[3] = WindowVertex(x0, y1, u0, v1);
 
         ret.append(quad);
     }
+
     return ret;
 }
 
