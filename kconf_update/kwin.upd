@@ -1,0 +1,7 @@
+Version=5
+
+# Replace scripted dialog parent effect with builtin dialog parent effect.
+Id=replace-scripted-dialogparent-with-builtin-dialogparent
+File=kwinrc
+Group=Plugins
+Key=kwin4_effect_dialogparentEnabled,dialogparentEnabled

@@ -30,6 +30,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "slidingpopups/slidingpopups.h"
 // Common effects only relevant to desktop
 #include "desktopgrid/desktopgrid.h"
+#include "dialogparent/dialogparent.h"
 #include "diminactive/diminactive.h"
 #include "dimscreen/dimscreen.h"
 #include "fallapart/fallapart.h"
@@ -198,6 +199,21 @@ EFFECT_FALLBACK
         false,
 #ifdef EFFECT_BUILTINS
         &createHelper<DesktopGridEffect>,
+        nullptr,
+        nullptr
+#endif
+EFFECT_FALLBACK
+    }, {
+        QStringLiteral("dialogparent"),
+        i18ndc("kwin_effects", "Name of a KWin Effect", "Dialog Parent"),
+        i18ndc("kwin_effects", "Comment describing the KWin Effect", "Darkens the parent window of the currently active dialog"),
+        QStringLiteral("Focus"),
+        QString(),
+        QUrl(),
+        true,
+        false,
+#ifdef EFFECT_BUILTINS
+        &createHelper<DialogParentEffect>,
         nullptr,
         nullptr
 #endif

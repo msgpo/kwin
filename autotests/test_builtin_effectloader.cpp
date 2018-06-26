@@ -87,6 +87,7 @@ void TestBuiltInEffectLoader::testHasEffect_data()
     QTest::newRow("Cube")                           << QStringLiteral("cube")              << true;
     QTest::newRow("CubeSlide")                      << QStringLiteral("cubeslide")         << true;
     QTest::newRow("DesktopGrid")                    << QStringLiteral("desktopgrid")       << true;
+    QTest::newRow("DialogParent")                   << QStringLiteral("dialogparent")      << true;
     QTest::newRow("DimInactive")                    << QStringLiteral("diminactive")       << true;
     QTest::newRow("DimScreen")                      << QStringLiteral("dimscreen")         << true;
     QTest::newRow("FallApart")                      << QStringLiteral("fallapart")         << true;
@@ -143,6 +144,7 @@ void TestBuiltInEffectLoader::testKnownEffects()
                     << QStringLiteral("cube")
                     << QStringLiteral("cubeslide")
                     << QStringLiteral("desktopgrid")
+                    << QStringLiteral("dialogparent")
                     << QStringLiteral("diminactive")
                     << QStringLiteral("dimscreen")
                     << QStringLiteral("fallapart")
@@ -212,6 +214,7 @@ void TestBuiltInEffectLoader::testSupported_data()
     QTest::newRow("CubeSlide-GL")                   << QStringLiteral("cubeslide")         << true  << oc << true;
     QTest::newRow("CubeSlide-GL-no-anim")           << QStringLiteral("cubeslide")         << false << oc << false;
     QTest::newRow("DesktopGrid")                    << QStringLiteral("desktopgrid")       << true  << xc << true;
+    QTest::newRow("DialogParent")                   << QStringLiteral("dialogparent")      << true  << xc << true;
     QTest::newRow("DimInactive")                    << QStringLiteral("diminactive")       << true  << xc << true;
     QTest::newRow("DimScreen")                      << QStringLiteral("dimscreen")         << true  << xc << true;
     QTest::newRow("FallApart")                      << QStringLiteral("fallapart")         << false << xc << true;
@@ -303,6 +306,7 @@ void TestBuiltInEffectLoader::testLoadEffect_data()
     QTest::newRow("CubeSlide")                      << QStringLiteral("cubeslide")         << false << xc;
     QTest::newRow("CubeSlide-GL")                   << QStringLiteral("cubeslide")         << true  << oc;
     QTest::newRow("DesktopGrid")                    << QStringLiteral("desktopgrid")       << true  << xc;
+    QTest::newRow("DialogParent")                   << QStringLiteral("dialogparent")      << true  << xc;
     QTest::newRow("DimInactive")                    << QStringLiteral("diminactive")       << true  << xc;
     QTest::newRow("DimScreen")                      << QStringLiteral("dimScreen")         << true  << xc;
     QTest::newRow("FallApart")                      << QStringLiteral("fallapart")         << false << xc;
@@ -502,6 +506,7 @@ void TestBuiltInEffectLoader::testLoadAllEffects()
     // prepare the configuration to hard enable/disable the effects we want to load
     KConfigGroup plugins = config->group("Plugins");
     plugins.writeEntry(QStringLiteral("desktopgridEnabled"), false);
+    plugins.writeEntry(QStringLiteral("dialogparentEnabled"), false);
     plugins.writeEntry(QStringLiteral("highlightwindowEnabled"), false);
     plugins.writeEntry(QStringLiteral("kscreenEnabled"), false);
     plugins.writeEntry(QStringLiteral("minimizeanimationEnabled"), false);

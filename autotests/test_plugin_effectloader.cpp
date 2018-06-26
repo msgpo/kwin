@@ -79,6 +79,7 @@ void TestPluginEffectLoader::testHasEffect_data()
     QTest::newRow("Cube")              << QStringLiteral("cube")                      << false;
     QTest::newRow("CubeSlide")         << QStringLiteral("cubeslide")                 << false;
     QTest::newRow("DesktopGrid")       << QStringLiteral("desktopgrid")               << false;
+    QTest::newRow("DialogParent")      << QStringLiteral("dialogparent")              << false;
     QTest::newRow("DimInactive")       << QStringLiteral("diminactive")               << false;
     QTest::newRow("DimScreen")         << QStringLiteral("dimscreen")                 << false;
     QTest::newRow("FallApart")         << QStringLiteral("fallapart")                 << false;
@@ -114,7 +115,6 @@ void TestPluginEffectLoader::testHasEffect_data()
     // all the scripted effects should fail
     QTest::newRow("Fade")              << QStringLiteral("kwin4_effect_fade")         << false;
     QTest::newRow("FadeDesktop")       << QStringLiteral("kwin4_effect_fadedesktop")  << false;
-    QTest::newRow("DialogParent")      << QStringLiteral("kwin4_effect_dialogparent") << false;
     QTest::newRow("Login")             << QStringLiteral("kwin4_effect_login")        << false;
     QTest::newRow("Logout")            << QStringLiteral("kwin4_effect_logout")       << false;
     QTest::newRow("Maximize")          << QStringLiteral("kwin4_effect_maximize")     << false;

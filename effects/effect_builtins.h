@@ -41,6 +41,7 @@ enum class BuiltInEffect
     Cube,
     CubeSlide,
     DesktopGrid,
+    DialogParent,
     DimInactive,
     DimScreen,
     FallApart,
