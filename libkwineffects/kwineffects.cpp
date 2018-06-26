@@ -4,6 +4,7 @@
 
 Copyright (C) 2006 Lubos Lunak <l.lunak@kde.org>
 Copyright (C) 2009 Lucas Murray <lmurray@undefinedfire.com>
+Copyright (C) 2018 Vlad Zagorodniy <vladzzag@gmail.com>
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -1917,6 +1918,129 @@ QMatrix4x4 EffectFrame::screenProjectionMatrix() const
 void EffectFrame::setScreenProjectionMatrix(const QMatrix4x4 &spm)
 {
     d->screenProjectionMatrix = spm;
+}
+
+/***************************************************************
+ TimeLine
+***************************************************************/
+
+TimeLine::TimeLine(int duration, Direction direction)
+    : m_duration(duration)
+    , m_direction(direction)
+{
+    Q_ASSERT(m_duration > 0);
+}
+
+qreal TimeLine::progress() const
+{
+    return static_cast<qreal>(m_elapsed) / m_duration;
+}
+
+qreal TimeLine::value() const
+{
+    const qreal t = progress();
+    return m_easingCurve.valueForProgress(
+        m_direction == Backward ? 1.0 - t : t);
+}
+
+qreal TimeLine::rvalue() const
+{
+    const qreal t = progress();
+    return m_easingCurve.valueForProgress(
+        m_direction == Forward ? 1.0 - t : t);
+}
+
+void TimeLine::update(int delta)
+{
+    Q_ASSERT(delta >= 0);
+    if (m_done) {
+        return;
+    }
+    m_elapsed += delta;
+    if (m_elapsed >= m_duration) {
+        m_done = true;
+        m_elapsed = m_duration;
+    }
+}
+
+int TimeLine::elapsed() const
+{
+    return m_elapsed;
+}
+
+void TimeLine::setElapsed(int elapsed)
+{
+    Q_ASSERT(elapsed >= 0);
+    if (elapsed == m_elapsed) {
+        return;
+    }
+    reset();
+    update(elapsed);
+}
+
+int TimeLine::duration() const
+{
+    return m_duration;
+}
+
+void TimeLine::setDuration(int duration)
+{
+    Q_ASSERT(duration > 0);
+    if (duration == m_duration) {
+        return;
+    }
+    m_elapsed = qRound(progress() * duration);
+    m_duration = duration;
+    if (m_elapsed == m_duration) {
+        m_done = true;
+    }
+}
+
+TimeLine::Direction TimeLine::direction() const
+{
+    return m_direction;
+}
+
+void TimeLine::setDirection(TimeLine::Direction direction)
+{
+    if (m_direction == direction) {
+        return;
+    }
+    if (m_elapsed > 0) {
+        m_elapsed = m_duration - m_elapsed;
+    }
+    m_direction = direction;
+}
+
+void TimeLine::toggleDirection()
+{
+    setDirection(m_direction == Forward ? Backward : Forward);
+}
+
+QEasingCurve TimeLine::easingCurve() const
+{
+    return m_easingCurve;
+}
+
+void TimeLine::setEasingCurve(const QEasingCurve &easingCurve)
+{
+    m_easingCurve = easingCurve;
+}
+
+void TimeLine::setEasingCurve(QEasingCurve::Type type)
+{
+    m_easingCurve.setType(type);
+}
+
+bool TimeLine::done() const
+{
+    return m_done;
+}
+
+void TimeLine::reset()
+{
+    m_elapsed = 0;
+    m_done = false;
 }
 
 } // namespace
