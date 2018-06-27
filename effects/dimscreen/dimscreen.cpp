@@ -3,6 +3,7 @@
  This file is part of the KDE project.
 
  Copyright (C) 2008, 2009 Martin Gräßlin <mgraesslin@kde.org>
+ Copyright (C) 2018 Vlad Zagorodniy <vladzzag@gmail.com>
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -17,16 +18,17 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 *********************************************************************/
+
+// own
 #include "dimscreen.h"
 
-#include <kwinglutils.h>
-
+// Qt
 #include <QSet>
 
 namespace KWin
 {
 
-static const QSet<QString> s_authWindows {
+static const QSet<QString> s_authDialogs {
     QStringLiteral("kdesu kdesu"),
     QStringLiteral("kdesudo kdesudo"),
     QStringLiteral("pinentry pinentry"),
@@ -35,85 +37,141 @@ static const QSet<QString> s_authWindows {
 };
 
 DimScreenEffect::DimScreenEffect()
-    : mActivated(false)
-    , activateAnimation(false)
-    , deactivateAnimation(false)
 {
     reconfigure(ReconfigureAll);
-    connect(effects, SIGNAL(windowActivated(KWin::EffectWindow*)), this, SLOT(slotWindowActivated(KWin::EffectWindow*)));
+
+    connect(effects, &EffectsHandler::windowActivated,
+            this, &DimScreenEffect::windowActivated);
+    connect(effects, &EffectsHandler::activeFullScreenEffectChanged,
+            this, &DimScreenEffect::activeFullScreenEffectChanged);
 }
 
 DimScreenEffect::~DimScreenEffect()
 {
 }
 
-void DimScreenEffect::reconfigure(ReconfigureFlags)
+void DimScreenEffect::reconfigure(ReconfigureFlags flags)
 {
-    timeline.setDuration(animationTime(250));
+    Q_UNUSED(flags)
+
+    m_dimTransition.timeLine.setDuration(
+        std::chrono::milliseconds(static_cast<int>(animationTime(250))));
 }
 
-void DimScreenEffect::prePaintScreen(ScreenPrePaintData& data, int time)
+void DimScreenEffect::prePaintScreen(ScreenPrePaintData &data, int time)
 {
-    if (mActivated && activateAnimation && !effects->activeFullScreenEffect())
-        timeline.setCurrentTime(timeline.currentTime() + time);
-    if (mActivated && deactivateAnimation)
-        timeline.setCurrentTime(timeline.currentTime() - time);
-    if (mActivated && effects->activeFullScreenEffect())
-        timeline.setCurrentTime(timeline.currentTime() - time);
-    if (mActivated && !activateAnimation && !deactivateAnimation && !effects->activeFullScreenEffect() && timeline.currentValue() != 1.0)
-        timeline.setCurrentTime(timeline.currentTime() + time);
-    effects->prePaintScreen(data, time);
-}
-
-void DimScreenEffect::postPaintScreen()
-{
-    if (mActivated) {
-        if (activateAnimation && timeline.currentValue() == 1.0) {
-            activateAnimation = false;
-            effects->addRepaintFull();
-        }
-        if (deactivateAnimation && timeline.currentValue() == 0.0) {
-            deactivateAnimation = false;
-            mActivated = false;
-            effects->addRepaintFull();
-        }
-        // still animating
-        if (timeline.currentValue() > 0.0 && timeline.currentValue() < 1.0)
-            effects->addRepaintFull();
+    if (m_dimTransition.active) {
+        m_dimTransition.timeLine.update(std::chrono::milliseconds(time));
+        m_currentDimStrength = m_dimStrength * m_dimTransition.timeLine.value();
+    } else if (effects->activeFullScreenEffect()) {
+        m_currentDimStrength = 0.0;
+    } else {
+        m_currentDimStrength = m_dimStrength;
     }
-    effects->postPaintScreen();
+
+    effects->prePaintScreen(data, time);
 }
 
 void DimScreenEffect::paintWindow(EffectWindow *w, int mask, QRegion region, WindowPaintData &data)
 {
-    if (mActivated && (w != window) && w->isManaged()) {
-        data.multiplyBrightness((1.0 - 0.33 * timeline.currentValue()));
-        data.multiplySaturation((1.0 - 0.33 * timeline.currentValue()));
+    if (canDim(w)) {
+        data.multiplyBrightness(1.0 - m_currentDimStrength);
+        data.multiplySaturation(1.0 - m_currentDimStrength);
     }
+
     effects->paintWindow(w, mask, region, data);
 }
 
-void DimScreenEffect::slotWindowActivated(EffectWindow *w)
+void DimScreenEffect::postPaintScreen()
 {
-    if (!w) return;
-    if (s_authWindows.contains(w->windowClass())) {
-        mActivated = true;
-        activateAnimation = true;
-        deactivateAnimation = false;
-        window = w;
-        effects->addRepaintFull();
-    } else {
-        if (mActivated) {
-            activateAnimation = false;
-            deactivateAnimation = true;
-            effects->addRepaintFull();
+    if (m_dimTransition.active) {
+        if (m_dimTransition.timeLine.done()) {
+            m_dimTransition.active = false;
         }
+        effects->addRepaintFull();
     }
+
+    effects->postPaintScreen();
 }
 
 bool DimScreenEffect::isActive() const
 {
-    return mActivated;
+    return m_dimTransition.active
+        || m_authDialog != nullptr;
 }
 
-} // namespace
+void DimScreenEffect::windowActivated(EffectWindow *w)
+{
+    if (!w) {
+        return;
+    }
+
+    const EffectWindow *prevAuthDialog = m_authDialog;
+    m_authDialog = s_authDialogs.contains(w->windowClass()) ? w : nullptr;
+
+    if (effects->activeFullScreenEffect()) {
+        return;
+    }
+
+    // User switched between authentication dialogs.
+    if (m_authDialog != nullptr && prevAuthDialog != nullptr) {
+        return;
+    }
+
+    // An authentication dialog got focus.
+    if (m_authDialog != nullptr && prevAuthDialog == nullptr) {
+        if (m_dimTransition.timeLine.done()) {
+            m_dimTransition.timeLine.reset();
+        }
+        m_dimTransition.timeLine.setDirection(TimeLine::Forward);
+        m_dimTransition.active = true;
+        effects->addRepaintFull();
+        return;
+    }
+
+    // An authentication dialog lost focus.
+    if (m_authDialog == nullptr && prevAuthDialog != nullptr) {
+        if (!prevAuthDialog->isOnCurrentDesktop()
+                || !prevAuthDialog->isOnCurrentActivity()) {
+            m_dimTransition.timeLine.reset();
+            m_dimTransition.active = false;
+            return;
+        }
+
+        if (m_dimTransition.timeLine.done()) {
+            m_dimTransition.timeLine.reset();
+        }
+        m_dimTransition.timeLine.setDirection(TimeLine::Backward);
+        m_dimTransition.active = true;
+        effects->addRepaintFull();
+    }
+}
+
+void DimScreenEffect::activeFullScreenEffectChanged()
+{
+    if (!isActive()) {
+        return;
+    }
+
+    if (m_dimTransition.timeLine.done()) {
+        m_dimTransition.timeLine.reset();
+    }
+    m_dimTransition.timeLine.setDirection(
+        effects->activeFullScreenEffect()
+            ? TimeLine::Backward
+            : TimeLine::Forward);
+    m_dimTransition.active = true;
+
+    effects->addRepaintFull();
+}
+
+bool DimScreenEffect::canDim(const EffectWindow *w) const
+{
+    if (w == m_authDialog) {
+        return false;
+    }
+
+    return w->isManaged();
+}
+
+} // namespace KWin

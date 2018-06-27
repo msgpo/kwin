@@ -3,6 +3,7 @@
  This file is part of the KDE project.
 
  Copyright (C) 2008, 2009 Martin Gräßlin <mgraesslin@kde.org>
+ Copyright (C) 2018 Vlad Zagorodniy <vladzzag@gmail.com>
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -21,37 +22,54 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #ifndef KWIN_DIMSCREEN_H
 #define KWIN_DIMSCREEN_H
 
+// kwineffects
 #include <kwineffects.h>
-#include <QTimeLine>
 
 namespace KWin
 {
 
-class DimScreenEffect
-    : public Effect
+class DimScreenEffect : public Effect
 {
     Q_OBJECT
+
 public:
     DimScreenEffect();
-    ~DimScreenEffect();
+    ~DimScreenEffect() override;
 
-    virtual void reconfigure(ReconfigureFlags);
-    virtual void prePaintScreen(ScreenPrePaintData& data, int time);
-    virtual void postPaintScreen();
-    virtual void paintWindow(EffectWindow *w, int mask, QRegion region, WindowPaintData &data);
-    virtual bool isActive() const;
+    void reconfigure(ReconfigureFlags flags) override;
 
-public Q_SLOTS:
-    void slotWindowActivated(KWin::EffectWindow *w);
+    void prePaintScreen(ScreenPrePaintData &data, int time) override;
+    void paintWindow(EffectWindow *w, int mask, QRegion region, WindowPaintData &data) override;
+    void postPaintScreen() override;
+
+    bool isActive() const override;
+    int requestedEffectChainPosition() const override;
+
+private Q_SLOTS:
+    void windowActivated(EffectWindow *w);
+    void activeFullScreenEffectChanged();
 
 private:
-    bool mActivated;
-    bool activateAnimation;
-    bool deactivateAnimation;
-    QTimeLine timeline;
-    EffectWindow* window;
+    bool canDim(const EffectWindow *w) const;
+
+    qreal m_dimStrength = 0.33;
+
+    EffectWindow *m_authDialog = nullptr;
+    qreal m_currentDimStrength;
+
+    struct Transition {
+        bool active = false;
+        TimeLine timeLine;
+    };
+
+    Transition m_dimTransition;
 };
 
-} // namespace
+inline int DimScreenEffect::requestedEffectChainPosition() const
+{
+    return 50;
+}
+
+} // namespace KWin
 
 #endif
