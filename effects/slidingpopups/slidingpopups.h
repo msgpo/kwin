@@ -21,81 +21,98 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #ifndef KWIN_SLIDINGPOPUPS_H
 #define KWIN_SLIDINGPOPUPS_H
 
-// Include with base class for effects.
+// kwineffects
 #include <kwineffects.h>
 
 namespace KWin
 {
 
-class SlidingPopupsEffect
-    : public Effect
+class SlidingPopupsEffect : public Effect
 {
     Q_OBJECT
-    Q_PROPERTY(int fadeInTime READ fadeInTime)
-    Q_PROPERTY(int fadeOutTime READ fadeOutTime)
+    Q_PROPERTY(int slideInDuration READ slideInDuration)
+    Q_PROPERTY(int slideOutDuration READ slideOutDuration)
+
 public:
     SlidingPopupsEffect();
-    ~SlidingPopupsEffect();
-    virtual void prePaintScreen(ScreenPrePaintData& data, int time);
-    virtual void prePaintWindow(EffectWindow* w, WindowPrePaintData& data, int time);
-    virtual void paintWindow(EffectWindow* w, int mask, QRegion region, WindowPaintData& data);
-    virtual void postPaintWindow(EffectWindow* w);
-    virtual void reconfigure(ReconfigureFlags flags);
-    virtual bool isActive() const;
+    ~SlidingPopupsEffect() override;
 
-    int requestedEffectChainPosition() const override {
-        return 40;
-    }
+    void reconfigure(ReconfigureFlags flags) override;
+
+    void prePaintWindow(EffectWindow *w, WindowPrePaintData &data, int time) override;
+    void paintWindow(EffectWindow *w, int mask, QRegion region, WindowPaintData &data) override;
+    void postPaintWindow(EffectWindow *w) override;
+
+    bool isActive() const override;
+    int requestedEffectChainPosition() const override;
 
     static bool supported();
 
-    // TODO react also on virtual desktop changes
+    int slideInDuration() const;
+    int slideOutDuration() const;
 
-    // for properties
-    int fadeInTime() const {
-        return mFadeInTime.count();
-    }
-    int fadeOutTime() const {
-        return mFadeOutTime.count();
-    }
-public Q_SLOTS:
-    void slotWindowAdded(KWin::EffectWindow *c);
-    void slotWindowClosed(KWin::EffectWindow *c);
-    void slotWindowDeleted(KWin::EffectWindow *w);
-    void slotPropertyNotify(KWin::EffectWindow *w, long a);
-    void slotWaylandSlideOnShowChanged(EffectWindow* w);
+private Q_SLOTS:
+    void windowAdded(EffectWindow *w);
+    void windowDeleted(EffectWindow *w);
+    void propertyNotify(EffectWindow *w, long atom);
+    void waylandSlideOnShowChanged(EffectWindow *w);
+
+    void slideIn(EffectWindow *w);
+    void slideOut(EffectWindow *w);
+
 private:
-    void setupAnimData(EffectWindow *w);
-    void startForShow(EffectWindow *w);
+    void sanitizeAnimData(EffectWindow *w);
 
-    enum Position {
-        West = 0,
-        North = 1,
-        East = 2,
-        South = 3
+private:
+    std::chrono::milliseconds m_slideInDuration;
+    std::chrono::milliseconds m_slideOutDuration;
+    int m_slideLength;
+
+    enum class AnimationKind {
+        In,
+        Out
     };
-    struct Data {
-        int start; //point in screen coordinates where the window starts
-        //to animate, from decides if this point is an x or an y
-        Position from;
-        std::chrono::milliseconds fadeInDuration;
-        std::chrono::milliseconds fadeOutDuration;
+
+    struct Animation {
+        AnimationKind kind;
+        TimeLine timeLine;
+    };
+    QHash<const EffectWindow*, Animation> m_animations;
+
+    enum class Location {
+        Top,
+        Right,
+        Bottom,
+        Left
+    };
+
+    struct AnimationData {
+        int offset;
+        Location location;
+        std::chrono::milliseconds slideInDuration;
+        std::chrono::milliseconds slideOutDuration;
         int slideLength;
     };
-    long mAtom;
+    QHash<const EffectWindow*, AnimationData> m_animationData;
 
-    // This list is only for appearing windows: we remember that we've enabled the
-    // WindowBackgroundContrastForcedRole flag, so we can remove it later.
-    // It doesn't matter for disappearing windows, they'll be deleted anyway.
-    QList< const EffectWindow* > m_backgroundContrastForced;
-    QHash< const EffectWindow*, TimeLine > mAppearingWindows;
-    QHash< const EffectWindow*, TimeLine > mDisappearingWindows;
-    QHash< const EffectWindow*, Data > mWindowsData;
-    int mSlideLength;
-    std::chrono::milliseconds mFadeInTime;
-    std::chrono::milliseconds mFadeOutTime;
+    long m_atom;
 };
 
-} // namespace
+inline int SlidingPopupsEffect::requestedEffectChainPosition() const
+{
+    return 40;
+}
+
+inline int SlidingPopupsEffect::slideInDuration() const
+{
+    return m_slideInDuration.count();
+}
+
+inline int SlidingPopupsEffect::slideOutDuration() const
+{
+    return m_slideOutDuration.count();
+}
+
+} // namespace KWin
 
 #endif
