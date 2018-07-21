@@ -1,0 +1,5 @@
+File=fadedesktop.kcfg
+ClassName=FadeDesktopConfig
+NameSpace=KWin
+Singleton=true
+Mutators=true

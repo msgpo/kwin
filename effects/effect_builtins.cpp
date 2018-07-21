@@ -32,6 +32,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "desktopgrid/desktopgrid.h"
 #include "diminactive/diminactive.h"
 #include "dimscreen/dimscreen.h"
+#include "fadedesktop/fadedesktop.h"
 #include "fallapart/fallapart.h"
 #include "highlightwindow/highlightwindow.h"
 #include "magiclamp/magiclamp.h"
@@ -229,6 +230,21 @@ EFFECT_FALLBACK
 #ifdef EFFECT_BUILTINS
         &createHelper<DimScreenEffect>,
         nullptr,
+        nullptr
+#endif
+EFFECT_FALLBACK
+    }, {
+        QStringLiteral("fadedesktop"),
+        i18ndc("kwin_effects", "Name of a KWin Effect", "Fade Desktop"),
+        i18ndc("kwin_effects", "Comment describing the KWin Effect", "Fade between virtual desktops when switching between them"),
+        QStringLiteral("Virtual Desktop Switching Animation"),
+        QStringLiteral("desktop-animations"),
+        QUrl(QStringLiteral("http://files.kde.org/plasma/kwin/effect-videos/fade_desktop.ogv")),
+        false,
+        false,
+#ifdef EFFECT_BUILTINS
+        &createHelper<FadeDesktopEffect>,
+        &FadeDesktopEffect::supported,
         nullptr
 #endif
 EFFECT_FALLBACK

@@ -33,8 +33,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <KCModuleProxy>
 #include <KGlobalAccel>
 #include <KLocalizedString>
-#include <KPackage/Package>
-#include <KPackage/PackageLoader>
 #include <KPluginInfo>
 #include <KPluginFactory>
 #include <KPluginTrader>
@@ -147,16 +145,10 @@ void KWinDesktopConfig::init()
 
     // search the effect names
     // TODO: way to recognize if a effect is not found
-    KServiceTypeTrader* trader = KServiceTypeTrader::self();
-    QString fadedesktop;
-    KService::List services = trader->query("KWin/Effect", "[X-KDE-PluginInfo-Name] == 'kwin4_effect_fadedesktop'");
-    if (!services.isEmpty())
-        fadedesktop = services.first()->name();
-
     m_ui->effectComboBox->addItem(i18n("No Animation"));
     m_ui->effectComboBox->addItem(BuiltInEffects::effectData(BuiltInEffect::Slide).displayName);
     m_ui->effectComboBox->addItem(BuiltInEffects::effectData(BuiltInEffect::CubeSlide).displayName);
-    m_ui->effectComboBox->addItem(fadedesktop);
+    m_ui->effectComboBox->addItem(BuiltInEffects::effectData(BuiltInEffect::FadeDesktop).displayName);
 
     // effect config and info button
     m_ui->effectInfoButton->setIcon(QIcon::fromTheme("dialog-information"));
@@ -289,8 +281,7 @@ void KWinDesktopConfig::load()
     };
     enableBuiltInEffect(BuiltInEffect::Slide, 1);
     enableBuiltInEffect(BuiltInEffect::CubeSlide, 2);
-    if (effectEnabled("fadedesktop", effectconfig))
-        m_ui->effectComboBox->setCurrentIndex(3);
+    enableBuiltInEffect(BuiltInEffect::FadeDesktop, 3);
     slotEffectSelectionChanged(m_ui->effectComboBox->currentIndex());
     // TODO: plasma stuff
 
@@ -372,7 +363,7 @@ void KWinDesktopConfig::save()
 
     effectconfig.writeEntry("slideEnabled", slideEnabled);
     effectconfig.writeEntry("cubeslideEnabled", cubeSlideEnabled);
-    effectconfig.writeEntry("kwin4_effect_fadedesktopEnabled", fadeEnabled);
+    effectconfig.writeEntry("fadedesktopEnabled", fadeEnabled);
 
     m_editor->save();
 
@@ -395,9 +386,9 @@ void KWinDesktopConfig::save()
         interface.unloadEffect(BuiltInEffects::nameForEffect(BuiltInEffect::CubeSlide));
     }
     if (fadeEnabled) {
-        interface.loadEffect(QStringLiteral("kwin4_effect_fadedesktop"));
+        interface.loadEffect(BuiltInEffects::nameForEffect(BuiltInEffect::FadeDesktop));
     } else {
-        interface.unloadEffect(QStringLiteral("kwin4_effect_fadedesktop"));
+        interface.unloadEffect(BuiltInEffects::nameForEffect(BuiltInEffect::FadeDesktop));
     }
 
     emit changed(false);
@@ -527,6 +518,7 @@ void KWinDesktopConfig::slotEffectSelectionChanged(int index)
     switch (index) {
     case 1: // Slide
     case 2: // Cube Slide
+    case 3: // Fade Desktop
         enabled = true;
         break;
     default:
@@ -536,21 +528,8 @@ void KWinDesktopConfig::slotEffectSelectionChanged(int index)
     m_ui->effectConfigButton->setEnabled(enabled);
 }
 
-
-bool KWinDesktopConfig::effectEnabled(const QString& effect, const KConfigGroup& cfg) const
-{
-    KService::List services = KServiceTypeTrader::self()->query(
-                                  "KWin/Effect", "[X-KDE-PluginInfo-Name] == 'kwin4_effect_" + effect + '\'');
-    if (services.isEmpty())
-        return false;
-    QVariant v = services.first()->property("X-KDE-PluginInfo-EnabledByDefault");
-    return cfg.readEntry("kwin4_effect_" + effect + "Enabled", v.toBool());
-}
-
 void KWinDesktopConfig::slotAboutEffectClicked()
 {
-    QString effect;
-    bool fromKService = false;
     BuiltInEffect builtIn = BuiltInEffect::Invalid;
     switch(m_ui->effectComboBox->currentIndex()) {
     case 1:
@@ -560,8 +539,7 @@ void KWinDesktopConfig::slotAboutEffectClicked()
         builtIn = BuiltInEffect::CubeSlide;
         break;
     case 3:
-        effect = "fadedesktop";
-        fromKService = true;
+        builtIn = BuiltInEffect::FadeDesktop;
         break;
     default:
         return;
@@ -571,53 +549,15 @@ void KWinDesktopConfig::slotAboutEffectClicked()
         aboutPlugin->exec();
         delete aboutPlugin;
     };
-    if (fromKService) {
-        const QString pluginId = QStringLiteral("kwin4_effect_%1").arg(effect);
-        const auto effectsMetaData = KPackage::PackageLoader::self()->findPackages(
-            QStringLiteral("KWin/Effect"),
-            QStringLiteral("kwin/effects/"),
-            [&pluginId](const KPluginMetaData &meta) {
-                return meta.pluginId() == pluginId;
-            });
-        if (effectsMetaData.isEmpty()) {
-            return;
-        }
-        KPluginInfo pluginInfo(effectsMetaData.first());
-
-        const QString name    = pluginInfo.name();
-        const QString comment = pluginInfo.comment();
-        const QString author  = pluginInfo.author();
-        const QString email   = pluginInfo.email();
-        const QString website = pluginInfo.website();
-        const QString version = pluginInfo.version();
-        const QString license = pluginInfo.license();
-        const QString icon    = pluginInfo.icon();
-
-        KAboutData aboutData(name, name, version, comment, KAboutLicense::byKeyword(license).key(), QString(), QString(), website.toLatin1());
-        aboutData.setProgramLogo(icon);
-        const QStringList authors = author.split(',');
-        const QStringList emails = email.split(',');
-        int i = 0;
-        if (authors.count() == emails.count()) {
-            foreach (const QString & author, authors) {
-                if (!author.isEmpty()) {
-                    aboutData.addAuthor(i18n(author.toUtf8()), QString(), emails[i]);
-                }
-                i++;
-            }
-        }
-        showDialog(aboutData);
-    } else {
-        const BuiltInEffects::EffectData &data = BuiltInEffects::effectData(builtIn);
-        KAboutData aboutData(data.name,
-                             data.displayName,
-                             QStringLiteral(KWIN_VERSION_STRING),
-                             data.comment,
-                             KAboutLicense::GPL_V2);
-        aboutData.setProgramLogo(QIcon::fromTheme(QStringLiteral("preferences-system-windows")));
-        aboutData.addAuthor(i18n("KWin development team"));
-        showDialog(aboutData);
-    }
+    const BuiltInEffects::EffectData &data = BuiltInEffects::effectData(builtIn);
+    KAboutData aboutData(data.name,
+                         data.displayName,
+                         QStringLiteral(KWIN_VERSION_STRING),
+                         data.comment,
+                         KAboutLicense::GPL_V2);
+    aboutData.setProgramLogo(QIcon::fromTheme(QStringLiteral("preferences-system-windows")));
+    aboutData.addAuthor(i18n("KWin development team"));
+    showDialog(aboutData);
 }
 
 void KWinDesktopConfig::slotConfigureEffectClicked()
@@ -629,6 +569,9 @@ void KWinDesktopConfig::slotConfigureEffectClicked()
         break;
     case 2:
         effect = BuiltInEffects::nameForEffect(BuiltInEffect::CubeSlide);
+        break;
+    case 3:
+        effect = BuiltInEffects::nameForEffect(BuiltInEffect::FadeDesktop);
         break;
     default:
         return;

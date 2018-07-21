@@ -43,6 +43,7 @@ enum class BuiltInEffect
     DesktopGrid,
     DimInactive,
     DimScreen,
+    FadeDesktop,
     FallApart,
     FlipSwitch,
     Glide,

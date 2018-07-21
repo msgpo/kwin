@@ -89,6 +89,7 @@ void TestBuiltInEffectLoader::testHasEffect_data()
     QTest::newRow("DesktopGrid")                    << QStringLiteral("desktopgrid")       << true;
     QTest::newRow("DimInactive")                    << QStringLiteral("diminactive")       << true;
     QTest::newRow("DimScreen")                      << QStringLiteral("dimscreen")         << true;
+    QTest::newRow("FadeDesktop")                    << QStringLiteral("fadedesktop")       << true;
     QTest::newRow("FallApart")                      << QStringLiteral("fallapart")         << true;
     QTest::newRow("FlipSwitch")                     << QStringLiteral("flipswitch")        << true;
     QTest::newRow("Glide")                          << QStringLiteral("glide")             << true;
@@ -145,6 +146,7 @@ void TestBuiltInEffectLoader::testKnownEffects()
                     << QStringLiteral("desktopgrid")
                     << QStringLiteral("diminactive")
                     << QStringLiteral("dimscreen")
+                    << QStringLiteral("fadedesktop")
                     << QStringLiteral("fallapart")
                     << QStringLiteral("flipswitch")
                     << QStringLiteral("glide")
@@ -214,6 +216,7 @@ void TestBuiltInEffectLoader::testSupported_data()
     QTest::newRow("DesktopGrid")                    << QStringLiteral("desktopgrid")       << true  << xc << true;
     QTest::newRow("DimInactive")                    << QStringLiteral("diminactive")       << true  << xc << true;
     QTest::newRow("DimScreen")                      << QStringLiteral("dimscreen")         << true  << xc << true;
+    QTest::newRow("FadeDesktop")                    << QStringLiteral("fadedesktop")       << true  << xc << true;
     QTest::newRow("FallApart")                      << QStringLiteral("fallapart")         << false << xc << true;
     QTest::newRow("FallApart-GL")                   << QStringLiteral("fallapart")         << true  << oc << true;
     QTest::newRow("FlipSwitch")                     << QStringLiteral("flipswitch")        << false << xc << true;
@@ -305,6 +308,7 @@ void TestBuiltInEffectLoader::testLoadEffect_data()
     QTest::newRow("DesktopGrid")                    << QStringLiteral("desktopgrid")       << true  << xc;
     QTest::newRow("DimInactive")                    << QStringLiteral("diminactive")       << true  << xc;
     QTest::newRow("DimScreen")                      << QStringLiteral("dimScreen")         << true  << xc;
+    QTest::newRow("FadeDesktop")                    << QStringLiteral("fadedesktop")       << true  << xc;
     QTest::newRow("FallApart")                      << QStringLiteral("fallapart")         << false << xc;
     QTest::newRow("FallApart-GL")                   << QStringLiteral("fallapart")         << true  << oc;
     QTest::newRow("FlipSwitch")                     << QStringLiteral("flipswitch")        << false << xc;

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Service
+X-KDE-ServiceTypes=KCModule
+
+X-KDE-Library=kwin_fadedesktop_config
+X-KDE-ParentComponents=fadedesktop
+
+Name=Fade Desktop

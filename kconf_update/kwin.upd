@@ -1,0 +1,7 @@
+Version=5
+
+# Replace scripted fade desktop effect with builtin fade desktop effect.
+Id=replace-scripted-fade-desktop-with-builtin-fade-desktop
+File=kwinrc
+Group=Plugins
+Key=kwin4_effect_fadedesktopEnabled,fadedesktopEnabled

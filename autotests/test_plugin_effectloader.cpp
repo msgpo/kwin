@@ -81,6 +81,7 @@ void TestPluginEffectLoader::testHasEffect_data()
     QTest::newRow("DesktopGrid")       << QStringLiteral("desktopgrid")               << false;
     QTest::newRow("DimInactive")       << QStringLiteral("diminactive")               << false;
     QTest::newRow("DimScreen")         << QStringLiteral("dimscreen")                 << false;
+    QTest::newRow("FadeDesktop")       << QStringLiteral("fadedesktop")               << false;
     QTest::newRow("FallApart")         << QStringLiteral("fallapart")                 << false;
     QTest::newRow("FlipSwitch")        << QStringLiteral("flipswitch")                << false;
     QTest::newRow("Glide")             << QStringLiteral("glide")                     << false;
@@ -113,7 +114,6 @@ void TestPluginEffectLoader::testHasEffect_data()
     QTest::newRow("Non Existing")      << QStringLiteral("InvalidName")               << false;
     // all the scripted effects should fail
     QTest::newRow("Fade")              << QStringLiteral("kwin4_effect_fade")         << false;
-    QTest::newRow("FadeDesktop")       << QStringLiteral("kwin4_effect_fadedesktop")  << false;
     QTest::newRow("DialogParent")      << QStringLiteral("kwin4_effect_dialogparent") << false;
     QTest::newRow("Login")             << QStringLiteral("kwin4_effect_login")        << false;
     QTest::newRow("Logout")            << QStringLiteral("kwin4_effect_logout")       << false;

@@ -79,6 +79,7 @@ set( kwin4_effect_builtins_sources
     coverswitch/coverswitch.cpp
     desktopgrid/desktopgrid.cpp
     diminactive/diminactive.cpp
+    fadedesktop/fadedesktop.cpp
     flipswitch/flipswitch.cpp
     glide/glide.cpp
     invert/invert.cpp
@@ -109,6 +110,7 @@ kconfig_add_kcfg_files(kwin4_effect_builtins_sources
     coverswitch/coverswitchconfig.kcfgc
     desktopgrid/desktopgridconfig.kcfgc
     diminactive/diminactiveconfig.kcfgc
+    fadedesktop/fadedesktopconfig.kcfgc
     fallapart/fallapartconfig.kcfgc
     flipswitch/flipswitchconfig.kcfgc
     glide/glideconfig.kcfgc
@@ -133,7 +135,6 @@ kconfig_add_kcfg_files(kwin4_effect_builtins_sources
 add_subdirectory( dialogparent )
 add_subdirectory( eyeonscreen )
 add_subdirectory( fade )
-add_subdirectory( fadedesktop )
 add_subdirectory( frozenapp )
 add_subdirectory( login )
 add_subdirectory( logout )
@@ -150,6 +151,7 @@ add_subdirectory( windowaperture )
 add_subdirectory( desktopgrid )
 add_subdirectory( diminactive )
 include( dimscreen/CMakeLists.txt )
+add_subdirectory( fadedesktop )
 include( fallapart/CMakeLists.txt )
 include( highlightwindow/CMakeLists.txt )
 include( kscreen/CMakeLists.txt )
