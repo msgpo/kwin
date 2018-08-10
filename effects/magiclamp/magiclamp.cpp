@@ -3,6 +3,7 @@
  This file is part of the KDE project.
 
  Copyright (C) 2008 Martin Gräßlin <mgraesslin@kde.org>
+ Copyright (C) 2018 Vlad Zagorodniy <vladzzag@gmail.com>
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -18,48 +19,62 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 *********************************************************************/
 
-// based on minimize animation by Rivo Laks <rivolaks@hot.ee>
-
+// own
 #include "magiclamp.h"
+
 // KConfigSkeleton
 #include "magiclampconfig.h"
 
+// std
+#include <cmath>
+
 namespace KWin
 {
+
+static inline std::chrono::milliseconds durationFraction(std::chrono::milliseconds duration, qreal fraction)
+{
+    return std::chrono::milliseconds(qMax(qRound(duration.count() * fraction), 1));
+}
 
 MagicLampEffect::MagicLampEffect()
 {
     initConfig<MagicLampConfig>();
     reconfigure(ReconfigureAll);
-    connect(effects, SIGNAL(windowDeleted(KWin::EffectWindow*)), this, SLOT(slotWindowDeleted(KWin::EffectWindow*)));
-    connect(effects, SIGNAL(windowMinimized(KWin::EffectWindow*)), this, SLOT(slotWindowMinimized(KWin::EffectWindow*)));
-    connect(effects, SIGNAL(windowUnminimized(KWin::EffectWindow*)), this, SLOT(slotWindowUnminimized(KWin::EffectWindow*)));
+
+    m_shapeCurve.setType(QEasingCurve::InOutSine);
+
+    connect(effects, &EffectsHandler::windowMinimized,
+            this, &MagicLampEffect::slotWindowMinimized);
+    connect(effects, &EffectsHandler::windowUnminimized,
+            this, &MagicLampEffect::slotWindowUnminimized);
+    connect(effects, &EffectsHandler::windowDeleted,
+            this, &MagicLampEffect::slotWindowDeleted);
+    connect(effects, &EffectsHandler::activeFullScreenEffectChanged,
+            this, &MagicLampEffect::slotActiveFullScreenEffectChanged);
 }
 
-bool MagicLampEffect::supported()
+void MagicLampEffect::reconfigure(ReconfigureFlags flags)
 {
-    return effects->isOpenGLCompositing() && effects->animationsSupported();
-}
+    Q_UNUSED(flags)
 
-void MagicLampEffect::reconfigure(ReconfigureFlags)
-{
     MagicLampConfig::self()->read();
 
-    // TODO: Rename animationDuration to duration so we can use
-    // animationTime<MagicLampConfig>(250).
-    const int d = MagicLampConfig::animationDuration() != 0
-        ? MagicLampConfig::animationDuration()
-        : 250;
-    m_duration = std::chrono::milliseconds(static_cast<int>(animationTime(d)));
+    // TODO: Rename AnimationDuration config key to Duration.
+    const int rawDuration = MagicLampConfig::animationDuration();
+    const int baseDuration = static_cast<int>(animationTime(rawDuration ? rawDuration : 250));
+
+    m_squashDuration = std::chrono::milliseconds(baseDuration);
+    m_stretchDuration = std::chrono::milliseconds(qMax(qRound(baseDuration * 0.4), 1));
+    m_bumpDuration = std::chrono::milliseconds(qMax(qRound(baseDuration * 0.9), 1));
 }
 
-void MagicLampEffect::prePaintScreen(ScreenPrePaintData& data, int time)
+void MagicLampEffect::prePaintScreen(ScreenPrePaintData &data, int time)
 {
     const std::chrono::milliseconds delta(time);
 
     auto animationIt = m_animations.begin();
     while (animationIt != m_animations.end()) {
-        (*animationIt).update(delta);
+        (*animationIt).timeLine.update(delta);
         ++animationIt;
     }
 
@@ -70,249 +85,448 @@ void MagicLampEffect::prePaintScreen(ScreenPrePaintData& data, int time)
     effects->prePaintScreen(data, time);
 }
 
-void MagicLampEffect::prePaintWindow(EffectWindow* w, WindowPrePaintData& data, int time)
+void MagicLampEffect::prePaintWindow(EffectWindow *w, WindowPrePaintData &data, int time)
 {
-    // Schedule window for transformation if the animation is still in
-    //  progress
-    if (m_animations.contains(w)) {
-        // We'll transform this window
+    auto animationIt = m_animations.constFind(w);
+    if (animationIt != m_animations.constEnd()) {
         data.setTransformed();
-        data.quads = data.quads.makeGrid(40);
         w->enablePainting(EffectWindow::PAINT_DISABLED_BY_MINIMIZE);
+
+        // Windows are transformed in Stretch1, Stretch2, and Squash stages.
+        if ((*animationIt).stage != AnimationStage::Bump) {
+            data.quads = data.quads.makeGrid(m_gridResolution);
+        }
     }
 
     effects->prePaintWindow(w, data, time);
 }
 
-void MagicLampEffect::paintWindow(EffectWindow* w, int mask, QRegion region, WindowPaintData& data)
+void MagicLampEffect::paintBumpStage(const Animation &animation, WindowPaintData &data) const
 {
-    auto animationIt = m_animations.constFind(w);
-    if (animationIt != m_animations.constEnd()) {
-        // 0 = not minimized, 1 = fully minimized
-        const qreal progress = (*animationIt).value();
+    const qreal t = animation.timeLine.value();
 
-        QRect geo = w->geometry();
-        QRect icon = w->iconGeometry();
-        IconPosition position = Top;
-        // If there's no icon geometry, minimize to the center of the screen
-        if (!icon.isValid()) {
-            QRect extG = geo;
-            QPoint pt = cursorPos();
-            // focussing inside the window is no good, leads to ugly artefacts, find nearest border
-            if (extG.contains(pt)) {
-                const int d[2][2] = { {pt.x() - extG.x(), extG.right()  - pt.x()},
-                    {pt.y() - extG.y(), extG.bottom() - pt.y()}
-                };
-                int di = d[1][0];
-                position = Top;
-                if (d[0][0] < di) {
-                    di = d[0][0];
-                    position = Left;
-                }
-                if (d[1][1] < di) {
-                    di = d[1][1];
-                    position = Bottom;
-                }
-                if (d[0][1] < di)
-                    position = Right;
-                switch(position) {
-                case Top: pt.setY(extG.y()); break;
-                case Left: pt.setX(extG.x()); break;
-                case Bottom: pt.setY(extG.bottom()); break;
-                case Right: pt.setX(extG.right()); break;
-                }
-            } else {
-                if (pt.y() < geo.y())
-                    position = Top;
-                else if (pt.x() < geo.x())
-                    position = Left;
-                else if (pt.y() > geo.bottom())
-                    position = Bottom;
-                else if (pt.x() > geo.right())
-                    position = Right;
-            }
-            icon = QRect(pt, QSize(0, 0));
-        } else {
-            // Assumption: there is a panel containing the icon position
-            EffectWindow* panel = NULL;
-            foreach (EffectWindow * window, effects->stackingOrder()) {
-                if (!window->isDock())
-                    continue;
-                // we have to use intersects as there seems to be a Plasma bug
-                // the published icon geometry might be bigger than the panel
-                if (window->geometry().intersects(icon)) {
-                    panel = window;
-                    break;
-                }
-            }
-            if (panel) {
-                // Assumption: width of horizonal panel is greater than its height and vice versa
-                // The panel has to border one screen edge, so get it's screen area
-                QRect panelScreen = effects->clientArea(ScreenArea, panel);
-                if (panel->width() >= panel->height()) {
-                    // horizontal panel
-                    if (panel->y() == panelScreen.y())
-                        position = Top;
-                    else
-                        position = Bottom;
-                } else {
-                    // vertical panel
-                    if (panel->x() == panelScreen.x())
-                        position = Left;
-                    else
-                        position = Right;
-                }
-            } else {
-                // we did not find a panel, so it might be autohidden
-                QRect iconScreen = effects->clientArea(ScreenArea, icon.topLeft(), effects->currentDesktop());
-                // as the icon geometry could be overlap a screen edge we use an intersection
-                QRect rect = iconScreen.intersected(icon);
-                // here we need a different assumption: icon geometry borders one screen edge
-                // this assumption might be wrong for e.g. task applet being the only applet in panel
-                // in this case the icon borders two screen edges
-                // there might be a wrong animation, but not distorted
-                if (rect.x() == iconScreen.x()) {
-                    position = Left;
-                } else if (rect.x() + rect.width() == iconScreen.x() + iconScreen.width()) {
-                    position = Right;
-                } else if (rect.y() == iconScreen.y()) {
-                    position = Top;
-                } else {
-                    position = Bottom;
-                }
-            }
-        }
+    switch (animation.direction) {
+    case Direction::Top:
+        data.translate(0.0, interpolate(0.0, animation.bumpDistance, t));
+        break;
 
-#define SANITIZE_PROGRESS   if (p_progress[0] < 0)\
-                                p_progress[0] = -p_progress[0];\
-                            if (p_progress[1] < 0)\
-                                p_progress[1] = -p_progress[1]
-#define SET_QUADS(_SET_A_, _A_, _DA_, _SET_B_, _B_, _O0_, _O1_, _O2_, _O3_) quad[0]._SET_A_((icon._A_() + icon._DA_()*(quad[0]._A_() / geo._DA_()) - (quad[0]._A_() + geo._A_()))*p_progress[_O0_] + quad[0]._A_());\
-                                                                            quad[1]._SET_A_((icon._A_() + icon._DA_()*(quad[1]._A_() / geo._DA_()) - (quad[1]._A_() + geo._A_()))*p_progress[_O1_] + quad[1]._A_());\
-                                                                            quad[2]._SET_A_((icon._A_() + icon._DA_()*(quad[2]._A_() / geo._DA_()) - (quad[2]._A_() + geo._A_()))*p_progress[_O2_] + quad[2]._A_());\
-                                                                            quad[3]._SET_A_((icon._A_() + icon._DA_()*(quad[3]._A_() / geo._DA_()) - (quad[3]._A_() + geo._A_()))*p_progress[_O3_] + quad[3]._A_());\
-                                                                            \
-                                                                            quad[0]._SET_B_(quad[0]._B_() + offset[_O0_]);\
-                                                                            quad[1]._SET_B_(quad[1]._B_() + offset[_O1_]);\
-                                                                            quad[2]._SET_B_(quad[2]._B_() + offset[_O2_]);\
-                                                                            quad[3]._SET_B_(quad[3]._B_() + offset[_O3_])
+    case Direction::Right:
+        data.translate(-interpolate(0.0, animation.bumpDistance, t), 0.0);
+        break;
 
-        WindowQuadList newQuads;
-        newQuads.reserve(data.quads.count());
-        float quadFactor;   // defines how fast a quad is vertically moved: y coordinates near to window top are slowed down
-                            // it is used as quadFactor^3/windowHeight^3
-                            // quadFactor is the y position of the quad but is changed towards becomming the window height
-                            // by that the factor becomes 1 and has no influence any more
-        float offset[2] = {0,0};    // how far has a quad to be moved? Distance between icon and window multiplied by the progress and by the quadFactor
-        float p_progress[2] = {0,0};  // the factor which defines how far the x values have to be changed
-                            // factor is the current moved y value diveded by the distance between icon and window
-        WindowQuad lastQuad(WindowQuadError);
-        lastQuad[0].setX(-1);
-        lastQuad[0].setY(-1);
-        lastQuad[1].setX(-1);
-        lastQuad[1].setY(-1);
-        lastQuad[2].setX(-1);
-        lastQuad[2].setY(-1);
+    case Direction::Bottom:
+        data.translate(0.0, -interpolate(0.0, animation.bumpDistance, t));
+        break;
 
-        if (position == Bottom) {
-            float height_cube = float(geo.height()) * float(geo.height()) * float(geo.height());
-            foreach (WindowQuad quad, data.quads) { // krazy:exclude=foreach
+    case Direction::Left:
+        data.translate(interpolate(0.0, animation.bumpDistance, t), 0.0);
+        break;
 
-                if (quad[0].y() != lastQuad[0].y() || quad[2].y() != lastQuad[2].y()) {
-                    quadFactor = quad[0].y() + (geo.height() - quad[0].y()) * progress;
-                    offset[0] = (icon.y() + quad[0].y() - geo.y()) * progress * ((quadFactor * quadFactor * quadFactor) / height_cube);
-                    quadFactor = quad[2].y() + (geo.height() - quad[2].y()) * progress;
-                    offset[1] = (icon.y() + quad[2].y() - geo.y()) * progress * ((quadFactor * quadFactor * quadFactor) / height_cube);
-                    p_progress[1] = qMin(offset[1] / (icon.y() + icon.height() - geo.y() - float(quad[2].y())), 1.0f);
-                    p_progress[0] = qMin(offset[0] / (icon.y() + icon.height() - geo.y() - float(quad[0].y())), 1.0f);
-                } else
-                    lastQuad = quad;
+    default:
+        Q_UNREACHABLE();
+    }
+}
 
-                SANITIZE_PROGRESS;
-                // x values are moved towards the center of the icon
-                SET_QUADS(setX, x, width, setY, y, 0,0,1,1);
+WindowQuadList MagicLampEffect::transformTop(qreal stretchProgress, qreal squashProgress,
+                                             qreal bumpProgress, qreal bumpDistance,
+                                             const QRect &windowRect, const QRect &iconRect,
+                                             const WindowQuadList &quads) const
+{
+    WindowQuadList transformedQuads;
+    transformedQuads.reserve(quads.size());
 
-                newQuads.append(quad);
-            }
-        } else if (position == Top) {
-            float height_cube = float(geo.height()) * float(geo.height()) * float(geo.height());
-            foreach (WindowQuad quad, data.quads) { // krazy:exclude=foreach
+    const qreal distance = windowRect.bottom() - iconRect.bottom() + bumpDistance;
 
-                if (quad[0].y() != lastQuad[0].y() || quad[2].y() != lastQuad[2].y()) {
-                    quadFactor = geo.height() - quad[0].y() + (quad[0].y()) * progress;
-                    offset[0] = (geo.y() - icon.height() + geo.height() + quad[0].y() - icon.y()) * progress * ((quadFactor * quadFactor * quadFactor) / height_cube);
-                    quadFactor = geo.height() - quad[2].y() + (quad[2].y()) * progress;
-                    offset[1] = (geo.y() - icon.height() + geo.height() + quad[2].y() - icon.y()) * progress * ((quadFactor * quadFactor * quadFactor) / height_cube);
-                    p_progress[0] = qMin(offset[0] / (geo.y() - icon.height() + geo.height() - icon.y() - float(geo.height() - quad[0].y())), 1.0f);
-                    p_progress[1] = qMin(offset[1] / (geo.y() - icon.height() + geo.height() - icon.y() - float(geo.height() - quad[2].y())), 1.0f);
-                } else
-                    lastQuad = quad;
+    for (const WindowQuad &q : quads) {
+        const qreal topOffset = q[0].y() - interpolate(0.0, distance, squashProgress);
+        const qreal bottomOffset = q[2].y() - interpolate(0.0, distance, squashProgress);
 
-                offset[0] = -offset[0];
-                offset[1] = -offset[1];
+        const qreal topScale = stretchProgress * m_shapeCurve.valueForProgress((windowRect.height() - topOffset) / distance);
+        const qreal bottomScale = stretchProgress * m_shapeCurve.valueForProgress((windowRect.height() - bottomOffset) / distance);
 
-                SANITIZE_PROGRESS;
-                // x values are moved towards the center of the icon
-                SET_QUADS(setX, x, width, setY, y, 0,0,1,1);
+        WindowQuad newQuad(q);
 
-                newQuads.append(quad);
-            }
-        } else if (position == Left) {
-            float width_cube = float(geo.width()) * float(geo.width()) * float(geo.width());
-            foreach (WindowQuad quad, data.quads) { // krazy:exclude=foreach
+        const qreal targetTopLeftX = iconRect.x() + iconRect.width() * q[0].x() / windowRect.width();
+        const qreal targetTopRightX = iconRect.x() + iconRect.width() * q[1].x() / windowRect.width();
+        const qreal targetBottomRightX = iconRect.x() + iconRect.width() * q[2].x() / windowRect.width();
+        const qreal targetBottomLeftX = iconRect.x() + iconRect.width() * q[3].x() / windowRect.width();
 
-                if (quad[0].x() != lastQuad[0].x() || quad[1].x() != lastQuad[1].x()) {
-                    quadFactor = geo.width() - quad[0].x() + (quad[0].x()) * progress;
-                    offset[0] = (geo.x() - icon.width() + geo.width() + quad[0].x() - icon.x()) * progress * ((quadFactor * quadFactor * quadFactor) / width_cube);
-                    quadFactor = geo.width() - quad[1].x() + (quad[1].x()) * progress;
-                    offset[1] = (geo.x() - icon.width() + geo.width() + quad[1].x() - icon.x()) * progress * ((quadFactor * quadFactor * quadFactor) / width_cube);
-                    p_progress[0] = qMin(offset[0] / (geo.x() - icon.width() + geo.width() - icon.x() - float(geo.width() - quad[0].x())), 1.0f);
-                    p_progress[1] = qMin(offset[1] / (geo.x() - icon.width() + geo.width() - icon.x() - float(geo.width() - quad[1].x())), 1.0f);
-                } else
-                    lastQuad = quad;
+        newQuad[0].setX(q[0].x() + topScale * (targetTopLeftX - (windowRect.x() + q[0].x())));
+        newQuad[1].setX(q[1].x() + topScale * (targetTopRightX - (windowRect.x() + q[1].x())));
+        newQuad[2].setX(q[2].x() + bottomScale * (targetBottomRightX - (windowRect.x() + q[2].x())));
+        newQuad[3].setX(q[3].x() + bottomScale * (targetBottomLeftX - (windowRect.x() + q[3].x())));
 
-                offset[0] = -offset[0];
-                offset[1] = -offset[1];
+        const qreal targetTopOffset = topOffset + bumpDistance * bumpProgress;
+        const qreal targetBottomOffset = bottomOffset + bumpDistance * bumpProgress;
 
-                SANITIZE_PROGRESS;
-                // y values are moved towards the center of the icon
-                SET_QUADS(setY, y, height, setX, x, 0,1,1,0);
+        newQuad[0].setY(targetTopOffset);
+        newQuad[1].setY(targetTopOffset);
+        newQuad[2].setY(targetBottomOffset);
+        newQuad[3].setY(targetBottomOffset);
 
-                newQuads.append(quad);
-            }
-        } else if (position == Right) {
-            float width_cube = float(geo.width()) * float(geo.width()) * float(geo.width());
-            foreach (WindowQuad quad, data.quads) { // krazy:exclude=foreach
-
-                if (quad[0].x() != lastQuad[0].x() || quad[1].x() != lastQuad[1].x()) {
-                    quadFactor = quad[0].x() + (geo.width() - quad[0].x()) * progress;
-                    offset[0] = (icon.x() + quad[0].x() - geo.x()) * progress * ((quadFactor * quadFactor * quadFactor) / width_cube);
-                    quadFactor = quad[1].x() + (geo.width() - quad[1].x()) * progress;
-                    offset[1] = (icon.x() + quad[1].x() - geo.x()) * progress * ((quadFactor * quadFactor * quadFactor) / width_cube);
-                    p_progress[0] = qMin(offset[0] / (icon.x() + icon.width() - geo.x() - float(quad[0].x())), 1.0f);
-                    p_progress[1] = qMin(offset[1] / (icon.x() + icon.width() - geo.x() - float(quad[1].x())), 1.0f);
-                } else
-                    lastQuad = quad;
-
-                SANITIZE_PROGRESS;
-                // y values are moved towards the center of the icon
-                SET_QUADS(setY, y, height, setX, x, 0,1,1,0);
-
-                newQuads.append(quad);
-            }
-        }
-        data.quads = newQuads;
+        transformedQuads.append(newQuad);
     }
 
-    // Call the next effect.
+    return transformedQuads;
+}
+
+WindowQuadList MagicLampEffect::transformBottom(qreal stretchProgress, qreal squashProgress,
+                                                qreal bumpProgress, qreal bumpDistance,
+                                                const QRect &windowRect, const QRect &iconRect,
+                                                const WindowQuadList &quads) const
+{
+    WindowQuadList transformedQuads;
+    transformedQuads.reserve(quads.size());
+
+    const qreal distance = iconRect.top() - windowRect.top() + bumpDistance;
+
+    for (const WindowQuad &q : quads) {
+        const qreal topOffset = q[0].y() + interpolate(0.0, distance, squashProgress);
+        const qreal bottomOffset = q[2].y() + interpolate(0.0, distance, squashProgress);
+
+        const qreal topScale = stretchProgress * m_shapeCurve.valueForProgress(topOffset / distance);
+        const qreal bottomScale = stretchProgress * m_shapeCurve.valueForProgress(bottomOffset / distance);
+
+        WindowQuad newQuad(q);
+
+        const qreal targetTopLeftX = iconRect.x() + iconRect.width() * q[0].x() / windowRect.width();
+        const qreal targetTopRightX = iconRect.x() + iconRect.width() * q[1].x() / windowRect.width();
+        const qreal targetBottomRightX = iconRect.x() + iconRect.width() * q[2].x() / windowRect.width();
+        const qreal targetBottomLeftX = iconRect.x() + iconRect.width() * q[3].x() / windowRect.width();
+
+        newQuad[0].setX(q[0].x() + topScale * (targetTopLeftX - (windowRect.x() + q[0].x())));
+        newQuad[1].setX(q[1].x() + topScale * (targetTopRightX - (windowRect.x() + q[1].x())));
+        newQuad[2].setX(q[2].x() + bottomScale * (targetBottomRightX - (windowRect.x() + q[2].x())));
+        newQuad[3].setX(q[3].x() + bottomScale * (targetBottomLeftX - (windowRect.x() + q[3].x())));
+
+        const qreal targetTopOffset = topOffset - bumpDistance * bumpProgress;
+        const qreal targetBottomOffset = bottomOffset - bumpDistance * bumpProgress;
+
+        newQuad[0].setY(targetTopOffset);
+        newQuad[1].setY(targetTopOffset);
+        newQuad[2].setY(targetBottomOffset);
+        newQuad[3].setY(targetBottomOffset);
+
+        transformedQuads.append(newQuad);
+    }
+
+    return transformedQuads;
+}
+
+WindowQuadList MagicLampEffect::transformLeft(qreal stretchProgress, qreal squashProgress,
+                                              qreal bumpProgress, qreal bumpDistance,
+                                              const QRect &windowRect, const QRect &iconRect,
+                                              const WindowQuadList &quads) const
+{
+    WindowQuadList transformedQuads;
+    transformedQuads.reserve(quads.size());
+
+    const qreal distance = windowRect.right() - iconRect.right() + bumpDistance;
+
+    for (const WindowQuad &q : quads) {
+        const qreal leftOffset = q[0].x() - interpolate(0.0, distance, squashProgress);
+        const qreal rightOffset = q[2].x() - interpolate(0.0, distance, squashProgress);
+
+        const qreal leftScale = stretchProgress * m_shapeCurve.valueForProgress((windowRect.width() - leftOffset) / distance);
+        const qreal rightScale = stretchProgress * m_shapeCurve.valueForProgress((windowRect.width() - rightOffset) / distance);
+
+        WindowQuad newQuad(q);
+
+        const qreal targetTopLeftY = iconRect.y() + iconRect.height() * q[0].y() / windowRect.height();
+        const qreal targetTopRightY = iconRect.y() + iconRect.height() * q[1].y() / windowRect.height();
+        const qreal targetBottomRightY = iconRect.y() + iconRect.height() * q[2].y() / windowRect.height();
+        const qreal targetBottomLeftY = iconRect.y() + iconRect.height() * q[3].y() / windowRect.height();
+
+        newQuad[0].setY(q[0].y() + leftScale * (targetTopLeftY - (windowRect.y() + q[0].y())));
+        newQuad[3].setY(q[3].y() + leftScale * (targetBottomLeftY - (windowRect.y() + q[3].y())));
+        newQuad[1].setY(q[1].y() + rightScale * (targetTopRightY - (windowRect.y() + q[1].y())));
+        newQuad[2].setY(q[2].y() + rightScale * (targetBottomRightY - (windowRect.y() + q[2].y())));
+
+        const qreal targetLeftOffset = leftOffset + bumpDistance * bumpProgress;
+        const qreal targetRightOffset = rightOffset + bumpDistance * bumpProgress;
+
+        newQuad[0].setX(targetLeftOffset);
+        newQuad[3].setX(targetLeftOffset);
+        newQuad[1].setX(targetRightOffset);
+        newQuad[2].setX(targetRightOffset);
+
+        transformedQuads.append(newQuad);
+    }
+
+    return transformedQuads;
+}
+
+WindowQuadList MagicLampEffect::transformRight(qreal stretchProgress, qreal squashProgress,
+                                               qreal bumpProgress, qreal bumpDistance,
+                                               const QRect &windowRect, const QRect &iconRect,
+                                               const WindowQuadList &quads) const
+{
+    WindowQuadList transformedQuads;
+    transformedQuads.reserve(quads.size());
+
+    const qreal distance = iconRect.left() - windowRect.left() + bumpDistance;
+
+    for (const WindowQuad &q : quads) {
+        const qreal leftOffset = q[0].x() + interpolate(0.0, distance, squashProgress);
+        const qreal rightOffset = q[2].x() + interpolate(0.0, distance, squashProgress);
+
+        const qreal leftScale = stretchProgress * m_shapeCurve.valueForProgress(leftOffset / distance);
+        const qreal rightScale = stretchProgress * m_shapeCurve.valueForProgress(rightOffset / distance);
+
+        WindowQuad newQuad(q);
+
+        const qreal targetTopLeftY = iconRect.y() + iconRect.height() * q[0].y() / windowRect.height();
+        const qreal targetTopRightY = iconRect.y() + iconRect.height() * q[1].y() / windowRect.height();
+        const qreal targetBottomRightY = iconRect.y() + iconRect.height() * q[2].y() / windowRect.height();
+        const qreal targetBottomLeftY = iconRect.y() + iconRect.height() * q[3].y() / windowRect.height();
+
+        newQuad[0].setY(q[0].y() + leftScale * (targetTopLeftY - (windowRect.y() + q[0].y())));
+        newQuad[3].setY(q[3].y() + leftScale * (targetBottomLeftY - (windowRect.y() + q[3].y())));
+        newQuad[1].setY(q[1].y() + rightScale * (targetTopRightY - (windowRect.y() + q[1].y())));
+        newQuad[2].setY(q[2].y() + rightScale * (targetBottomRightY - (windowRect.y() + q[2].y())));
+
+        const qreal targetLeftOffset = leftOffset - bumpDistance * bumpProgress;
+        const qreal targetRightOffset = rightOffset - bumpDistance * bumpProgress;
+
+        newQuad[0].setX(targetLeftOffset);
+        newQuad[3].setX(targetLeftOffset);
+        newQuad[1].setX(targetRightOffset);
+        newQuad[2].setX(targetRightOffset);
+
+        transformedQuads.append(newQuad);
+    }
+
+    return transformedQuads;
+}
+
+WindowQuadList MagicLampEffect::transformGeneric(Direction direction, qreal stretchProgress,
+                                                 qreal squashProgress, qreal bumpProgress,
+                                                 qreal bumpDistance, const QRect &windowRect,
+                                                 const QRect &iconRect, const WindowQuadList &quads) const
+{
+    switch (direction) {
+    case Direction::Top:
+        return transformTop(stretchProgress, squashProgress, bumpProgress,
+            bumpDistance, windowRect, iconRect, quads);
+
+    case Direction::Right:
+        return transformRight(stretchProgress, squashProgress, bumpProgress,
+            bumpDistance, windowRect, iconRect, quads);
+
+    case Direction::Bottom:
+        return transformBottom(stretchProgress, squashProgress, bumpProgress,
+            bumpDistance, windowRect, iconRect, quads);
+
+    case Direction::Left:
+        return transformLeft(stretchProgress, squashProgress, bumpProgress,
+            bumpDistance, windowRect, iconRect, quads);
+
+    default:
+        Q_UNREACHABLE();
+    }
+}
+
+void MagicLampEffect::paintSquashStage(const EffectWindow *w, const Animation &animation, WindowPaintData &data) const
+{
+    const QRect windowRect = w->geometry();
+    const QRect iconRect = w->iconGeometry();
+
+    const qreal squashProgress = animation.timeLine.value();
+    const qreal stretchProgress = qMin(animation.stretchFactor + squashProgress, 1.0);
+    const qreal bumpProgress = 1.0;
+
+    data.quads = transformGeneric(animation.direction, stretchProgress, squashProgress,
+        bumpProgress, animation.bumpDistance, windowRect, iconRect, data.quads);
+}
+
+void MagicLampEffect::paintStretch1Stage(const EffectWindow *w, const Animation &animation, WindowPaintData &data) const
+{
+    const QRect windowRect = w->geometry();
+    const QRect iconRect = w->iconGeometry();
+
+    const qreal stretchProgress = animation.stretchFactor * animation.timeLine.value();
+    const qreal squashProgress = 0.0;
+    const qreal bumpProgress = 1.0;
+
+    data.quads = transformGeneric(animation.direction, stretchProgress, squashProgress,
+        bumpProgress, animation.bumpDistance, windowRect, iconRect, data.quads);
+}
+
+void MagicLampEffect::paintStretch2Stage(const EffectWindow *w, const Animation &animation, WindowPaintData &data) const
+{
+    const QRect windowRect = w->geometry();
+    const QRect iconRect = w->iconGeometry();
+
+    const qreal stretchProgress = animation.stretchFactor * animation.timeLine.value();
+    const qreal squashProgress = 0.0;
+    const qreal bumpProgress = stretchProgress;
+
+    data.quads = transformGeneric(animation.direction, stretchProgress, squashProgress,
+        bumpProgress, animation.bumpDistance, windowRect, iconRect, data.quads);
+}
+
+void MagicLampEffect::paintWindow(EffectWindow *w, int mask, QRegion region, WindowPaintData &data)
+{
+    auto animationIt = m_animations.constFind(w);
+    if (animationIt == m_animations.constEnd()) {
+        effects->paintWindow(w, mask, region, data);
+        return;
+    }
+
+    switch ((*animationIt).stage) {
+    case AnimationStage::Bump:
+        paintBumpStage(*animationIt, data);
+        break;
+
+    case AnimationStage::Stretch1:
+        paintStretch1Stage(w, *animationIt, data);
+        break;
+
+    case AnimationStage::Stretch2:
+        paintStretch2Stage(w, *animationIt, data);
+        break;
+
+    case AnimationStage::Squash:
+        paintSquashStage(w, *animationIt, data);
+        break;
+
+    default:
+        Q_UNREACHABLE();
+    }
+
+    if ((*animationIt).clip) {
+        const QRect iconRect = w->iconGeometry();
+        QRect clipRect = w->expandedGeometry();
+        switch ((*animationIt).direction) {
+        case Direction::Top:
+            clipRect.translate(0, (*animationIt).bumpDistance);
+            clipRect.setTop(iconRect.top());
+            clipRect.setLeft(qMin(iconRect.left(), clipRect.left()));
+            clipRect.setRight(qMax(iconRect.right(), clipRect.right()));
+            break;
+
+        case Direction::Right:
+            clipRect.translate(-(*animationIt).bumpDistance, 0);
+            clipRect.setRight(iconRect.right());
+            clipRect.setTop(qMin(iconRect.top(), clipRect.top()));
+            clipRect.setBottom(qMax(iconRect.bottom(), clipRect.bottom()));
+            break;
+
+        case Direction::Bottom:
+            clipRect.translate(0, -(*animationIt).bumpDistance);
+            clipRect.setBottom(iconRect.bottom());
+            clipRect.setLeft(qMin(iconRect.left(), clipRect.left()));
+            clipRect.setRight(qMax(iconRect.right(), clipRect.right()));
+            break;
+
+        case Direction::Left:
+            clipRect.translate((*animationIt).bumpDistance, 0);
+            clipRect.setLeft(iconRect.left());
+            clipRect.setTop(qMin(iconRect.top(), clipRect.top()));
+            clipRect.setBottom(qMax(iconRect.bottom(), clipRect.bottom()));
+            break;
+
+        default:
+            Q_UNREACHABLE();
+        }
+
+        region = QRegion(clipRect);
+    }
+
     effects->paintWindow(w, mask, region, data);
+}
+
+bool MagicLampEffect::updateInAnimationStage(Animation &animation)
+{
+    switch (animation.stage) {
+    case AnimationStage::Bump:
+        animation.stage = AnimationStage::Stretch1;
+        animation.timeLine.reset();
+        animation.timeLine.setDirection(TimeLine::Forward);
+        animation.timeLine.setDuration(
+            durationFraction(m_stretchDuration, animation.stretchFactor));
+        animation.timeLine.setEasingCurve(QEasingCurve::Linear);
+        animation.clip = true;
+        return false;
+
+    case AnimationStage::Stretch1:
+    case AnimationStage::Stretch2:
+        animation.stage = AnimationStage::Squash;
+        animation.timeLine.reset();
+        animation.timeLine.setDirection(TimeLine::Forward);
+        animation.timeLine.setDuration(m_squashDuration);
+        animation.timeLine.setEasingCurve(QEasingCurve::Linear);
+        animation.clip = true;
+        return false;
+
+    case AnimationStage::Squash:
+        return true;
+
+    default:
+        Q_UNREACHABLE();
+    }
+}
+
+bool MagicLampEffect::updateOutAnimationStage(Animation &animation)
+{
+    switch (animation.stage) {
+    case AnimationStage::Bump:
+        return true;
+
+    case AnimationStage::Stretch1:
+        if (animation.bumpDistance == 0) {
+            return true;
+        }
+        animation.stage = AnimationStage::Bump;
+        animation.timeLine.reset();
+        animation.timeLine.setDirection(TimeLine::Backward);
+        animation.timeLine.setDuration(m_bumpDuration);
+        animation.timeLine.setEasingCurve(QEasingCurve::Linear);
+        animation.clip = false;
+        return false;
+
+    case AnimationStage::Stretch2:
+        return true;
+
+    case AnimationStage::Squash:
+        animation.stage = AnimationStage::Stretch2;
+        animation.timeLine.reset();
+        animation.timeLine.setDirection(TimeLine::Backward);
+        animation.timeLine.setDuration(
+            durationFraction(m_stretchDuration, animation.stretchFactor));
+        animation.timeLine.setEasingCurve(QEasingCurve::Linear);
+        animation.clip = false;
+        return false;
+
+    default:
+        Q_UNREACHABLE();
+    }
 }
 
 void MagicLampEffect::postPaintScreen()
 {
     auto animationIt = m_animations.begin();
     while (animationIt != m_animations.end()) {
-        if ((*animationIt).done()) {
+        if (!(*animationIt).timeLine.done()) {
+            ++animationIt;
+            continue;
+        }
+
+        bool done;
+        switch ((*animationIt).kind) {
+        case AnimationKind::In:
+            done = updateInAnimationStage(*animationIt);
+            break;
+
+        case AnimationKind::Out:
+            done = updateOutAnimationStage(*animationIt);
+            break;
+
+        default:
+            Q_UNREACHABLE();
+        }
+
+        if (done) {
             animationIt = m_animations.erase(animationIt);
         } else {
             ++animationIt;
@@ -321,49 +535,7 @@ void MagicLampEffect::postPaintScreen()
 
     effects->addRepaintFull();
 
-    // Call the next effect.
     effects->postPaintScreen();
-}
-
-void MagicLampEffect::slotWindowDeleted(EffectWindow* w)
-{
-    m_animations.remove(w);
-}
-
-void MagicLampEffect::slotWindowMinimized(EffectWindow* w)
-{
-    if (effects->activeFullScreenEffect())
-        return;
-
-    TimeLine &timeLine = m_animations[w];
-
-    if (timeLine.running()) {
-        timeLine.toggleDirection();
-    } else {
-        timeLine.setDirection(TimeLine::Forward);
-        timeLine.setDuration(m_duration);
-        timeLine.setEasingCurve(QEasingCurve::Linear);
-    }
-
-    effects->addRepaintFull();
-}
-
-void MagicLampEffect::slotWindowUnminimized(EffectWindow* w)
-{
-    if (effects->activeFullScreenEffect())
-        return;
-
-    TimeLine &timeLine = m_animations[w];
-
-    if (timeLine.running()) {
-        timeLine.toggleDirection();
-    } else {
-        timeLine.setDirection(TimeLine::Backward);
-        timeLine.setDuration(m_duration);
-        timeLine.setEasingCurve(QEasingCurve::Linear);
-    }
-
-    effects->addRepaintFull();
 }
 
 bool MagicLampEffect::isActive() const
@@ -371,4 +543,232 @@ bool MagicLampEffect::isActive() const
     return !m_animations.isEmpty();
 }
 
-} // namespace
+bool MagicLampEffect::supported()
+{
+    return effects->isOpenGLCompositing()
+        && effects->animationsSupported();
+}
+
+void MagicLampEffect::slotWindowMinimized(EffectWindow *w)
+{
+    if (effects->activeFullScreenEffect()) {
+        return;
+    }
+
+    const QRect iconRect = w->iconGeometry();
+    if (!iconRect.isValid()) {
+        return;
+    }
+
+    Animation &animation = m_animations[w];
+    animation.kind = AnimationKind::In;
+
+    if (animation.timeLine.running()) {
+        animation.timeLine.toggleDirection();
+        // Don't need to schedule repaint because it's already scheduled.
+        return;
+    }
+
+    animation.direction = findDirectionToIcon(w);
+    animation.bumpDistance = calcBumpDistance(w, animation.direction);
+    animation.stretchFactor = calcStretchFactor(w, animation.direction, animation.bumpDistance);
+
+    if (animation.bumpDistance != 0) {
+        animation.stage = AnimationStage::Bump;
+        animation.timeLine.reset();
+        animation.timeLine.setDirection(TimeLine::Forward);
+        animation.timeLine.setDuration(m_bumpDuration);
+        animation.timeLine.setEasingCurve(QEasingCurve::Linear);
+        animation.clip = false;
+    } else {
+        animation.stage = AnimationStage::Stretch1;
+        animation.timeLine.reset();
+        animation.timeLine.setDirection(TimeLine::Forward);
+        animation.timeLine.setDuration(
+            durationFraction(m_stretchDuration, animation.stretchFactor));
+        animation.timeLine.setEasingCurve(QEasingCurve::Linear);
+        animation.clip = true;
+    }
+
+    effects->addRepaintFull();
+}
+
+void MagicLampEffect::slotWindowUnminimized(EffectWindow *w)
+{
+    if (effects->activeFullScreenEffect()) {
+        return;
+    }
+
+    const QRect iconRect = w->iconGeometry();
+    if (!iconRect.isValid()) {
+        return;
+    }
+
+    Animation &animation = m_animations[w];
+    animation.kind = AnimationKind::Out;
+
+    if (animation.timeLine.running()) {
+        animation.timeLine.toggleDirection();
+        // Don't need to schedule repaint because it's already scheduled.
+        return;
+    }
+
+    animation.direction = findDirectionToIcon(w);
+    animation.bumpDistance = calcBumpDistance(w, animation.direction);
+    animation.stretchFactor = calcStretchFactor(w, animation.direction, animation.bumpDistance);
+
+    animation.stage = AnimationStage::Squash;
+    animation.timeLine.reset();
+    animation.timeLine.setDirection(TimeLine::Backward);
+    animation.timeLine.setDuration(m_squashDuration);
+    animation.timeLine.setEasingCurve(QEasingCurve::Linear);
+    animation.clip = true;
+
+    effects->addRepaintFull();
+}
+
+void MagicLampEffect::slotWindowDeleted(EffectWindow *w)
+{
+    m_animations.remove(w);
+}
+
+void MagicLampEffect::slotActiveFullScreenEffectChanged()
+{
+    if (effects->activeFullScreenEffect() == nullptr) {
+        return;
+    }
+
+    m_animations.clear();
+}
+
+MagicLampEffect::Direction MagicLampEffect::findDirectionToIcon(const EffectWindow *w) const
+{
+    const QRect iconRect = w->iconGeometry();
+
+    const EffectWindowList windows = effects->stackingOrder();
+    auto panelIt = std::find_if(windows.constBegin(), windows.constEnd(),
+        [&iconRect](const EffectWindow *w) {
+            if (!w->isDock()) {
+                return false;
+            }
+            return w->geometry().intersects(iconRect);
+        });
+    const EffectWindow *panel = (panelIt != windows.constEnd())
+        ? (*panelIt)
+        : nullptr;
+
+    Direction direction;
+    if (panel != nullptr) {
+        const QRect panelScreen = effects->clientArea(ScreenArea, (*panelIt));
+        if (panel->width() >= panel->height()) {
+            direction = (panel->y() == panelScreen.y())
+                ? Direction::Top
+                : Direction::Bottom;
+        } else {
+            direction = (panel->x() == panelScreen.x())
+                ? Direction::Left
+                : Direction::Right;
+        }
+    } else {
+        const QRect iconScreen = effects->clientArea(ScreenArea, iconRect.center(), effects->currentDesktop());
+        const QRect rect = iconScreen.intersected(iconRect);
+
+        // TODO: Explain why this is in some sense wrong.
+        if (rect.left() == iconScreen.left()) {
+            direction = Direction::Left;
+        } else if (rect.top() == iconScreen.top()) {
+            direction = Direction::Top;
+        } else if (rect.right() == iconScreen.right()) {
+            direction = Direction::Right;
+        } else {
+            direction = Direction::Bottom;
+        }
+    }
+
+    if (panel != nullptr && panel->screen() == w->screen()) {
+        return direction;
+    }
+
+    const QRect windowRect = w->geometry();
+
+    if (direction == Direction::Top && windowRect.top() < iconRect.top()) {
+        direction = Direction::Bottom;
+    } else if (direction == Direction::Right && iconRect.right() < windowRect.right()) {
+        direction = Direction::Left;
+    } else if (direction == Direction::Bottom && iconRect.bottom() < windowRect.bottom()) {
+        direction = Direction::Top;
+    } else if (direction == Direction::Left && windowRect.left() < iconRect.left()) {
+        direction = Direction::Right;
+    }
+
+    return direction;
+}
+
+int MagicLampEffect::calcBumpDistance(const EffectWindow *w, Direction direction) const
+{
+    const QRect windowRect = w->geometry();
+    const QRect iconRect = w->iconGeometry();
+
+    int bumpDistance = 0;
+    switch (direction) {
+    case Direction::Top:
+        bumpDistance = qMax(0, iconRect.y() + iconRect.height() - windowRect.y());
+        break;
+
+    case Direction::Right:
+        bumpDistance = qMax(0, windowRect.x() + windowRect.width() - iconRect.x());
+        break;
+
+    case Direction::Bottom:
+        bumpDistance = qMax(0, windowRect.y() + windowRect.height() - iconRect.y());
+        break;
+
+    case Direction::Left:
+        bumpDistance = qMax(0, iconRect.x() + iconRect.width() - windowRect.x());
+        break;
+
+    default:
+        Q_UNREACHABLE();
+    }
+
+    bumpDistance += qMin(bumpDistance, m_maxBumpDistance);
+
+    return bumpDistance;
+}
+
+qreal MagicLampEffect::calcStretchFactor(const EffectWindow *w, Direction direction, int bumpDistance) const
+{
+    const QRect windowRect = w->geometry();
+    const QRect iconRect = w->iconGeometry();
+
+    int movingExtent = 0;
+    int distanceToIcon = 0;
+    switch (direction) {
+    case Direction::Top:
+        movingExtent = windowRect.height();
+        distanceToIcon = windowRect.bottom() - iconRect.bottom() + bumpDistance;
+        break;
+
+    case Direction::Right:
+        movingExtent = windowRect.width();
+        distanceToIcon = iconRect.left() - windowRect.left() + bumpDistance;
+        break;
+
+    case Direction::Bottom:
+        movingExtent = windowRect.height();
+        distanceToIcon = iconRect.top() - windowRect.top() + bumpDistance;
+        break;
+
+    case Direction::Left:
+        movingExtent = windowRect.width();
+        distanceToIcon = windowRect.right() - iconRect.right() + bumpDistance;
+        break;
+
+    default:
+        Q_UNREACHABLE();
+    }
+
+    return static_cast<qreal>(movingExtent) / distanceToIcon;
+}
+
+} // namespace KWin
