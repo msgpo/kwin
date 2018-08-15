@@ -528,57 +528,78 @@ ToplevelList Workspace::constrainedStackingOrder()
     for (int i = stacking.size() - 1;
             i >= 0;
        ) {
-        AbstractClient *current = qobject_cast<AbstractClient*>(stacking[i]);
-        if (!current || !current->isTransient()) {
-            --i;
-            continue;
-        }
         int i2 = -1;
-        Client *ccurrent = qobject_cast<Client*>(current);
-        if (ccurrent && ccurrent->groupTransient()) {
-            if (ccurrent->group()->members().count() > 0) {
-                // find topmost client this one is transient for
-                for (i2 = stacking.size() - 1;
-                        i2 >= 0;
-                        --i2) {
-                    if (stacking[ i2 ] == stacking[ i ]) {
-                        i2 = -1; // don't reorder, already the topmost in the group
+        bool hasTransients = false;
+
+        if (auto *current = qobject_cast<AbstractClient*>(stacking[i])) {
+            if (current->isTransient()) {
+                Client *ccurrent = qobject_cast<Client*>(current);
+                if (ccurrent && ccurrent->groupTransient()) {
+                    if (ccurrent->group()->members().count() > 0) {
+                        // find topmost client this one is transient for
+                        for (i2 = stacking.size() - 1;
+                                i2 >= 0;
+                                --i2) {
+                            if (stacking[ i2 ] == stacking[ i ]) {
+                                i2 = -1; // don't reorder, already the topmost in the group
+                                break;
+                            }
+                            AbstractClient *c2 = qobject_cast<AbstractClient*>(stacking[ i2 ]);
+                            if (!c2) {
+                                continue;
+                            }
+                            if (c2->hasTransient(current, true)
+                                    && keepTransientAbove(c2, current))
+                                break;
+                        }
+                    } // else i2 remains pointing at -1
+                } else {
+                    for (i2 = stacking.size() - 1;
+                            i2 >= 0;
+                            --i2) {
+                        AbstractClient *c2 = qobject_cast<AbstractClient*>(stacking[ i2 ]);
+                        if (!c2) {
+                            continue;
+                        }
+                        if (c2 == current) {
+                            i2 = -1; // don't reorder, already on top of its mainwindow
+                            break;
+                        }
+                        if (c2 == current->transientFor()
+                                && keepTransientAbove(c2, current))
+                            break;
+                    }
+                }
+            }
+            hasTransients = !current->transients().isEmpty();
+        } else if (auto *deleted = qobject_cast<Deleted*>(stacking[i])) {
+            if (deleted->wasTransient()) {
+                for (i2 = stacking.size() - 1; i2 >= 0; --i2) {
+                    const Toplevel *toplevel = stacking[i2];
+
+                    if (toplevel == deleted) {
+                        i2 = -1;
                         break;
                     }
-                    AbstractClient *c2 = qobject_cast<AbstractClient*>(stacking[ i2 ]);
-                    if (!c2) {
-                        continue;
-                    }
-                    if (c2->hasTransient(current, true)
-                            && keepTransientAbove(c2, current))
+
+                    // TODO: Check whether we have to keep the transient above?
+                    if (toplevel == deleted->wasTransientFor()) {
                         break;
+                    }
                 }
-            } // else i2 remains pointing at -1
-        } else {
-            for (i2 = stacking.size() - 1;
-                    i2 >= 0;
-                    --i2) {
-                AbstractClient *c2 = qobject_cast<AbstractClient*>(stacking[ i2 ]);
-                if (!c2) {
-                    continue;
-                }
-                if (c2 == current) {
-                    i2 = -1; // don't reorder, already on top of its mainwindow
-                    break;
-                }
-                if (c2 == current->transientFor()
-                        && keepTransientAbove(c2, current))
-                    break;
+
+                hasTransients = !deleted->deletedTransients().isEmpty();
             }
         }
         if (i2 == -1) {
             --i;
             continue;
         }
+        auto *current = stacking[i];
         stacking.removeAt(i);
         --i; // move onto the next item (for next for () iteration)
         --i2; // adjust index of the mainwindow after the remove above
-        if (!current->transients().isEmpty())   // this one now can be possibly above its transients,
+        if (hasTransients)   // this one now can be possibly above its transients,
             i = i2; // so go again higher in the stack order and possibly move those transients again
         ++i2; // insert after (on top of) the mainwindow, it's ok if it2 is now stacking.end()
         stacking.insert(i2, current);

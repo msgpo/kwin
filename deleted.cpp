@@ -57,6 +57,9 @@ Deleted::~Deleted()
     if (workspace()) {
         workspace()->removeDeleted(this);
     }
+    for (Deleted *deleted : qAsConst(m_deletedTransients)) {
+        deleted->setWasTransientFor(nullptr);
+    }
     deleteEffectWindow();
 }
 
@@ -117,7 +120,29 @@ void Deleted::copyToDeleted(Toplevel* c)
         m_keepAbove = client->keepAbove();
         m_keepBelow = client->keepBelow();
         m_caption = client->caption();
+
+        m_transientFor = client->transientFor();
+        if (m_transientFor != nullptr) {
+            connect(m_transientFor, &Toplevel::windowClosed, this,
+                [this](Toplevel *toplevel, Deleted *deleted) {
+                    if (m_transientFor == toplevel) {
+                        m_transientFor = deleted;
+                        deleted->addDeletedTransient(this);
+                    }
+                }
+            );
+        }
     }
+}
+
+void Deleted::addDeletedTransient(Deleted* d)
+{
+    m_deletedTransients.append(d);
+}
+
+void Deleted::setWasTransientFor(Deleted* transientFor)
+{
+    m_transientFor = transientFor;
 }
 
 void Deleted::unrefWindow()

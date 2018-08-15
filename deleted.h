@@ -77,6 +77,15 @@ public:
     QList<AbstractClient*> mainClients() const {
         return m_mainClients;
     }
+    bool wasTransient() const {
+        return m_transientFor != nullptr;
+    }
+    Toplevel *wasTransientFor() const {
+        return m_transientFor;
+    }
+    DeletedList deletedTransients() const {
+        return m_deletedTransients;
+    }
     NET::WindowType windowType(bool direct = false, int supported_types = 0) const;
     bool wasClient() const {
         return m_wasClient;
@@ -111,6 +120,8 @@ private Q_SLOTS:
 private:
     Deleted();   // use create()
     void copyToDeleted(Toplevel* c);
+    void addDeletedTransient(Deleted* d);
+    void setWasTransientFor(Deleted* d);
     virtual ~Deleted(); // deleted only using unrefWindow()
     int delete_refcount;
     double window_opacity;
@@ -140,6 +151,8 @@ private:
     bool m_keepAbove;
     bool m_keepBelow;
     QString m_caption;
+    Toplevel *m_transientFor = nullptr;
+    DeletedList m_deletedTransients;
 };
 
 inline void Deleted::refWindow()
