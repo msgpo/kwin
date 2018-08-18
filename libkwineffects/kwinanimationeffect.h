@@ -161,18 +161,19 @@ protected:
      * @param shape - How the animation progresses, eg. Linear progresses constantly while Exponential start slow and becomes very fast in the end
      * @param delay - When the animation will start compared to "now" (the window will remain at the "from" position until then)
      * @param from - the starting value, the default is invalid, ie. the attribute for the window is not transformed in the beginning
+     * @param keepAlive - Whether closed windows should be kept alive during animation
      * @return an ID that you can use to cancel a running animation
      */
-    quint64 animate( EffectWindow *w, Attribute a, uint meta, int ms, FPx2 to, QEasingCurve curve = QEasingCurve(), int delay = 0, FPx2 from = FPx2() )
-    { return p_animate(w, a, meta, ms, to, curve, delay, from, false); }
+    quint64 animate( EffectWindow *w, Attribute a, uint meta, int ms, FPx2 to, QEasingCurve curve = QEasingCurve(), int delay = 0, FPx2 from = FPx2(), bool keepAlive = true )
+    { return p_animate(w, a, meta, ms, to, curve, delay, from, false, keepAlive); }
 
     /**
      * Equal to ::animate() with one important difference:
      * The target value for the attribute is kept until you ::cancel() this animation
      * @return an ID that you need to use to cancel this manipulation
      */
-    quint64 set( EffectWindow *w, Attribute a, uint meta, int ms, FPx2 to, QEasingCurve curve = QEasingCurve(), int delay = 0, FPx2 from = FPx2() )
-    { return p_animate(w, a, meta, ms, to, curve, delay, from, true); }
+    quint64 set( EffectWindow *w, Attribute a, uint meta, int ms, FPx2 to, QEasingCurve curve = QEasingCurve(), int delay = 0, FPx2 from = FPx2(), bool keepAlive = true )
+    { return p_animate(w, a, meta, ms, to, curve, delay, from, true, keepAlive); }
 
     /**
      * this allows to alter the target (but not type or curve) of a running animation
@@ -211,7 +212,7 @@ protected:
     AniMap state() const;
 
 private:
-    quint64 p_animate( EffectWindow *w, Attribute a, uint meta, int ms, FPx2 to, QEasingCurve curve, int delay, FPx2 from, bool keepAtTarget );
+    quint64 p_animate( EffectWindow *w, Attribute a, uint meta, int ms, FPx2 to, QEasingCurve curve, int delay, FPx2 from, bool keepAtTarget, bool keepAlive );
     QRect clipRect(const QRect &windowRect, const AniData&) const;
     void clipWindow(const EffectWindow *, const AniData &, WindowQuadList &) const;
     float interpolated( const AniData&, int i = 0 ) const;

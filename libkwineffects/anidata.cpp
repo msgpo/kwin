@@ -41,11 +41,13 @@ AniData::AniData()
  , windowType((NET::WindowTypeMask)0)
  , waitAtSource(false)
  , keepAtTarget(false)
+ , keepAlive(true)
 {
 }
 
 AniData::AniData(AnimationEffect::Attribute a, int meta_, int ms, const FPx2 &to_,
-                 QEasingCurve curve_, int delay, const FPx2 &from_, bool waitAtSource_, bool keepAtTarget_ )
+                 QEasingCurve curve_, int delay, const FPx2 &from_, bool waitAtSource_,
+                 bool keepAtTarget_, bool keepAlive_ )
  : attribute(a)
  , curve(curve_)
  , from(from_)
@@ -57,6 +59,7 @@ AniData::AniData(AnimationEffect::Attribute a, int meta_, int ms, const FPx2 &to
  , windowType((NET::WindowTypeMask)0)
  , waitAtSource(waitAtSource_)
  , keepAtTarget(keepAtTarget_)
+ , keepAlive(keepAlive_)
 {
 }
 

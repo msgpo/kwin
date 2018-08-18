@@ -26,6 +26,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <QtDebug>
 #include <QVector3D>
 
+#include <algorithm>
+
 QDebug operator<<(QDebug dbg, const KWin::FPx2 &fpx2)
 {
     dbg.nospace() << fpx2[0] << "," << fpx2[1] << QString(fpx2.isValid() ? QStringLiteral(" (valid)") : QStringLiteral(" (invalid)"));
@@ -216,7 +218,7 @@ void AnimationEffect::validate(Attribute a, uint &meta, FPx2 *from, FPx2 *to, co
     }
 }
 
-quint64 AnimationEffect::p_animate( EffectWindow *w, Attribute a, uint meta, int ms, FPx2 to, QEasingCurve curve, int delay, FPx2 from, bool keepAtTarget )
+quint64 AnimationEffect::p_animate( EffectWindow *w, Attribute a, uint meta, int ms, FPx2 to, QEasingCurve curve, int delay, FPx2 from, bool keepAtTarget, bool keepAlive )
 {
     const bool waitAtSource = from.isValid();
     validate(a, meta, &from, &to, w);
@@ -237,7 +239,7 @@ quint64 AnimationEffect::p_animate( EffectWindow *w, Attribute a, uint meta, int
     AniMap::iterator it = d->m_animations.find(w);
     if (it == d->m_animations.end())
         it = d->m_animations.insert(w, QPair<QList<AniData>, QRect>(QList<AniData>(), QRect()));
-    it->first.append(AniData(a, meta, ms, to, curve, delay, from, waitAtSource, keepAtTarget));
+    it->first.append(AniData(a, meta, ms, to, curve, delay, from, waitAtSource, keepAtTarget, keepAlive));
     quint64 ret_id = ++d->m_animCounter;
     it->first.last().id = ret_id;
     it->second = QRect();
@@ -913,7 +915,19 @@ void AnimationEffect::_expandedGeometryChanged(KWin::EffectWindow *w, const QRec
 void AnimationEffect::_windowClosed( EffectWindow* w )
 {
     Q_D(AnimationEffect);
-    if (d->m_animations.contains(w) && !d->m_zombies.contains(w)) {
+
+    auto it = d->m_animations.constFind(w);
+    if (it == d->m_animations.constEnd()) {
+        return;
+    }
+
+    const auto animations = (*it).first;
+    const bool keepAlive = std::any_of(animations.constBegin(), animations.constEnd(),
+        [](const AniData &anim) {
+            return anim.keepAlive;
+        });
+
+    if (keepAlive && !d->m_zombies.contains(w)) {
         w->refWindow();
         d->m_zombies << w;
     }
