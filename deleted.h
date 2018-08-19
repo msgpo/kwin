@@ -104,13 +104,66 @@ public:
     QString caption() const {
         return m_caption;
     }
+
+    /**
+     * Returns whether the window was an X11 client
+     *
+     * @returns @c true if it was an X11 client, @c false otherwise
+     **/
+    bool wasX11Client() const {
+        return m_wasX11Client;
+    }
+
+    /**
+     * Returns whether the window was a Wayland client
+     *
+     * @returns @c true if it was a Wayland client, @c false otherwise
+     **/
+    bool wasWaylandClient() const {
+        return m_wasWaylandClient;
+    }
+
+    /**
+     * Returns whether the window was a transient
+     *
+     * @returns @c true if it was a transient, @c false otherwise
+     **/
+    bool wasTransient() const {
+        return !m_transientFor.isEmpty();
+    }
+
+    /**
+     * Checks whether this window was a transient for given toplevel
+     *
+     * @param toplevel Toplevel against which we are testing
+     * @returns @c true if it was a transient for given toplevel, @c false otherwise
+     **/
+    bool wasTransientFor(const Toplevel *toplevel) const {
+        return m_transientFor.contains(const_cast<Toplevel *>(toplevel));
+    }
+
+    /**
+     * Returns list of child transients
+     *
+     * Because the window is Deleted, it can have only Deleted child transients.
+     **/
+    DeletedList transients() const {
+        return m_transients;
+    }
+
 protected:
     virtual void debug(QDebug& stream) const;
 private Q_SLOTS:
     void mainClientClosed(KWin::Toplevel *client);
+    void transientForClosed(Toplevel *toplevel, Deleted *deleted);
+
 private:
     Deleted();   // use create()
     void copyToDeleted(Toplevel* c);
+    void addTransient(Deleted *transient);
+    void removeTransient(Deleted *transient);
+    void addTransientFor(AbstractClient *parent);
+    void removeTransientFor(Deleted *parent);
     virtual ~Deleted(); // deleted only using unrefWindow()
     int delete_refcount;
     double window_opacity;
@@ -140,6 +193,10 @@ private:
     bool m_keepAbove;
     bool m_keepBelow;
     QString m_caption;
+    bool m_wasX11Client;
+    bool m_wasWaylandClient;
+    ToplevelList m_transientFor;
+    DeletedList m_transients;
 };
 
 inline void Deleted::refWindow()

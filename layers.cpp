@@ -528,57 +528,77 @@ ToplevelList Workspace::constrainedStackingOrder()
     for (int i = stacking.size() - 1;
             i >= 0;
        ) {
-        AbstractClient *current = qobject_cast<AbstractClient*>(stacking[i]);
-        if (!current || !current->isTransient()) {
-            --i;
-            continue;
-        }
         int i2 = -1;
-        Client *ccurrent = qobject_cast<Client*>(current);
-        if (ccurrent && ccurrent->groupTransient()) {
-            if (ccurrent->group()->members().count() > 0) {
-                // find topmost client this one is transient for
-                for (i2 = stacking.size() - 1;
-                        i2 >= 0;
-                        --i2) {
-                    if (stacking[ i2 ] == stacking[ i ]) {
-                        i2 = -1; // don't reorder, already the topmost in the group
+        bool hasTransients = false;
+        if (auto *current = qobject_cast<AbstractClient *>(stacking[i])) {
+            if (current->isTransient()) {
+                Client *ccurrent = qobject_cast<Client*>(current);
+                if (ccurrent && ccurrent->groupTransient()) {
+                    if (ccurrent->group()->members().count() > 0) {
+                        // find topmost client this one is transient for
+                        for (i2 = stacking.size() - 1;
+                                i2 >= 0;
+                                --i2) {
+                            if (stacking[ i2 ] == stacking[ i ]) {
+                                i2 = -1; // don't reorder, already the topmost in the group
+                                break;
+                            }
+                            AbstractClient *c2 = qobject_cast<AbstractClient*>(stacking[ i2 ]);
+                            if (!c2) {
+                                continue;
+                            }
+                            if (c2->hasTransient(current, true)
+                                    && keepTransientAbove(c2, current))
+                                break;
+                        }
+                    } // else i2 remains pointing at -1
+                } else {
+                    for (i2 = stacking.size() - 1;
+                            i2 >= 0;
+                            --i2) {
+                        AbstractClient *c2 = qobject_cast<AbstractClient*>(stacking[ i2 ]);
+                        if (!c2) {
+                            continue;
+                        }
+                        if (c2 == current) {
+                            i2 = -1; // don't reorder, already on top of its mainwindow
+                            break;
+                        }
+                        if (c2 == current->transientFor()
+                                && keepTransientAbove(c2, current))
+                            break;
+                    }
+                }
+                hasTransients = !current->transients().isEmpty();
+            }
+        } else if (auto *deleted = qobject_cast<Deleted *>(stacking[i])) {
+            if (deleted->wasTransient()) {
+                for (i2 = stacking.size() - 1; i2 >= 0; --i2) {
+                    const Toplevel *toplevel = stacking[i2];
+
+                    if (toplevel == deleted) {
+                        i2 = -1; // don't reorder, already on top of its mainwindow
                         break;
                     }
-                    AbstractClient *c2 = qobject_cast<AbstractClient*>(stacking[ i2 ]);
-                    if (!c2) {
-                        continue;
-                    }
-                    if (c2->hasTransient(current, true)
-                            && keepTransientAbove(c2, current))
+
+                    if (deleted->wasTransientFor(toplevel)
+                            && keepDeletedTransientAbove(toplevel, deleted)) {
                         break;
+                    }
                 }
-            } // else i2 remains pointing at -1
-        } else {
-            for (i2 = stacking.size() - 1;
-                    i2 >= 0;
-                    --i2) {
-                AbstractClient *c2 = qobject_cast<AbstractClient*>(stacking[ i2 ]);
-                if (!c2) {
-                    continue;
-                }
-                if (c2 == current) {
-                    i2 = -1; // don't reorder, already on top of its mainwindow
-                    break;
-                }
-                if (c2 == current->transientFor()
-                        && keepTransientAbove(c2, current))
-                    break;
+
+                hasTransients = !deleted->transients().isEmpty();
             }
         }
         if (i2 == -1) {
             --i;
             continue;
         }
+        Toplevel *current = stacking[i];
         stacking.removeAt(i);
         --i; // move onto the next item (for next for () iteration)
         --i2; // adjust index of the mainwindow after the remove above
-        if (!current->transients().isEmpty())   // this one now can be possibly above its transients,
+        if (hasTransients)   // this one now can be possibly above its transients,
             i = i2; // so go again higher in the stack order and possibly move those transients again
         ++i2; // insert after (on top of) the mainwindow, it's ok if it2 is now stacking.end()
         stacking.insert(i2, current);
@@ -656,6 +676,27 @@ bool Workspace::keepTransientAbove(const AbstractClient* mainwindow, const Abstr
     // ignore this if the transient has a placement hint which indicates it should go above it's parent
     if (mainwindow->isDock() && !transient->hasTransientPlacementHint())
         return false;
+    return true;
+}
+
+bool Workspace::keepDeletedTransientAbove(const Toplevel *mainWindow, const Deleted *transient) const
+{
+    if (transient->wasX11Client()) {
+        // This is rather a hack for #76026. Don't keep non-modal dialogs above
+        // the mainwindow, but only if they're group transient (since only such dialogs
+        // have taskbar entry in Kicker). A proper way of doing this (both kwin and kicker)
+        // needs to be found.
+        if (transient->isDialog() && !transient->isModal()) {
+            return false;
+        }
+
+        // #63223 - don't keep transients above docks, because the dock is kept high,
+        // and e.g. dialogs for them would be too high too
+        if (mainWindow->isDock()) {
+            return false;
+        }
+    }
+
     return true;
 }
 
