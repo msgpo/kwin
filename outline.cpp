@@ -25,7 +25,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "main.h"
 #include "platform.h"
 #include "scripting/scripting.h"
+#include "shell_client.h"
 #include "utils.h"
+#include "workspace.h"
 // Frameworks
 #include <KConfigGroup>
 // Qt
@@ -88,6 +90,22 @@ void Outline::show(const QRect &outlineGeometry, const QRect &visualParentGeomet
     setGeometry(outlineGeometry);
     setVisualParentGeometry(visualParentGeometry);
     show();
+}
+
+void Outline::show(AbstractClient *under, const QRect &outlineGeometry, const QRect &visualParentGeometry)
+{
+    show(outlineGeometry, visualParentGeometry);
+
+    if (m_visual.isNull()) {
+        return;
+    }
+
+    AbstractClient *client = m_visual->client();
+    if (client == nullptr) {
+        return;
+    }
+
+    Workspace::self()->restack(client, under, true);
 }
 
 void Outline::setGeometry(const QRect& outlineGeometry)
@@ -181,6 +199,21 @@ void CompositedOutlineVisual::show()
             m_mainItem.reset(m_qmlComponent->create(m_qmlContext.data()));
         }
     }
+}
+
+AbstractClient *CompositedOutlineVisual::client() const
+{
+    auto *window = qobject_cast<QQuickWindow *>(m_mainItem.data());
+    if (!window) {
+        return nullptr;
+    }
+
+    Toplevel *toplevel = workspace()->findInternal(window);
+    if (auto *client = qobject_cast<ShellClient *>(toplevel)) {
+        return client;
+    }
+
+    return nullptr;
 }
 
 } // namespace

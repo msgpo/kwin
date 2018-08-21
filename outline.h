@@ -30,6 +30,8 @@ class QQmlContext;
 class QQmlComponent;
 
 namespace KWin {
+
+class AbstractClient;
 class OutlineVisual;
 
 /**
@@ -97,6 +99,19 @@ public:
     void show(const QRect &outlineGeometry, const QRect &visualParentGeometry);
 
     /**
+     * Shows outline under reference window
+     *
+     * To stop the outline process use @link hideOutline.
+     *
+     * @param under Reference window under which the outline should appear
+     * @param outlineGeometry The geometry of the outline to be shown
+     * @param visualParentGeometry The geometry from where the outline should emerge
+     * @see hideOutline
+     * @since 5.14
+     **/
+    void show(AbstractClient *under, const QRect &outlineGeometry, const QRect &visualParentGeometry);
+
+    /**
      * Hides shown outline.
      * @see showOutline
      */
@@ -133,6 +148,7 @@ public:
     virtual ~OutlineVisual();
     virtual void show() = 0;
     virtual void hide() = 0;
+    virtual AbstractClient *client() const;
 protected:
     Outline *outline();
     const Outline *outline() const;
@@ -147,6 +163,7 @@ public:
     virtual ~CompositedOutlineVisual();
     virtual void show();
     virtual void hide();
+    AbstractClient *client() const override;
 private:
     QScopedPointer<QQmlContext> m_qmlContext;
     QScopedPointer<QQmlComponent> m_qmlComponent;
@@ -181,6 +198,12 @@ inline
 const Outline *OutlineVisual::outline() const
 {
     return m_outline;
+}
+
+inline
+AbstractClient *OutlineVisual::client() const
+{
+    return nullptr;
 }
 
 inline
