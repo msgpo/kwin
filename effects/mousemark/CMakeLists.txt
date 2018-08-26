@@ -1,4 +1,9 @@
 #######################################
+# Effect
+install(FILES qml/main.qml
+        DESTINATION ${DATA_INSTALL_DIR}/kwin/effects/mousemark/qml/
+)
+
 # Config
 set(kwin_mousemark_config_SRCS mousemark_config.cpp)
 ki18n_wrap_ui(kwin_mousemark_config_SRCS mousemark_config.ui)

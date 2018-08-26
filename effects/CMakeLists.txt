@@ -87,6 +87,7 @@ set( kwin4_effect_builtins_sources
     magnifier/magnifier.cpp
     mouseclick/mouseclick.cpp
     mousemark/mousemark.cpp
+    mousemark/mousemark_canvas.cpp
     presentwindows/presentwindows.cpp
     presentwindows/presentwindows_proxy.cpp
     resize/resize.cpp
