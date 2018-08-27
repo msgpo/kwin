@@ -1710,4 +1710,14 @@ void ShellClient::updateClientOutputs()
     surface()->setOutputs(clientOutputs);
 }
 
+bool ShellClient::isXdgToplevel() const
+{
+    return m_xdgShellSurface != nullptr;
+}
+
+bool ShellClient::isXdgPopup() const
+{
+    return m_xdgShellPopup != nullptr;
+}
+
 }

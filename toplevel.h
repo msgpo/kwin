@@ -210,6 +210,24 @@ class KWIN_EXPORT Toplevel
      */
     Q_PROPERTY(KWayland::Server::SurfaceInterface *surface READ surface)
 
+    /**
+     * Whether this is a toplevel surface.
+     *
+     * @note For X11 clients, it's always @c false.
+     **/
+    Q_PROPERTY(bool xdgToplevel READ isXdgToplevel CONSTANT)
+
+    /**
+     * Whether this is a popup surface.
+     *
+     * A popup surface is a short-lived, temporary surface. It can be used
+     * to implement for example menus, popovers, tooltips and other similar
+     * user interface concepts.
+     *
+     * @note For X11 clients, it's always @c false.
+     **/
+    Q_PROPERTY(bool xdgPopup READ isXdgPopup CONSTANT)
+
 public:
     explicit Toplevel();
     virtual xcb_window_t frameId() const;
@@ -442,6 +460,24 @@ public:
      */
     template <class T, class U>
     static T *findInList(const QList<T*> &list, std::function<bool (const U*)> func);
+
+    /**
+     * Returns whether this is a toplevel surface.
+     *
+     * @see isXdgPopup
+     * @note This method is relevant only for Wayland clients
+     * @since 5.XX
+     **/
+    virtual bool isXdgToplevel() const;
+
+    /**
+     * Returns whether this is a popup surface.
+     *
+     * @see isXdgToplevel
+     * @note This method is relevant only for Wayland clients
+     * @since 5.XX
+     **/
+    virtual bool isXdgPopup() const;
 
 Q_SIGNALS:
     void opacityChanged(KWin::Toplevel* toplevel, qreal oldOpacity);
@@ -844,6 +880,16 @@ inline T *Toplevel::findInList(const QList<T*> &list, std::function<bool (const 
         return nullptr;
     }
     return *it;
+}
+
+inline bool Toplevel::isXdgToplevel() const
+{
+    return false;
+}
+
+inline bool Toplevel::isXdgPopup() const
+{
+    return false;
 }
 
 QDebug& operator<<(QDebug& stream, const Toplevel*);

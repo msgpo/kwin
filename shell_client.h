@@ -163,6 +163,9 @@ public:
 
     void updateColorScheme() override;
 
+    bool isXdgToplevel() const override;
+    bool isXdgPopup() const override;
+
 protected:
     void addDamage(const QRegion &damage) override;
     bool belongsToSameApplication(const AbstractClient *other, SameApplicationChecks checks) const override;

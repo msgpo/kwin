@@ -1963,6 +1963,41 @@ class KWINEFFECTS_EXPORT EffectWindow : public QObject
      * @since 5.10
      */
     Q_PROPERTY(bool unresponsive READ isUnresponsive)
+
+    /**
+     * Whether this is a Wayland client.
+     *
+     * @since 5.XX
+     **/
+    Q_PROPERTY(bool waylandClient READ isWaylandClient CONSTANT)
+
+    /**
+     * Whether this is an X11 client.
+     *
+     * @since 5.XX
+     **/
+    Q_PROPERTY(bool x11Client READ isX11Client CONSTANT)
+
+    /**
+     * Whether this is a toplevel surface.
+     *
+     * @note For X11 clients, it's always @c false.
+     * @since 5.XX
+     **/
+    Q_PROPERTY(bool xdgToplevel READ isXdgToplevel CONSTANT)
+
+    /**
+     * Whether this is a popup surface.
+     *
+     * A popup surface is a short-lived, temporary surface. It can be used
+     * to implement for example menus, popovers, tooltips and other similar
+     * user interface concepts.
+     *
+     * @note For X11 clients, it's always @c false.
+     * @since 5.XX
+     **/
+    Q_PROPERTY(bool xdgPopup READ isXdgPopup CONSTANT)
+
 public:
     /**  Flags explaining why painting should be disabled  */
     enum {
@@ -2213,6 +2248,26 @@ public:
      * @since 5.10
      */
     bool isUnresponsive() const;
+
+    /**
+     * @since 5.XX
+     **/
+    bool isWaylandClient() const;
+
+    /**
+     * @since 5.XX
+     **/
+    bool isX11Client() const;
+
+    /**
+     * @since 5.XX
+     **/
+    bool isXdgToplevel() const;
+
+    /**
+     * @since 5.XX
+     **/
+    bool isXdgPopup() const;
 
     /**
      * Can be used to by effects to store arbitrary data in the EffectWindow.
