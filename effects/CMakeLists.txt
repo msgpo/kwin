@@ -123,6 +123,7 @@ kconfig_add_kcfg_files(kwin4_effect_builtins_sources
     scale/scaleconfig.kcfgc
     showfps/showfpsconfig.kcfgc
     slide/slideconfig.kcfgc
+    slidingnotifications/slidingnotificationsconfig.kcfgc
     slidingpopups/slidingpopupsconfig.kcfgc
     thumbnailaside/thumbnailasideconfig.kcfgc
     trackmouse/trackmouseconfig.kcfgc
@@ -163,6 +164,7 @@ add_subdirectory( showfps )
 include( showpaint/CMakeLists.txt )
 add_subdirectory( slide )
 include( slideback/CMakeLists.txt )
+include( slidingnotifications/CMakeLists.txt )
 include( slidingpopups/CMakeLists.txt )
 add_subdirectory( thumbnailaside )
 add_subdirectory( windowgeometry )

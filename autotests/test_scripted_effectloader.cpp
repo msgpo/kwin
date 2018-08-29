@@ -133,6 +133,7 @@ void TestScriptedEffectLoader::testHasEffect_data()
     QTest::newRow("ShowPaint")                   << QStringLiteral("showpaint")                 << false;
     QTest::newRow("Slide")                       << QStringLiteral("slide")                     << false;
     QTest::newRow("SlideBack")                   << QStringLiteral("slideback")                 << false;
+    QTest::newRow("SlidingNotifications")        << QStringLiteral("slidingnotifications")      << false;
     QTest::newRow("SlidingPopups")               << QStringLiteral("slidingpopups")             << false;
     QTest::newRow("SnapHelper")                  << QStringLiteral("snaphelper")                << false;
     QTest::newRow("StartupFeedback")             << QStringLiteral("startupfeedback")           << false;

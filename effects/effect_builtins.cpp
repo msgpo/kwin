@@ -27,6 +27,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "presentwindows/presentwindows.h"
 #include "screenedge/screenedgeeffect.h"
 #include "screenshot/screenshot.h"
+#include "slidingnotifications/slidingnotifications.h"
 #include "slidingpopups/slidingpopups.h"
 // Common effects only relevant to desktop
 #include "desktopgrid/desktopgrid.h"
@@ -562,6 +563,21 @@ EFFECT_FALLBACK
 #ifdef EFFECT_BUILTINS
         &createHelper<SlideBackEffect>,
         nullptr,
+        nullptr
+#endif
+EFFECT_FALLBACK
+    }, {
+        QStringLiteral("slidingnotifications"),
+        i18ndc("kwin_effects", "Name of a KWin Effect", "Sliding Notifications"),
+        i18ndc("kwin_effects", "Comment describing the KWin Effect", "Sliding animation for notifications"),
+        QStringLiteral("Appearance"),
+        QString(),
+        QUrl(),
+        true,
+        false,
+#ifdef EFFECT_BUILTINS
+        &createHelper<SlidingNotificationsEffect>,
+        &SlidingNotificationsEffect::supported,
         nullptr
 #endif
 EFFECT_FALLBACK
