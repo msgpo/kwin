@@ -321,7 +321,10 @@ void SlidingNotificationsEffect::startNextBatchOfAnimations()
         if (queuedAnimation.animation.kind != nextAnimationKind) {
             break;
         }
-        m_animations[queuedAnimation.target] = queuedAnimation.animation;
+        EffectWindow *w = queuedAnimation.target;
+        m_animations[w] = queuedAnimation.animation;
+        w->setData(WindowForceBackgroundContrastRole, QVariant(true));
+        w->setData(WindowForceBlurRole, QVariant(true));
     }
 }
 
