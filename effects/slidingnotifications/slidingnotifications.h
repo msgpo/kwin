@@ -69,10 +69,18 @@ private:
         Move
     };
 
+    enum class ScreenEdge {
+        Top,
+        Right,
+        Bottom,
+        Left
+    };
+
     struct Animation {
         AnimationKind kind;
         QRect fromGeometry;
         QRect toGeometry;
+        ScreenEdge screenEdge;
         TimeLine timeLine;
     };
 
