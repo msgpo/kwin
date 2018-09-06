@@ -69,6 +69,8 @@ private:
     struct Animation;
     void paintSlideStage(EffectWindow *w, const Animation &animation,
                          QRegion &region, WindowPaintData &data) const;
+    void paintMoveStage(EffectWindow *w, const Animation &animation,
+                        QRegion &region, WindowPaintData &data) const;
 
 private:
     std::chrono::milliseconds m_duration;

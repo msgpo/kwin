@@ -91,6 +91,20 @@ void SlidingNotificationsEffect::paintSlideStage(EffectWindow *w, const Animatio
     // TODO: Clip.
 }
 
+void SlidingNotificationsEffect::paintMoveStage(EffectWindow *w, const Animation &animation, QRegion &region, WindowPaintData &data) const
+{
+    Q_UNUSED(region)
+
+    const qreal t = animation.timeLine.value();
+
+    const QPointF currentPos(
+        interpolate(animation.fromGeometry.x(), animation.toGeometry.x(), t),
+        interpolate(animation.fromGeometry.y(), animation.toGeometry.y(), t));
+    const QPointF diff = currentPos - QPointF(w->geometry().topLeft());
+
+    data.translate(diff.x(), diff.y());
+}
+
 void SlidingNotificationsEffect::paintWindow(EffectWindow *w, int mask, QRegion region, WindowPaintData &data)
 {
     auto animationIt = m_animations.constFind(w);
@@ -106,6 +120,7 @@ void SlidingNotificationsEffect::paintWindow(EffectWindow *w, int mask, QRegion 
         break;
 
     case AnimationKind::Move:
+        paintMoveStage(w, *animationIt, region, data);
         break;
 
     default:
