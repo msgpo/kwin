@@ -67,11 +67,24 @@ void SlidingNotificationsEffect::prePaintScreen(ScreenPrePaintData &data, int ti
 
 void SlidingNotificationsEffect::prePaintWindow(EffectWindow *w, WindowPrePaintData &data, int time)
 {
+    if (m_animations.contains(w)) {
+        data.setTransformed();
+        w->enablePainting(EffectWindow::PAINT_DISABLED_BY_DELETE);
+    }
+
+    // TODO: Freeze notifications that have to be moved up while SlideOut is active.
+
     effects->prePaintWindow(w, data, time);
 }
 
 void SlidingNotificationsEffect::paintWindow(EffectWindow *w, int mask, QRegion region, WindowPaintData &data)
 {
+    auto animationIt = m_animations.constFind(w);
+    if (animationIt == m_animations.constEnd()) {
+        effects->paintWindow(w, mask, region, data);
+        return;
+    }
+
     effects->paintWindow(w, mask, region, data);
 }
 
@@ -295,7 +308,7 @@ void SlidingNotificationsEffect::startNextBatchOfAnimations()
 {
     const AnimationKind currentAnimationKind = m_queuedAnimations.head().animation.kind;
     while (!m_queuedAnimations.isEmpty()
-                && m_queuedAnimations.head().animation.kind != currentAnimationKind) {
+                && m_queuedAnimations.head().animation.kind == currentAnimationKind) {
         m_queuedAnimations.removeFirst();
     }
 
