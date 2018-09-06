@@ -77,12 +77,40 @@ void SlidingNotificationsEffect::prePaintWindow(EffectWindow *w, WindowPrePaintD
     effects->prePaintWindow(w, data, time);
 }
 
+void SlidingNotificationsEffect::paintSlideStage(EffectWindow *w, const Animation &animation, QRegion &region, WindowPaintData &data) const
+{
+    const qreal t = animation.timeLine.value();
+
+    const QPointF currentPos(
+        interpolate(animation.fromGeometry.x(), animation.toGeometry.x(), t),
+        interpolate(animation.fromGeometry.y(), animation.toGeometry.y(), t));
+    const QPointF diff = currentPos - QPointF(w->expandedGeometry().topLeft());
+
+    data.translate(diff.x(), diff.y());
+
+    // TODO: Clip.
+}
+
 void SlidingNotificationsEffect::paintWindow(EffectWindow *w, int mask, QRegion region, WindowPaintData &data)
 {
     auto animationIt = m_animations.constFind(w);
     if (animationIt == m_animations.constEnd()) {
         effects->paintWindow(w, mask, region, data);
         return;
+    }
+
+    switch ((*animationIt).kind) {
+    case AnimationKind::SlideIn:
+    case AnimationKind::SlideOut:
+        paintSlideStage(w, *animationIt, region, data);
+        break;
+
+    case AnimationKind::Move:
+        break;
+
+    default:
+        Q_UNREACHABLE();
+        break;
     }
 
     effects->paintWindow(w, mask, region, data);
@@ -263,6 +291,7 @@ void SlidingNotificationsEffect::slotWindowGeometryShapeChanged(EffectWindow *w,
     if (!isNotificationWindow(w)) {
         return;
     }
+
     Q_UNUSED(old)
 }
 
