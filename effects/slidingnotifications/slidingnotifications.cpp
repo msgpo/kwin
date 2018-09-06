@@ -84,7 +84,7 @@ void SlidingNotificationsEffect::paintSlideStage(EffectWindow *w, const Animatio
     const QPointF currentPos(
         interpolate(animation.fromGeometry.x(), animation.toGeometry.x(), t),
         interpolate(animation.fromGeometry.y(), animation.toGeometry.y(), t));
-    const QPointF diff = currentPos - QPointF(w->expandedGeometry().topLeft());
+    const QPointF diff = currentPos - QPointF(w->geometry().topLeft());
 
     data.translate(diff.x(), diff.y());
 
@@ -179,7 +179,7 @@ void SlidingNotificationsEffect::slotWindowAdded(EffectWindow *w)
     }
 
     const QRect screenRect = effects->clientArea(FullScreenArea, w->screen(), w->desktop());
-    const QRect windowRect = w->expandedGeometry();
+    const QRect windowRect = w->geometry();
 
     Animation animation;
     animation.kind = AnimationKind::SlideIn;
@@ -235,7 +235,7 @@ void SlidingNotificationsEffect::slotWindowClosed(EffectWindow *w)
     }
 
     const QRect screenRect = effects->clientArea(FullScreenArea, w->screen(), w->desktop());
-    const QRect windowRect = w->expandedGeometry();
+    const QRect windowRect = w->geometry();
 
     Animation animation;
     animation.kind = AnimationKind::SlideOut;
@@ -292,7 +292,24 @@ void SlidingNotificationsEffect::slotWindowGeometryShapeChanged(EffectWindow *w,
         return;
     }
 
-    Q_UNUSED(old)
+    Animation animation;
+    animation.kind = AnimationKind::Move;
+    animation.fromGeometry = old;
+    animation.toGeometry = w->geometry();
+    animation.timeLine.setDirection(TimeLine::Forward);
+    animation.timeLine.setDuration(m_duration);
+    animation.timeLine.setEasingCurve(QEasingCurve::Linear);
+
+    // TODO: If m_queuedAnimations is not empty and head has the same
+    // kind as this one, put the new animation right in m_animations.
+    if (m_queuedAnimations.isEmpty()) {
+        m_queuedAnimations.enqueue({w, animation});
+        m_animations.insert(w, animation);
+    } else {
+        m_queuedAnimations.enqueue({w, animation});
+    }
+
+    w->addRepaintFull();
 }
 
 bool SlidingNotificationsEffect::isNotificationWindow(const EffectWindow *w) const
@@ -311,7 +328,7 @@ bool SlidingNotificationsEffect::isNotificationWindow(const EffectWindow *w) con
 bool SlidingNotificationsEffect::isSlideableWindow(const EffectWindow *w) const
 {
     const QRect screenRect = effects->clientArea(FullScreenArea, w->screen(), w->desktop());
-    const QRect windowRect = w->expandedGeometry();
+    const QRect windowRect = w->geometry();
 
     const int centerX = screenRect.center().x();
     if (windowRect.left() < centerX && centerX < windowRect.right()) {
@@ -324,7 +341,7 @@ bool SlidingNotificationsEffect::isSlideableWindow(const EffectWindow *w) const
 SlidingNotificationsEffect::ScreenEdge SlidingNotificationsEffect::inferSlideScreenEdge(const EffectWindow *w) const
 {
     const QRect screenRect = effects->clientArea(FullScreenArea, w->screen(), w->desktop());
-    const QRect windowRect = w->expandedGeometry();
+    const QRect windowRect = w->geometry();
 
     if (windowRect.right() < screenRect.center().x()) {
         return ScreenEdge::Left;
