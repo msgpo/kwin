@@ -206,7 +206,9 @@ void SlidingNotificationsEffect::slotWindowDeleted(EffectWindow *w)
 
 void SlidingNotificationsEffect::slotWindowGeometryShapeChanged(EffectWindow *w, const QRect &old)
 {
-    Q_UNUSED(w)
+    if (!isNotificationWindow(w)) {
+        return;
+    }
     Q_UNUSED(old)
 }
 
