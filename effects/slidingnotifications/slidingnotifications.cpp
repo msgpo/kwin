@@ -77,6 +77,43 @@ void SlidingNotificationsEffect::paintWindow(EffectWindow *w, int mask, QRegion 
 
 void SlidingNotificationsEffect::postPaintScreen()
 {
+    auto animationIt = m_animations.begin();
+    while (animationIt != m_animations.end()) {
+        EffectWindow *w = animationIt.key();
+        // TODO: Repaint.
+
+        if (!(*animationIt).timeLine.done()) {
+            ++animationIt;
+            continue;
+        }
+
+        const Animation &animation = *animationIt;
+        switch (animation.kind) {
+        case AnimationKind::SlideOut:
+            w->unrefWindow();
+            break;
+
+        case AnimationKind::SlideIn:
+        case AnimationKind::Move:
+            w->setData(WindowForceBackgroundContrastRole, QVariant());
+            w->setData(WindowForceBlurRole, QVariant());
+            break;
+
+        default:
+            Q_UNREACHABLE();
+            break;
+        }
+
+        animationIt = m_animations.erase(animationIt);
+    }
+
+    // TODO: Don't do full screen repaints.
+    effects->addRepaintFull();
+
+    if (m_animations.isEmpty()) {
+        startNextBatchOfAnimations();
+    }
+
     effects->postPaintScreen();
 }
 
@@ -129,12 +166,14 @@ void SlidingNotificationsEffect::slotWindowAdded(EffectWindow *w)
         break;
     }
 
-    // TODO:
-    // * If m_queuedAnimations is empty, enqueue the new animations and also put the
-    //   new animation right in m_animations;
-    // * If m_queuedAnimations is not empty and head has the same kind as this one,
-    //   put the new animation right in m_animations;
-    // * Otherwise, just enqueue the new animation.
+    // TODO: If m_queuedAnimations is not empty and head has the same
+    // kind as this one, put the new animation right in m_animations.
+    if (m_queuedAnimations.isEmpty()) {
+        m_queuedAnimations.enqueue({w, animation});
+        m_animations.insert(w, animation);
+    } else {
+        m_queuedAnimations.enqueue({w, animation});
+    }
 
     w->setData(IsNotificationRole, QVariant(true));
     w->setData(WindowAddedGrabRole, QVariant::fromValue(static_cast<void *>(this)));
@@ -183,12 +222,14 @@ void SlidingNotificationsEffect::slotWindowClosed(EffectWindow *w)
         break;
     }
 
-    // TODO:
-    // * If m_queuedAnimations is empty, enqueue the new animations and also put the
-    //   new animation right in m_animations;
-    // * If m_queuedAnimations is not empty and head has the same kind as this one,
-    //   put the new animation right in m_animations;
-    // * Otherwise, just enqueue the new animation.
+    // TODO: If m_queuedAnimations is not empty and head has the same
+    // kind as this one, put the new animation right in m_animations.
+    if (m_queuedAnimations.isEmpty()) {
+        m_queuedAnimations.enqueue({w, animation});
+        m_animations.insert(w, animation);
+    } else {
+        m_queuedAnimations.enqueue({w, animation});
+    }
 
     w->refWindow();
 
@@ -248,6 +289,27 @@ SlidingNotificationsEffect::ScreenEdge SlidingNotificationsEffect::inferSlideScr
     }
 
     return ScreenEdge::Right;
+}
+
+void SlidingNotificationsEffect::startNextBatchOfAnimations()
+{
+    const AnimationKind currentAnimationKind = m_queuedAnimations.head().animation.kind;
+    while (!m_queuedAnimations.isEmpty()
+                && m_queuedAnimations.head().animation.kind != currentAnimationKind) {
+        m_queuedAnimations.removeFirst();
+    }
+
+    if (m_queuedAnimations.isEmpty()) {
+        return;
+    }
+
+    const AnimationKind nextAnimationKind = m_queuedAnimations.head().animation.kind;
+    for (const QueuedAnimation &queuedAnimation : m_queuedAnimations) {
+        if (queuedAnimation.animation.kind != nextAnimationKind) {
+            break;
+        }
+        m_animations[queuedAnimation.target] = queuedAnimation.animation;
+    }
 }
 
 } // namespace KWin

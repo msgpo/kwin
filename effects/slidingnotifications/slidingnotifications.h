@@ -64,6 +64,8 @@ private:
     enum class ScreenEdge;
     ScreenEdge inferSlideScreenEdge(const EffectWindow *w) const;
 
+    void startNextBatchOfAnimations();
+
 private:
     std::chrono::milliseconds m_duration;
 
