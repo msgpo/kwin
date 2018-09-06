@@ -67,10 +67,16 @@ private:
     void startNextBatchOfAnimations();
 
     struct Animation;
+    void paintAnimation(EffectWindow *w, const Animation &animation,
+                        QRegion &region, WindowPaintData &data) const;
     void paintSlideStage(EffectWindow *w, const Animation &animation,
                          QRegion &region, WindowPaintData &data) const;
     void paintMoveStage(EffectWindow *w, const Animation &animation,
                         QRegion &region, WindowPaintData &data) const;
+
+    struct InterAnimationState;
+    void paintInterAnimation(EffectWindow *w, const InterAnimationState &state,
+                             QRegion &region, WindowPaintData &data) const;
 
 private:
     std::chrono::milliseconds m_duration;
@@ -103,6 +109,11 @@ private:
 
     QQueue<QueuedAnimation> m_queuedAnimations;
     QHash<EffectWindow *, Animation> m_animations;
+
+    struct InterAnimationState {
+        QRect geometry;
+    };
+    QHash<const EffectWindow *, InterAnimationState> m_interAnimationState;
 };
 
 inline int SlidingNotificationsEffect::requestedEffectChainPosition() const

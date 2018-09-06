@@ -70,6 +70,8 @@ void SlidingNotificationsEffect::prePaintWindow(EffectWindow *w, WindowPrePaintD
     if (m_animations.contains(w)) {
         data.setTransformed();
         w->enablePainting(EffectWindow::PAINT_DISABLED_BY_DELETE);
+    } else if (m_interAnimationState.contains(w)) {
+        data.setTransformed();
     }
 
     // TODO: Freeze notifications that have to be moved up while SlideOut is active.
@@ -105,27 +107,42 @@ void SlidingNotificationsEffect::paintMoveStage(EffectWindow *w, const Animation
     data.translate(diff.x(), diff.y());
 }
 
-void SlidingNotificationsEffect::paintWindow(EffectWindow *w, int mask, QRegion region, WindowPaintData &data)
+void SlidingNotificationsEffect::paintAnimation(EffectWindow *w, const Animation &animation, QRegion &region, WindowPaintData &data) const
 {
-    auto animationIt = m_animations.constFind(w);
-    if (animationIt == m_animations.constEnd()) {
-        effects->paintWindow(w, mask, region, data);
-        return;
-    }
-
-    switch ((*animationIt).kind) {
+    switch (animation.kind) {
     case AnimationKind::SlideIn:
     case AnimationKind::SlideOut:
-        paintSlideStage(w, *animationIt, region, data);
+        paintSlideStage(w, animation, region, data);
         break;
 
     case AnimationKind::Move:
-        paintMoveStage(w, *animationIt, region, data);
+        paintMoveStage(w, animation, region, data);
         break;
 
     default:
         Q_UNREACHABLE();
         break;
+    }
+}
+
+void SlidingNotificationsEffect::paintInterAnimation(EffectWindow *w, const InterAnimationState &state, QRegion &region, WindowPaintData &data) const
+{
+    const QPoint diff = state.geometry.topLeft() - w->geometry().topLeft();
+    data.translate(diff.x(), diff.y());
+}
+
+void SlidingNotificationsEffect::paintWindow(EffectWindow *w, int mask, QRegion region, WindowPaintData &data)
+{
+    auto animationIt = m_animations.constFind(w);
+    if (animationIt != m_animations.constEnd()) {
+        paintAnimation(w, *animationIt, region, data);
+        effects->paintWindow(w, mask, region, data);
+        return;
+    }
+
+    auto stateIt = m_interAnimationState.constFind(w);
+    if (stateIt != m_interAnimationState.constEnd()) {
+        paintInterAnimation(w, *stateIt, region, data);
     }
 
     effects->paintWindow(w, mask, region, data);
@@ -150,9 +167,11 @@ void SlidingNotificationsEffect::postPaintScreen()
             break;
 
         case AnimationKind::SlideIn:
+            m_interAnimationState[w].geometry = animation.toGeometry;
+            break;
+
         case AnimationKind::Move:
-            w->setData(WindowForceBackgroundContrastRole, QVariant());
-            w->setData(WindowForceBlurRole, QVariant());
+            m_interAnimationState[w].geometry = animation.toGeometry;
             break;
 
         default:
@@ -222,14 +241,18 @@ void SlidingNotificationsEffect::slotWindowAdded(EffectWindow *w)
         break;
     }
 
-    // TODO: If m_queuedAnimations is not empty and head has the same
-    // kind as this one, put the new animation right in m_animations.
     if (m_queuedAnimations.isEmpty()) {
         m_queuedAnimations.enqueue({w, animation});
+        m_animations.insert(w, animation);
+    } else if (m_queuedAnimations.head().animation.kind == animation.kind) {
+        m_queuedAnimations.prepend({w, animation});
         m_animations.insert(w, animation);
     } else {
         m_queuedAnimations.enqueue({w, animation});
     }
+
+    InterAnimationState &interState = m_interAnimationState[w];
+    interState.geometry = animation.fromGeometry;
 
     w->setData(IsNotificationRole, QVariant(true));
     w->setData(WindowAddedGrabRole, QVariant::fromValue(static_cast<void *>(this)));
@@ -298,7 +321,9 @@ void SlidingNotificationsEffect::slotWindowClosed(EffectWindow *w)
 
 void SlidingNotificationsEffect::slotWindowDeleted(EffectWindow *w)
 {
-    Q_UNUSED(w)
+    // TODO: Cleanup m_queuedAnimations.
+    m_animations.remove(w);
+    m_interAnimationState.remove(w);
 }
 
 void SlidingNotificationsEffect::slotWindowGeometryShapeChanged(EffectWindow *w, const QRect &old)
@@ -315,10 +340,11 @@ void SlidingNotificationsEffect::slotWindowGeometryShapeChanged(EffectWindow *w,
     animation.timeLine.setDuration(m_duration);
     animation.timeLine.setEasingCurve(QEasingCurve::Linear);
 
-    // TODO: If m_queuedAnimations is not empty and head has the same
-    // kind as this one, put the new animation right in m_animations.
     if (m_queuedAnimations.isEmpty()) {
         m_queuedAnimations.enqueue({w, animation});
+        m_animations.insert(w, animation);
+    } else if (m_queuedAnimations.head().animation.kind == animation.kind) {
+        // TODO: What if it's already is active.
         m_animations.insert(w, animation);
     } else {
         m_queuedAnimations.enqueue({w, animation});
@@ -382,10 +408,7 @@ void SlidingNotificationsEffect::startNextBatchOfAnimations()
         if (queuedAnimation.animation.kind != nextAnimationKind) {
             break;
         }
-        EffectWindow *w = queuedAnimation.target;
-        m_animations[w] = queuedAnimation.animation;
-        w->setData(WindowForceBackgroundContrastRole, QVariant(true));
-        w->setData(WindowForceBlurRole, QVariant(true));
+        m_animations[queuedAnimation.target] = queuedAnimation.animation;
     }
 }
 
