@@ -96,11 +96,38 @@ void SlidingNotificationsEffect::slotWindowAdded(EffectWindow *w)
         return;
     }
 
+    if (!isSlideableWindow(w)) {
+        return;
+    }
+
     const QRect screenRect = effects->clientArea(FullScreenArea, w->screen(), w->desktop());
     const QRect windowRect = w->expandedGeometry();
 
-    Q_UNUSED(screenRect)
-    Q_UNUSED(windowRect)
+    Animation animation;
+    animation.kind = AnimationKind::SlideIn;
+    animation.screenEdge = inferSlideScreenEdge(w);
+    animation.timeLine.setDirection(TimeLine::Forward);
+    animation.timeLine.setDuration(m_duration);
+    animation.timeLine.setEasingCurve(QEasingCurve::InOutSine);
+
+    animation.fromGeometry = windowRect;
+    animation.toGeometry = windowRect;
+
+    switch (animation.screenEdge) {
+    case ScreenEdge::Left:
+        animation.fromGeometry.moveRight(screenRect.left());
+        break;
+
+    case ScreenEdge::Right:
+        animation.fromGeometry.moveLeft(screenRect.right());
+        break;
+
+    case ScreenEdge::Top:
+    case ScreenEdge::Bottom:
+    default:
+        Q_UNREACHABLE();
+        break;
+    }
 
     // TODO:
     // * If m_queuedAnimations is empty, enqueue the new animations and also put the
@@ -123,11 +150,38 @@ void SlidingNotificationsEffect::slotWindowClosed(EffectWindow *w)
         return;
     }
 
+    if (!isSlideableWindow(w)) {
+        return;
+    }
+
     const QRect screenRect = effects->clientArea(FullScreenArea, w->screen(), w->desktop());
     const QRect windowRect = w->expandedGeometry();
 
-    Q_UNUSED(screenRect)
-    Q_UNUSED(windowRect)
+    Animation animation;
+    animation.kind = AnimationKind::SlideOut;
+    animation.screenEdge = inferSlideScreenEdge(w);
+    animation.timeLine.setDirection(TimeLine::Forward);
+    animation.timeLine.setDuration(m_duration);
+    animation.timeLine.setEasingCurve(QEasingCurve::InOutSine);
+
+    animation.fromGeometry = windowRect;
+    animation.toGeometry = windowRect;
+
+    switch (animation.screenEdge) {
+    case ScreenEdge::Left:
+        animation.toGeometry.moveRight(screenRect.left());
+        break;
+
+    case ScreenEdge::Right:
+        animation.toGeometry.moveLeft(screenRect.right());
+        break;
+
+    case ScreenEdge::Top:
+    case ScreenEdge::Bottom:
+    default:
+        Q_UNREACHABLE();
+        break;
+    }
 
     // TODO:
     // * If m_queuedAnimations is empty, enqueue the new animations and also put the
@@ -167,6 +221,31 @@ bool SlidingNotificationsEffect::isNotificationWindow(const EffectWindow *w) con
     }
 
     return false;
+}
+
+bool SlidingNotificationsEffect::isSlideableWindow(const EffectWindow *w) const
+{
+    const QRect screenRect = effects->clientArea(FullScreenArea, w->screen(), w->desktop());
+    const QRect windowRect = w->expandedGeometry();
+
+    const int centerX = screenRect.center().x();
+    if (windowRect.left() < centerX && centerX < windowRect.right()) {
+        return false;
+    }
+
+    return true;
+}
+
+SlidingNotificationsEffect::ScreenEdge SlidingNotificationsEffect::inferSlideScreenEdge(const EffectWindow *w) const
+{
+    const QRect screenRect = effects->clientArea(FullScreenArea, w->screen(), w->desktop());
+    const QRect windowRect = w->expandedGeometry();
+
+    if (windowRect.right() < screenRect.center().x()) {
+        return ScreenEdge::Left;
+    }
+
+    return ScreenEdge::Right;
 }
 
 } // namespace KWin

@@ -59,6 +59,10 @@ private Q_SLOTS:
 
 private:
     bool isNotificationWindow(const EffectWindow *w) const;
+    bool isSlideableWindow(const EffectWindow *w) const;
+
+    enum class ScreenEdge;
+    ScreenEdge inferSlideScreenEdge(const EffectWindow *w) const;
 
 private:
     std::chrono::milliseconds m_duration;
