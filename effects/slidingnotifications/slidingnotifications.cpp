@@ -40,6 +40,8 @@ SlidingNotificationsEffect::SlidingNotificationsEffect()
             this, &SlidingNotificationsEffect::slotWindowClosed);
     connect(effects, &EffectsHandler::windowDeleted,
             this, &SlidingNotificationsEffect::slotWindowDeleted);
+    connect(effects, &EffectsHandler::windowGeometryShapeChanged,
+            this, &SlidingNotificationsEffect::slotWindowGeometryShapeChanged);
 }
 
 void SlidingNotificationsEffect::reconfigure(ReconfigureFlags flags)
@@ -52,6 +54,14 @@ void SlidingNotificationsEffect::reconfigure(ReconfigureFlags flags)
 
 void SlidingNotificationsEffect::prePaintScreen(ScreenPrePaintData &data, int time)
 {
+    const std::chrono::milliseconds delta(time);
+
+    auto animationIt = m_animations.begin();
+    while (animationIt != m_animations.end()) {
+        (*animationIt).timeLine.update(delta);
+        ++animationIt;
+    }
+
     effects->prePaintScreen(data, time);
 }
 
@@ -72,7 +82,7 @@ void SlidingNotificationsEffect::postPaintScreen()
 
 bool SlidingNotificationsEffect::isActive() const
 {
-    return false;
+    return !m_animations.isEmpty() || !m_queuedAnimations.isEmpty();
 }
 
 bool SlidingNotificationsEffect::supported()
@@ -89,7 +99,15 @@ void SlidingNotificationsEffect::slotWindowAdded(EffectWindow *w)
     const QRect screenRect = effects->clientArea(FullScreenArea, w->screen(), w->desktop());
     const QRect windowRect = w->expandedGeometry();
 
-    // TODO: Setup animation.
+    Q_UNUSED(screenRect)
+    Q_UNUSED(windowRect)
+
+    // TODO:
+    // * If m_queuedAnimations is empty, enqueue the new animations and also put the
+    //   new animation right in m_animations;
+    // * If m_queuedAnimations is not empty and head has the same kind as this one,
+    //   put the new animation right in m_animations;
+    // * Otherwise, just enqueue the new animation.
 
     w->setData(IsNotificationRole, QVariant(true));
     w->setData(WindowAddedGrabRole, QVariant::fromValue(static_cast<void *>(this)));
@@ -108,7 +126,15 @@ void SlidingNotificationsEffect::slotWindowClosed(EffectWindow *w)
     const QRect screenRect = effects->clientArea(FullScreenArea, w->screen(), w->desktop());
     const QRect windowRect = w->expandedGeometry();
 
-    // TODO: Setup animation.
+    Q_UNUSED(screenRect)
+    Q_UNUSED(windowRect)
+
+    // TODO:
+    // * If m_queuedAnimations is empty, enqueue the new animations and also put the
+    //   new animation right in m_animations;
+    // * If m_queuedAnimations is not empty and head has the same kind as this one,
+    //   put the new animation right in m_animations;
+    // * Otherwise, just enqueue the new animation.
 
     w->refWindow();
 
@@ -122,6 +148,12 @@ void SlidingNotificationsEffect::slotWindowClosed(EffectWindow *w)
 void SlidingNotificationsEffect::slotWindowDeleted(EffectWindow *w)
 {
     Q_UNUSED(w)
+}
+
+void SlidingNotificationsEffect::slotWindowGeometryShapeChanged(EffectWindow *w, const QRect &old)
+{
+    Q_UNUSED(w)
+    Q_UNUSED(old)
 }
 
 bool SlidingNotificationsEffect::isNotificationWindow(const EffectWindow *w) const

@@ -23,6 +23,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 // kwineffects
 #include <kwineffects.h>
 
+// Qt
+#include <QQueue>
+
 namespace KWin
 {
 
@@ -52,12 +55,34 @@ private Q_SLOTS:
     void slotWindowAdded(EffectWindow *w);
     void slotWindowClosed(EffectWindow *w);
     void slotWindowDeleted(EffectWindow *w);
+    void slotWindowGeometryShapeChanged(EffectWindow *w, const QRect &old);
 
 private:
     bool isNotificationWindow(const EffectWindow *w) const;
 
 private:
     std::chrono::milliseconds m_duration;
+
+    enum class AnimationKind {
+        SlideIn,
+        SlideOut,
+        Move
+    };
+
+    struct Animation {
+        AnimationKind kind;
+        QRect fromGeometry;
+        QRect toGeometry;
+        TimeLine timeLine;
+    };
+
+    struct QueuedAnimation {
+        EffectWindow *target;
+        Animation animation;
+    };
+
+    QQueue<QueuedAnimation> m_queuedAnimations;
+    QHash<EffectWindow *, Animation> m_animations;
 };
 
 inline int SlidingNotificationsEffect::requestedEffectChainPosition() const
