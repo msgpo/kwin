@@ -58,20 +58,6 @@ private:
 
 private:
     std::chrono::milliseconds m_duration;
-
-    enum class ScreenEdge {
-        Top,
-        Right,
-        Bottom,
-        Left
-    };
-
-    struct Animation {
-        ScreenEdge screenEdge;
-        TimeLine timeLine;
-    };
-
-    QHash<EffectWindow *, Animation> m_animations;
 };
 
 inline int SlidingNotificationsEffect::requestedEffectChainPosition() const

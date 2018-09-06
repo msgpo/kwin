@@ -52,95 +52,27 @@ void SlidingNotificationsEffect::reconfigure(ReconfigureFlags flags)
 
 void SlidingNotificationsEffect::prePaintScreen(ScreenPrePaintData &data, int time)
 {
-    const std::chrono::milliseconds delta(time);
-
-    auto animationIt = m_animations.begin();
-    while (animationIt != m_animations.end()) {
-        (*animationIt).timeLine.update(delta);
-        ++animationIt;
-    }
-
     effects->prePaintScreen(data, time);
 }
 
 void SlidingNotificationsEffect::prePaintWindow(EffectWindow *w, WindowPrePaintData &data, int time)
 {
-    if (m_animations.contains(w)) {
-        data.setTransformed();
-        w->enablePainting(EffectWindow::PAINT_DISABLED_BY_DELETE);
-    }
-
     effects->prePaintWindow(w, data, time);
 }
 
 void SlidingNotificationsEffect::paintWindow(EffectWindow *w, int mask, QRegion region, WindowPaintData &data)
 {
-    auto animationIt = m_animations.constFind(w);
-    if (animationIt == m_animations.constEnd()) {
-        effects->paintWindow(w, mask, region, data);
-        return;
-    }
-
-    const QRectF screenRect = effects->clientArea(FullScreenArea, w->screen(), w->desktop());
-    const QRectF windowRect = w->expandedGeometry();
-    const qreal t = (*animationIt).timeLine.value();
-
-    switch ((*animationIt).screenEdge) {
-    case ScreenEdge::Top:
-    case ScreenEdge::Bottom:
-        break;
-
-    case ScreenEdge::Left: {
-        const QRect clipRect(screenRect.left(), windowRect.top(),
-            windowRect.right() - screenRect.left(), windowRect.height());
-        data.translate(-interpolate(clipRect.width(), 0, t), 0);
-        region = QRegion(clipRect);
-        break;
-    }
-
-    case ScreenEdge::Right: {
-        const QRect clipRect(windowRect.left(), windowRect.top(),
-            screenRect.right() - windowRect.left(), windowRect.height());
-        data.translate(interpolate(clipRect.width(), 0, t), 0);
-        region = QRegion(clipRect);
-        break;
-    }
-
-    default:
-        Q_UNREACHABLE();
-        break;
-    }
-
     effects->paintWindow(w, mask, region, data);
 }
 
 void SlidingNotificationsEffect::postPaintScreen()
 {
-    auto animationIt = m_animations.begin();
-    while (animationIt != m_animations.end()) {
-        if ((*animationIt).timeLine.done()) {
-            EffectWindow *w = animationIt.key();
-            if (w->isDeleted()) {
-                w->unrefWindow();
-            } else {
-                w->setData(WindowForceBackgroundContrastRole, QVariant());
-                w->setData(WindowForceBlurRole, QVariant());
-            }
-            animationIt = m_animations.erase(animationIt);
-        } else {
-            ++animationIt;
-        }
-    }
-
-    // TODO: Don't do fullscreen repaints.
-    effects->addRepaintFull();
-
     effects->postPaintScreen();
 }
 
 bool SlidingNotificationsEffect::isActive() const
 {
-    return !m_animations.isEmpty();
+    return false;
 }
 
 bool SlidingNotificationsEffect::supported()
@@ -157,15 +89,7 @@ void SlidingNotificationsEffect::slotWindowAdded(EffectWindow *w)
     const QRect screenRect = effects->clientArea(FullScreenArea, w->screen(), w->desktop());
     const QRect windowRect = w->expandedGeometry();
 
-    Q_UNUSED(screenRect)
-    Q_UNUSED(windowRect)
-
-    Animation &animation = m_animations[w];
-    animation.screenEdge = ScreenEdge::Right; // TODO: Figure out screen edge.
-    animation.timeLine.reset();
-    animation.timeLine.setDirection(TimeLine::Forward);
-    animation.timeLine.setDuration(m_duration);
-    animation.timeLine.setEasingCurve(QEasingCurve::InOutSine);
+    // TODO: Setup animation.
 
     w->setData(IsNotificationRole, QVariant(true));
     w->setData(WindowAddedGrabRole, QVariant::fromValue(static_cast<void *>(this)));
@@ -184,15 +108,7 @@ void SlidingNotificationsEffect::slotWindowClosed(EffectWindow *w)
     const QRect screenRect = effects->clientArea(FullScreenArea, w->screen(), w->desktop());
     const QRect windowRect = w->expandedGeometry();
 
-    Q_UNUSED(screenRect)
-    Q_UNUSED(windowRect)
-
-    Animation &animation = m_animations[w];
-    animation.screenEdge = ScreenEdge::Right; // TODO: Figure out screen edge.
-    animation.timeLine.reset();
-    animation.timeLine.setDirection(TimeLine::Backward);
-    animation.timeLine.setDuration(m_duration);
-    animation.timeLine.setEasingCurve(QEasingCurve::InOutSine);
+    // TODO: Setup animation.
 
     w->refWindow();
 
@@ -205,7 +121,7 @@ void SlidingNotificationsEffect::slotWindowClosed(EffectWindow *w)
 
 void SlidingNotificationsEffect::slotWindowDeleted(EffectWindow *w)
 {
-    m_animations.remove(w);
+    Q_UNUSED(w)
 }
 
 bool SlidingNotificationsEffect::isNotificationWindow(const EffectWindow *w) const
