@@ -34,9 +34,8 @@ along with this program.  If not, see <http:// www.gnu.org/licenses/>.
 #include "wayland_server.h"
 #include "workspace.h"
 
-#include <QScriptContext>
-#include <QScriptEngine>
-#include <QScriptValue>
+#include <QJSValue>
+#include <QQmlEngine>
 
 #include <KConfigGroup>
 #include <KGlobalAccel>
@@ -74,39 +73,30 @@ class ScriptedEffectWithDebugSpy : public KWin::ScriptedEffect
 {
     Q_OBJECT
 public:
-    ScriptedEffectWithDebugSpy();
     bool load(const QString &name);
     using AnimationEffect::state;
+    Q_INVOKABLE void sendTestResponse(const QString &out); //proxies triggers out from the tests
+    QList<QAction*> actions(); //returns any QActions owned by the ScriptEngine
 signals:
     void testOutput(const QString &data);
 };
 
-QScriptValue kwinEffectScriptTestOut(QScriptContext *context, QScriptEngine *engine)
+void ScriptedEffectWithDebugSpy::sendTestResponse(const QString &out)
 {
-    auto *script = qobject_cast<ScriptedEffectWithDebugSpy*>(context->callee().data().toQObject());
-    QString result;
-    for (int i = 0; i < context->argumentCount(); ++i) {
-        if (i > 0) {
-            result.append(QLatin1Char(' '));
-        }
-        result.append(context->argument(i).toString());
-    }
-    emit script->testOutput(result);
-
-    return engine->undefinedValue();
+    emit testOutput(out);
 }
 
-ScriptedEffectWithDebugSpy::ScriptedEffectWithDebugSpy()
-    : ScriptedEffect()
+QList<QAction*> ScriptedEffectWithDebugSpy::actions()
 {
-    QScriptValue testHookFunc = engine()->newFunction(kwinEffectScriptTestOut);
-    testHookFunc.setData(engine()->newQObject(this));
-    engine()->globalObject().setProperty(QStringLiteral("sendTestResponse"), testHookFunc);
+    return findChildren<QAction*>(QString(), Qt::FindDirectChildrenOnly);
 }
 
 bool ScriptedEffectWithDebugSpy::load(const QString &name)
 {
+    auto selfContext = engine()->newQObject(this);
+    QQmlEngine::setObjectOwnership(this, QQmlEngine::CppOwnership);
     const QString path = QFINDTESTDATA("./scripts/" + name + ".js");
+    engine()->globalObject().setProperty("sendTestResponse", selfContext.property("sendTestResponse"));
     if (!init(name, path)) {
         return false;
     }
@@ -236,8 +226,8 @@ void ScriptedEffectsTest::testShortcuts()
     auto *effect = new ScriptedEffectWithDebugSpy; // cleaned up in ::clean
     QSignalSpy effectOutputSpy(effect, &ScriptedEffectWithDebugSpy::testOutput);
     QVERIFY(effect->load("shortcutsTest"));
-    QCOMPARE(effect->shortcutCallbacks().count(), 1);
-    QAction *action = effect->shortcutCallbacks().keys()[0];
+    QCOMPARE(effect->actions().count(), 1);
+    auto action = effect->actions()[0];
     QCOMPARE(action->objectName(), "testShortcut");
     QCOMPARE(action->text(), "Test Shortcut");
     QCOMPARE(KGlobalAccel::self()->shortcut(action).first(), QKeySequence("Meta+Shift+Y"));
@@ -346,8 +336,7 @@ void ScriptedEffectsTest::testScreenEdgeTouch()
     auto *effect = new ScriptedEffectWithDebugSpy; // cleaned up in ::clean
     QSignalSpy effectOutputSpy(effect, &ScriptedEffectWithDebugSpy::testOutput);
     QVERIFY(effect->load("screenEdgeTouchTest"));
-    auto actions = effect->findChildren<QAction*>(QString(), Qt::FindDirectChildrenOnly);
-    actions[0]->trigger();
+    effect->actions()[0]->trigger();
     QCOMPARE(effectOutputSpy.count(), 1);
 }
 

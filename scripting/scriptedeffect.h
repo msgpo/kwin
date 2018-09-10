@@ -3,6 +3,7 @@
  This file is part of the KDE project.
 
  Copyright (C) 2012 Martin Gräßlin <mgraesslin@kde.org>
+ Copyright (C) 2018 David Edmundson <davidedmundson@kde.org>
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -23,13 +24,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <kwinanimationeffect.h>
 
+#include <QJSValue>
+
 class KConfigLoader;
 class KPluginMetaData;
-class QScriptEngine;
-class QScriptValue;
+class QJSEngine;
 
 namespace KWin
 {
+
 class KWIN_EXPORT ScriptedEffect : public KWin::AnimationEffect
 {
     Q_OBJECT
@@ -56,19 +59,22 @@ public:
     enum EasingCurve {
         GaussianCurve = 128
     };
+    static ScriptedEffect *create(const QString &effectName, const QString &pathToScript, int chainPosition);
+    static ScriptedEffect *create(const KPluginMetaData &effect);
+    ~ScriptedEffect() override;
+    static bool supported();
+
     const QString &scriptFile() const {
         return m_scriptFile;
     }
-    virtual void reconfigure(ReconfigureFlags flags);
+
+    void reconfigure(ReconfigureFlags flags) override;
+
     int requestedEffectChainPosition() const override {
         return m_chainPosition;
     }
     QString activeConfig() const;
     void setActiveConfig(const QString &name);
-    static ScriptedEffect *create(const QString &effectName, const QString &pathToScript, int chainPosition);
-    static ScriptedEffect *create(const KPluginMetaData &effect);
-    static bool supported();
-    virtual ~ScriptedEffect();
     /**
      * Whether another effect has grabbed the @p w with the given @p grabRole.
      * @param w The window to check
@@ -83,47 +89,56 @@ public:
      * @returns The config value if present
      **/
     Q_SCRIPTABLE QVariant readConfig(const QString &key, const QVariant defaultValue = QVariant());
-    void registerShortcut(QAction *a, QScriptValue callback);
-    const QHash<QAction*, QScriptValue> &shortcutCallbacks() const {
-        return m_shortcutCallbacks;
-    }
-    QHash<int, QList<QScriptValue > > &screenEdgeCallbacks() {
+    Q_SCRIPTABLE bool registerShortcut(const QString &objectName, const QString &text, const QString &keySequence, const QJSValue &callback);
+
+    Q_SCRIPTABLE int displayWidth() const;
+    Q_SCRIPTABLE int displayHeight() const;
+    Q_SCRIPTABLE int animationTime(int defaultTime) const;
+
+    Q_SCRIPTABLE bool registerScreenEdge(int edge, const QJSValue &callback);
+    Q_SCRIPTABLE bool unregisterScreenEdge(int edge);
+    Q_SCRIPTABLE bool registerTouchScreenEdge(int edge, const QJSValue &callback);
+    Q_SCRIPTABLE bool unregisterTouchScreenEdge(int edge);
+
+    QHash<int, QList<QJSValue > > &screenEdgeCallbacks() {
         return m_screenEdgeCallbacks;
     }
-
-    bool registerTouchScreenCallback(int edge, QScriptValue callback);
-    bool unregisterTouchScreenCallback(int edge);
-
 public Q_SLOTS:
-    //curve should be of type QEasingCurve::type or ScriptedEffect::EasingCurve
-    quint64 animate(KWin::EffectWindow *w, Attribute a, int ms, KWin::FPx2 to, KWin::FPx2 from = KWin::FPx2(), uint metaData = 0, int curve = QEasingCurve::Linear, int delay = 0);
-    quint64 set(KWin::EffectWindow *w, Attribute a, int ms, KWin::FPx2 to, KWin::FPx2 from = KWin::FPx2(), uint metaData = 0, int curve = QEasingCurve::Linear, int delay = 0);
-    bool retarget(quint64 animationId, KWin::FPx2 newTarget, int newRemainingTime = -1);
-    bool cancel(quint64 animationId) { return AnimationEffect::cancel(animationId); }
-    virtual bool borderActivated(ElectricBorder border);
+    int animate(KWin::EffectWindow *w, Attribute a, int ms, const QJSValue &to, const QJSValue &from = QJSValue(), uint metaData = 0, int curve = QEasingCurve::Linear, int delay = 0);
+    QJSValue animate(const QJSValue &object);
+
+    int set(KWin::EffectWindow *w, Attribute a, int ms, const QJSValue &to, const QJSValue &from = QJSValue(), uint metaData = 0, int curve = QEasingCurve::Linear, int delay = 0);
+    QJSValue set(const QJSValue &object);
+
+    bool retarget(int animationId, const QJSValue &newTarget, int newRemainingTime = -1);
+    bool retarget(const QList<int> &animationIds, const QJSValue &newTarget, int newRemainingTime = -1);
+
+    bool cancel(int animationId);
+    bool cancel(const QList<int> &animationIds);
+
+    bool borderActivated(ElectricBorder border) override;
 
 Q_SIGNALS:
     /**
      * Signal emitted whenever the effect's config changed.
      **/
     void configChanged();
-    void animationEnded(KWin::EffectWindow *w, quint64 animationId);
+    void animationEnded(KWin::EffectWindow *w, int animationId);
 
 protected:
     ScriptedEffect();
-    QScriptEngine *engine() const;
+    QJSEngine *engine() const;
     bool init(const QString &effectName, const QString &pathToScript);
     void animationEnded(KWin::EffectWindow *w, Attribute a, uint meta);
 
-private Q_SLOTS:
-    void signalHandlerException(const QScriptValue &value);
-    void globalShortcutTriggered();
 private:
-    QScriptEngine *m_engine;
+    //wrapper round animateGlobal/setGlobal that parses the animations blob.
+    QJSValue startAnimation(const QJSValue &object, bool settingPersists);
+    QJSValue createError(const QString &errorMessage);
+    QJSEngine *m_engine;
     QString m_effectName;
     QString m_scriptFile;
-    QHash<QAction*, QScriptValue> m_shortcutCallbacks;
-    QHash<int, QList<QScriptValue> > m_screenEdgeCallbacks;
+    QHash<int, QList<QJSValue> > m_screenEdgeCallbacks;
     KConfigLoader *m_config;
     int m_chainPosition;
     QHash<int, QAction*> m_touchScreenEdgeCallbacks;

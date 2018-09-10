@@ -47,6 +47,11 @@ void ScreenEdges::reserve(ElectricBorder, QObject *, const char *)
 {
 }
 
+void ScreenEdges::unreserve(ElectricBorder, QObject *)
+{
+}
+
+
 void ScreenEdges::reserveTouch(ElectricBorder, QAction *)
 {
 }
@@ -59,7 +64,7 @@ void InputRedirection::registerShortcut(const QKeySequence &, QAction *)
 
 namespace MetaScripting
 {
-void registration(QScriptEngine *)
+void registration(QJSEngine *)
 {
 }
 }

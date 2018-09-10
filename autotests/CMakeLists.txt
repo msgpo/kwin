@@ -139,6 +139,7 @@ set_target_properties(testBuiltInEffectLoader PROPERTIES COMPILE_DEFINITIONS "NO
 target_link_libraries(testBuiltInEffectLoader
     Qt5::Concurrent
     Qt5::Test
+    Qt5::Qml
     Qt5::X11Extras
     KF5::Package
     kwineffects
@@ -201,6 +202,7 @@ add_executable( testPluginEffectLoader ${testPluginEffectLoader_SRCS})
 target_link_libraries(testPluginEffectLoader
     Qt5::Concurrent
     Qt5::Test
+    Qt5::Qml
     Qt5::X11Extras
     KF5::Package
     kwineffects

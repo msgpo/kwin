@@ -332,7 +332,7 @@ QRect SlideBackEffect::getModalGroupGeometry(EffectWindow *w)
 {
     QRect modalGroupGeometry = w->geometry();
     if (w->isModal()) {
-        foreach (EffectWindow * modalWindow, w->mainWindows()) {
+        foreach (EffectWindow * modalWindow, w->mainEffectWindows()) {
             modalGroupGeometry = modalGroupGeometry.united(getModalGroupGeometry(modalWindow));
         }
     }
