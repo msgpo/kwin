@@ -1709,7 +1709,7 @@ EffectWindowList getMainWindows(Toplevel *toplevel)
     return ret;
 }
 
-EffectWindowList EffectWindowImpl::mainEffectWindows() const
+EffectWindowList EffectWindowImpl::mainWindows() const
 {
     if (dynamic_cast<AbstractClient*>(toplevel)) {
         return getMainWindows<AbstractClient>(toplevel);

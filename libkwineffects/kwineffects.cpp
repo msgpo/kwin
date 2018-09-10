@@ -743,7 +743,6 @@ EffectsHandler::EffectsHandler(CompositingType type)
     if (compositing_type == NoCompositing)
         return;
     KWin::effects = this;
-    connect(this, QOverload<int, int>::of(&EffectsHandler::desktopChanged), this, &EffectsHandler::desktopChangedCompat);
 }
 
 EffectsHandler::~EffectsHandler()
@@ -762,18 +761,6 @@ bool EffectsHandler::isOpenGLCompositing() const
 {
     return compositing_type & OpenGLCompositing;
 }
-
-QList<QObject*> EffectsHandler::stackingOrderProxy() const
-{
-    QList<QObject*> list;
-    const auto &sourceList(stackingOrder());
-    list.reserve(sourceList.size());
-    for(auto w: sourceList) {
-        list.append(w);
-    }
-    return list;
-}
-
 
 EffectsHandler* effects = nullptr;
 
@@ -1004,18 +991,6 @@ bool EffectWindow::isManaged() const
 {
     return d->managed;
 }
-
-QList<QObject*> EffectWindow::mainWindows() const
-{
-    QList<QObject*> list;
-    const auto &sourceList(mainEffectWindows());
-    list.reserve(sourceList.size());
-    for(auto w: sourceList) {
-        list.append(w);
-    }
-    return list;
-}
-
 
 //****************************************
 // EffectWindowGroup

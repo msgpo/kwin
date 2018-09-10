@@ -64,7 +64,7 @@ public:
     virtual EffectWindow *findModal();
     virtual const EffectWindowGroup *group() const;
     virtual bool isPaintingEnabled();
-    virtual EffectWindowList mainEffectWindows() const;
+    virtual EffectWindowList mainWindows() const;
     virtual QByteArray readProperty(long int atom, long int type, int format) const;
     virtual void refWindow();
     virtual void unrefWindow();
@@ -126,7 +126,7 @@ bool MockEffectWindow::isPaintingEnabled()
     return true;
 }
 
-EffectWindowList MockEffectWindow::mainEffectWindows() const
+EffectWindowList MockEffectWindow::mainWindows() const
 {
     return EffectWindowList();
 }

@@ -812,7 +812,7 @@ class KWINEFFECTS_EXPORT EffectsHandler : public QObject
      * if used manually.
      */
     Q_PROPERTY(qreal animationTimeFactor READ animationTimeFactor)
-    Q_PROPERTY(QList< QObject* > stackingOrder READ stackingOrderProxy)
+    Q_PROPERTY(QList< KWin::EffectWindow* > stackingOrder READ stackingOrder)
     /**
      * Whether window decorations use the alpha channel.
      **/
@@ -1322,9 +1322,6 @@ public:
      **/
     virtual KSharedConfigPtr inputConfig() const = 0;
 
-
-    QList<QObject *> stackingOrderProxy() const;
-
 Q_SIGNALS:
     /**
      * Signal emitted when the current desktop changed.
@@ -1339,8 +1336,6 @@ Q_SIGNALS:
      * @deprecated
      */
     void desktopChanged(int oldDesktop, int newDesktop);
-    ///@internal
-    void desktopChangedCompat(int oldDesktop, int newDesktop);
     /**
      * Signal emitted when a window moved to another desktop
      * NOTICE that this does NOT imply that the desktop has changed
@@ -2174,9 +2169,7 @@ public:
 
     bool isModal() const;
     Q_SCRIPTABLE virtual KWin::EffectWindow* findModal() = 0;
-    Q_SCRIPTABLE QList<QObject*> mainWindows() const;
-    virtual QList<KWin::EffectWindow*> mainEffectWindows() const = 0;
-
+    Q_SCRIPTABLE virtual QList<KWin::EffectWindow*> mainWindows() const = 0;
 
     /**
     * Returns whether the window should be excluded from window switching effects.

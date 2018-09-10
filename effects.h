@@ -371,7 +371,7 @@ public:
     void deleteProperty(long atom) const override;
 
     EffectWindow* findModal() override;
-    EffectWindowList mainEffectWindows() const override;
+    EffectWindowList mainWindows() const override;
 
     WindowQuadList buildQuads(bool force = false) const override;
 
