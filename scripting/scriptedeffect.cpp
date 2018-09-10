@@ -20,6 +20,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 *********************************************************************/
 
 #include "scriptedeffect.h"
+#include "effectshandler_wrapper.h"
+#include "effectwindow_wrapper.h"
 #include "meta.h"
 #include "scriptingutils.h"
 #include "workspace_wrapper.h"
@@ -161,6 +163,7 @@ ScriptedEffect::ScriptedEffect()
 
 ScriptedEffect::~ScriptedEffect()
 {
+    m_wrappedEffects->deleteLater();
 }
 
 bool ScriptedEffect::init(const QString &effectName, const QString &pathToScript)
@@ -184,14 +187,14 @@ bool ScriptedEffect::init(const QString &effectName, const QString &pathToScript
         m_config->load();
     }
 
-    QJSValue effectsObject = m_engine->newQObject(effects);
-    QQmlEngine::setObjectOwnership(effects, QQmlEngine::CppOwnership);
+    m_wrappedEffects = new EffectsHandlerWrapper(m_engine, effects);
+    QJSValue effectsObject = m_engine->newQObject(m_wrappedEffects);
+    QQmlEngine::setObjectOwnership(m_wrappedEffects, QQmlEngine::CppOwnership);
     m_engine->globalObject().setProperty(QStringLiteral("effects"), effectsObject);
 
     //desktopChanged is overloaded, which is problematic
     //old code exposed the signal also with parameters. QJSEngine does not so we have to fake it
-    effectsObject.setProperty("desktopChanged(int,int)", effectsObject.property("desktopChangedCompat"));
-    effectsObject.setProperty("desktopChanged", effectsObject.property("desktopChangedCompat"));
+    effectsObject.setProperty("desktopChanged(int,int)", effectsObject.property("desktopChanged"));
 
     QJSValue selfWrapper = m_engine->newQObject(this);
     QQmlEngine::setObjectOwnership(this, QQmlEngine::CppOwnership);
@@ -251,27 +254,28 @@ int ScriptedEffect::displayWidth() const
 void ScriptedEffect::animationEnded(KWin::EffectWindow *w, Attribute a, uint meta)
 {
     AnimationEffect::animationEnded(w, a, meta);
-    emit animationEnded(w, 0);
+    QJSValue wrapped = m_engine->newQObject(m_wrappedEffects->findWrappedWindow(w));
+    emit animationEnded(wrapped, 0);
 }
 
-int ScriptedEffect::animate(KWin::EffectWindow* w, KWin::AnimationEffect::Attribute a, int ms, const QJSValue &to, const QJSValue &from, uint metaData, int curve, int delay)
+int ScriptedEffect::animate(EffectWindowWrapper* wrapper, KWin::AnimationEffect::Attribute a, int ms, const QJSValue &to, const QJSValue &from, uint metaData, int curve, int delay)
 {
     QEasingCurve qec;
     if (curve < QEasingCurve::Custom)
         qec.setType(static_cast<QEasingCurve::Type>(curve));
     else if (curve == GaussianCurve)
         qec.setCustomType(qecGaussian);
-    return AnimationEffect::animate(w, a, metaData, ms, fpx2FromScriptValue(to), qec, delay, fpx2FromScriptValue(from));
+    return AnimationEffect::animate(wrapper->window(), a, metaData, ms, fpx2FromScriptValue(to), qec, delay, fpx2FromScriptValue(from));
 }
 
-int ScriptedEffect::set(KWin::EffectWindow* w, KWin::AnimationEffect::Attribute a, int ms, const QJSValue &to, const QJSValue &from, uint metaData, int curve, int delay)
+int ScriptedEffect::set(EffectWindowWrapper* wrapper, KWin::AnimationEffect::Attribute a, int ms, const QJSValue &to, const QJSValue &from, uint metaData, int curve, int delay)
 {
     QEasingCurve qec;
     if (curve < QEasingCurve::Custom)
         qec.setType(static_cast<QEasingCurve::Type>(curve));
     else if (curve == GaussianCurve)
         qec.setCustomType(qecGaussian);
-    return AnimationEffect::set(w, a, metaData, ms, fpx2FromScriptValue(to), qec, delay, fpx2FromScriptValue(from));
+    return AnimationEffect::set(wrapper->window(), a, metaData, ms, fpx2FromScriptValue(to), qec, delay, fpx2FromScriptValue(from));
 }
 
 bool ScriptedEffect::retarget(int animationId, const QJSValue &newTarget, int newRemainingTime)
@@ -309,8 +313,8 @@ QJSValue ScriptedEffect::startAnimation(const QJSValue &object, bool settingPers
     if (!windowProperty.isObject()) {
         return createError(QStringLiteral("Window property missing in animation options"));
     }
-    auto window = qobject_cast<EffectWindow*>(windowProperty.toQObject());
-    if (!window) {
+    auto wrappedWindow = qobject_cast<EffectWindowWrapper*>(windowProperty.toQObject());
+    if (!wrappedWindow) {
         return createError(QStringLiteral("Window property references invalid window"));
     }
 
@@ -391,7 +395,7 @@ QJSValue ScriptedEffect::startAnimation(const QJSValue &object, bool settingPers
         const AnimationSettings &setting = settings[i];
         int animationId;
         if (settingPersists) {
-            animationId = set(window,
+            animationId = set(wrappedWindow,
                               setting.type,
                               setting.duration,
                               setting.to,
@@ -400,7 +404,7 @@ QJSValue ScriptedEffect::startAnimation(const QJSValue &object, bool settingPers
                               setting.curve,
                               setting.delay);
         } else {
-            animationId = animate(window,
+            animationId = animate(wrappedWindow,
                                   setting.type,
                                   setting.duration,
                                   setting.to,
@@ -428,8 +432,18 @@ bool ScriptedEffect::cancel(const QList<int> &animationIds)
     return ok;
 }
 
-bool ScriptedEffect::isGrabbed(EffectWindow* w, ScriptedEffect::DataRole grabRole)
+bool ScriptedEffect::isGrabbed(QJSValue value, ScriptedEffect::DataRole grabRole)
 {
+    if (!value.isQObject()) {
+        // TODO: Print something.
+        return false;
+    }
+    EffectWindowWrapper *wrapper = qobject_cast<EffectWindowWrapper *>(value.toQObject());
+    if (!wrapper) {
+        // TODO: Print something.
+        return false;
+    }
+    EffectWindow *w = wrapper->window();
     void *e = w->data(static_cast<KWin::DataRole>(grabRole)).value<void*>();
     if (e) {
         return e != this;

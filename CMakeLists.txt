@@ -437,6 +437,8 @@ set(kwin_KDEINIT_SRCS
    onscreennotification.cpp
    osd.cpp
     screenedge.cpp
+    scripting/effectshandler_wrapper.cpp
+    scripting/effectwindow_wrapper.cpp
     scripting/scripting.cpp
     scripting/workspace_wrapper.cpp
     scripting/meta.cpp

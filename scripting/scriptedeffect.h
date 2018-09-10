@@ -33,6 +33,9 @@ class QJSEngine;
 namespace KWin
 {
 
+class EffectsHandlerWrapper;
+class EffectWindowWrapper;
+
 class KWIN_EXPORT ScriptedEffect : public KWin::AnimationEffect
 {
     Q_OBJECT
@@ -81,7 +84,7 @@ public:
      * @param grabRole The grab role to check
      * @returns @c true if another window has grabbed the effect, @c false otherwise
      **/
-    Q_SCRIPTABLE bool isGrabbed(KWin::EffectWindow *w, DataRole grabRole);
+    Q_SCRIPTABLE bool isGrabbed(QJSValue value, DataRole grabRole);
     /**
      * Reads the value from the configuration data for the given key.
      * @param key The key to search for
@@ -104,10 +107,12 @@ public:
         return m_screenEdgeCallbacks;
     }
 public Q_SLOTS:
-    int animate(KWin::EffectWindow *w, Attribute a, int ms, const QJSValue &to, const QJSValue &from = QJSValue(), uint metaData = 0, int curve = QEasingCurve::Linear, int delay = 0);
+    // TODO: Should it be QJSValue?
+    int animate(KWin::EffectWindowWrapper *w, Attribute a, int ms, const QJSValue &to, const QJSValue &from = QJSValue(), uint metaData = 0, int curve = QEasingCurve::Linear, int delay = 0);
     QJSValue animate(const QJSValue &object);
 
-    int set(KWin::EffectWindow *w, Attribute a, int ms, const QJSValue &to, const QJSValue &from = QJSValue(), uint metaData = 0, int curve = QEasingCurve::Linear, int delay = 0);
+    // TODO: Should it be QJSValue?
+    int set(KWin::EffectWindowWrapper *w, Attribute a, int ms, const QJSValue &to, const QJSValue &from = QJSValue(), uint metaData = 0, int curve = QEasingCurve::Linear, int delay = 0);
     QJSValue set(const QJSValue &object);
 
     bool retarget(int animationId, const QJSValue &newTarget, int newRemainingTime = -1);
@@ -123,7 +128,7 @@ Q_SIGNALS:
      * Signal emitted whenever the effect's config changed.
      **/
     void configChanged();
-    void animationEnded(KWin::EffectWindow *w, int animationId);
+    void animationEnded(QJSValue w, int animationId);
 
 protected:
     ScriptedEffect();
@@ -142,6 +147,7 @@ private:
     KConfigLoader *m_config;
     int m_chainPosition;
     QHash<int, QAction*> m_touchScreenEdgeCallbacks;
+    EffectsHandlerWrapper *m_wrappedEffects;
 };
 
 }

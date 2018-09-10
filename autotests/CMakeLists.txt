@@ -160,6 +160,8 @@ set( testScriptedEffectLoader_SRCS
     mock_screens.cpp
     mock_workspace.cpp
     ../effectloader.cpp
+    ../scripting/effectshandler_wrapper.cpp
+    ../scripting/effectwindow_wrapper.cpp
     ../scripting/scriptedeffect.cpp
     ../scripting/scriptingutils.cpp
     ../scripting/scripting_logging.cpp
