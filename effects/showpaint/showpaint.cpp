@@ -30,15 +30,20 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <math.h>
 
-#include <qcolor.h>
 #include <QPainter>
 
 namespace KWin
 {
 
-static QColor colors[] = { Qt::red, Qt::green, Qt::blue, Qt::cyan, Qt::magenta,
-                           Qt::yellow, Qt::gray
-                         };
+static const QVector<QColor> s_colors {
+    Qt::red,
+    Qt::green,
+    Qt::blue,
+    Qt::cyan,
+    Qt::magenta,
+    Qt::yellow,
+    Qt::gray
+};
 
 ShowPaintEffect::ShowPaintEffect()
     : color_index(0)
@@ -62,8 +67,9 @@ void ShowPaintEffect::paintScreen(int mask, QRegion region, ScreenPaintData& dat
     if (effects->compositingType() == QPainterCompositing) {
         paintQPainter();
     }
-    if (++color_index == sizeof(colors) / sizeof(colors[ 0 ]))
+    if (++color_index == s_colors.count()) {
         color_index = 0;
+    }
 }
 
 void ShowPaintEffect::paintWindow(EffectWindow* w, int mask, QRegion region, WindowPaintData& data)
@@ -81,7 +87,7 @@ void ShowPaintEffect::paintGL(const QMatrix4x4 &projection)
     binder.shader()->setUniform(GLShader::ModelViewProjectionMatrix, projection);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    QColor color = colors[ color_index ];
+    QColor color = s_colors[color_index];
     color.setAlphaF(0.2);
     vbo->setColor(color);
     QVector<float> verts;
@@ -104,7 +110,7 @@ void ShowPaintEffect::paintXrender()
 #ifdef KWIN_HAVE_XRENDER_COMPOSITING
     xcb_render_color_t col;
     float alpha = 0.2;
-    const QColor& color = colors[ color_index ];
+    const QColor& color = s_colors[color_index];
     col.alpha = int(alpha * 0xffff);
     col.red = int(alpha * 0xffff * color.red() / 255);
     col.green = int(alpha * 0xffff * color.green() / 255);
@@ -120,7 +126,7 @@ void ShowPaintEffect::paintXrender()
 
 void ShowPaintEffect::paintQPainter()
 {
-    QColor color = colors[ color_index ];
+    QColor color = s_colors[color_index];
     color.setAlphaF(0.2);
     foreach (const QRect & r, painted.rects()) {
         effects->scenePainter()->fillRect(r, color);
