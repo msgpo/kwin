@@ -41,15 +41,6 @@ static const QVector<QColor> s_colors {
     Qt::gray
 };
 
-ShowPaintEffect::ShowPaintEffect()
-    : m_colorIndex(0)
-{
-}
-
-ShowPaintEffect::~ShowPaintEffect()
-{
-}
-
 void ShowPaintEffect::paintScreen(int mask, QRegion region, ScreenPaintData &data)
 {
     m_painted = QRegion();

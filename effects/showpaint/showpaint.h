@@ -31,9 +31,6 @@ class ShowPaintEffect : public Effect
     Q_OBJECT
 
 public:
-    ShowPaintEffect();
-    ~ShowPaintEffect() override;
-
     void paintScreen(int mask, QRegion region, ScreenPaintData &data) override;
     void paintWindow(EffectWindow *w, int mask, QRegion region, WindowPaintData &data) override;
 
@@ -43,7 +40,7 @@ private:
     void paintQPainter();
 
     QRegion m_painted; // what's painted in one pass
-    int m_colorIndex;
+    int m_colorIndex = 0;
 };
 
 } // namespace KWin
