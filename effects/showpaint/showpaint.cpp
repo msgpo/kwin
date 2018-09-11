@@ -92,7 +92,7 @@ void ShowPaintEffect::paintGL(const QMatrix4x4 &projection)
     vbo->setColor(color);
     QVector<float> verts;
     verts.reserve(painted.rects().count() * 12);
-    foreach (const QRect & r, painted.rects()) {
+    for (const QRect &r : painted) {
         verts << r.x() + r.width() << r.y();
         verts << r.x() << r.y();
         verts << r.x() << r.y() + r.height();
@@ -116,7 +116,7 @@ void ShowPaintEffect::paintXrender()
     col.green = int(alpha * 0xffff * color.green() / 255);
     col.blue = int(alpha * 0xffff * color.blue() / 255);
     QVector<xcb_rectangle_t> rects;
-    foreach (const QRect & r, painted.rects()) {
+    for (const QRect &r : painted) {
         xcb_rectangle_t rect = {int16_t(r.x()), int16_t(r.y()), uint16_t(r.width()), uint16_t(r.height())};
         rects << rect;
     }
@@ -128,7 +128,7 @@ void ShowPaintEffect::paintQPainter()
 {
     QColor color = s_colors[color_index];
     color.setAlphaF(0.2);
-    foreach (const QRect & r, painted.rects()) {
+    for (const QRect &r : painted) {
         effects->scenePainter()->fillRect(r, color);
     }
 }
