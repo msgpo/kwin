@@ -29,6 +29,7 @@ namespace KWin
 class ShowPaintEffect
     : public Effect
 {
+    Q_OBJECT
 public:
     ShowPaintEffect();
     ~ShowPaintEffect();
