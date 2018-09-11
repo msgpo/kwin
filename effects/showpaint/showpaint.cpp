@@ -21,14 +21,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "showpaint.h"
 
-#include <kwinconfig.h>
-
 #include <kwinglutils.h>
 #ifdef KWIN_HAVE_XRENDER_COMPOSITING
 #include <xcb/render.h>
 #endif
-
-#include <math.h>
 
 #include <QPainter>
 
@@ -46,7 +42,7 @@ static const QVector<QColor> s_colors {
 };
 
 ShowPaintEffect::ShowPaintEffect()
-    : color_index(0)
+    : m_colorIndex(0)
 {
 }
 
@@ -54,27 +50,29 @@ ShowPaintEffect::~ShowPaintEffect()
 {
 }
 
-void ShowPaintEffect::paintScreen(int mask, QRegion region, ScreenPaintData& data)
+void ShowPaintEffect::paintScreen(int mask, QRegion region, ScreenPaintData &data)
 {
-    painted = QRegion();
+    m_painted = QRegion();
     effects->paintScreen(mask, region, data);
-    if (effects->isOpenGLCompositing())
+    if (effects->isOpenGLCompositing()) {
         paintGL(data.projectionMatrix());
+    }
 #ifdef KWIN_HAVE_XRENDER_COMPOSITING
-    if (effects->compositingType() == XRenderCompositing)
+    if (effects->compositingType() == XRenderCompositing) {
         paintXrender();
+    }
 #endif
     if (effects->compositingType() == QPainterCompositing) {
         paintQPainter();
     }
-    if (++color_index == s_colors.count()) {
-        color_index = 0;
+    if (++m_colorIndex == s_colors.count()) {
+        m_colorIndex = 0;
     }
 }
 
-void ShowPaintEffect::paintWindow(EffectWindow* w, int mask, QRegion region, WindowPaintData& data)
+void ShowPaintEffect::paintWindow(EffectWindow *w, int mask, QRegion region, WindowPaintData &data)
 {
-    painted |= region;
+    m_painted |= region;
     effects->paintWindow(w, mask, region, data);
 }
 
@@ -87,12 +85,12 @@ void ShowPaintEffect::paintGL(const QMatrix4x4 &projection)
     binder.shader()->setUniform(GLShader::ModelViewProjectionMatrix, projection);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    QColor color = s_colors[color_index];
+    QColor color = s_colors[m_colorIndex];
     color.setAlphaF(0.2);
     vbo->setColor(color);
     QVector<float> verts;
-    verts.reserve(painted.rects().count() * 12);
-    for (const QRect &r : painted) {
+    verts.reserve(m_painted.rects().count() * 12);
+    for (const QRect &r : m_painted) {
         verts << r.x() + r.width() << r.y();
         verts << r.x() << r.y();
         verts << r.x() << r.y() + r.height();
@@ -110,13 +108,13 @@ void ShowPaintEffect::paintXrender()
 #ifdef KWIN_HAVE_XRENDER_COMPOSITING
     xcb_render_color_t col;
     float alpha = 0.2;
-    const QColor& color = s_colors[color_index];
+    const QColor& color = s_colors[m_colorIndex];
     col.alpha = int(alpha * 0xffff);
     col.red = int(alpha * 0xffff * color.red() / 255);
     col.green = int(alpha * 0xffff * color.green() / 255);
     col.blue = int(alpha * 0xffff * color.blue() / 255);
     QVector<xcb_rectangle_t> rects;
-    for (const QRect &r : painted) {
+    for (const QRect &r : m_painted) {
         xcb_rectangle_t rect = {int16_t(r.x()), int16_t(r.y()), uint16_t(r.width()), uint16_t(r.height())};
         rects << rect;
     }
@@ -126,11 +124,11 @@ void ShowPaintEffect::paintXrender()
 
 void ShowPaintEffect::paintQPainter()
 {
-    QColor color = s_colors[color_index];
+    QColor color = s_colors[m_colorIndex];
     color.setAlphaF(0.2);
-    for (const QRect &r : painted) {
+    for (const QRect &r : m_painted) {
         effects->scenePainter()->fillRect(r, color);
     }
 }
 
-} // namespace
+} // namespace KWin
