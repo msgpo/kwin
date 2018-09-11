@@ -89,7 +89,7 @@ void ShowPaintEffect::paintGL(const QMatrix4x4 &projection)
         verts << r.x() + r.width() << r.y() + r.height();
         verts << r.x() + r.width() << r.y();
     }
-    vbo->setData(verts.count() / 2, 2, verts.data(), NULL);
+    vbo->setData(verts.count() / 2, 2, verts.data(), nullptr);
     vbo->render(GL_TRIANGLES);
     glDisable(GL_BLEND);
 }
