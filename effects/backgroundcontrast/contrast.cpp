@@ -416,7 +416,7 @@ void ContrastEffect::drawWindow(EffectWindow *w, int mask, QRegion region, Windo
         }
 
         if (!shape.isEmpty()) {
-            doContrast(w, shape, screen, data.opacity(), data.screenProjectionMatrix());
+            doContrast(w, shape, screen, data.opacity(), data.brightness(), data.saturation(), data.screenProjectionMatrix());
         }
     }
 
@@ -430,7 +430,7 @@ void ContrastEffect::paintEffectFrame(EffectFrame *frame, QRegion region, double
     effects->paintEffectFrame(frame, region, opacity, frameOpacity);
 }
 
-void ContrastEffect::doContrast(EffectWindow *w, const QRegion& shape, const QRect& screen, const float opacity, const QMatrix4x4 &screenProjection)
+void ContrastEffect::doContrast(EffectWindow *w, const QRegion& shape, const QRect& screen, const float opacity, float brightness, float saturation, const QMatrix4x4 &screenProjection)
 {
     const QRegion actualShape = shape & screen;
     const QRect r = actualShape.boundingRect();
@@ -454,8 +454,34 @@ void ContrastEffect::doContrast(EffectWindow *w, const QRegion& shape, const QRe
                         scratch.width(), scratch.height());
 
     // Draw the texture on the offscreen framebuffer object, while blurring it horizontally
+    if (Q_LIKELY(brightness == 1.0 && saturation == 1.0)) {
+        shader->setColorMatrix(m_colorMatrices.value(w));
+    } else {
+        QMatrix4x4 colorMatrix = m_colorMatrices[w];
 
-    shader->setColorMatrix(m_colorMatrices.value(w));
+        if (saturation != 1.0) {
+            const float rval = (1.0 - saturation) * 0.2126;
+            const float gval = (1.0 - saturation) * 0.7152;
+            const float bval = (1.0 - saturation) * 0.0722;
+
+            const QMatrix4x4 saturationMatrix(
+                rval + saturation,              rval,              rval, 0.0,
+                             gval, gval + saturation,              gval, 0.0,
+                             bval,              bval, bval + saturation, 0.0,
+                              0.0,               0.0,               0.0, 1.0);
+
+            colorMatrix *= saturationMatrix;
+        }
+
+        if (brightness != 1.0) {
+            QMatrix4x4 brightnessMatrix;
+            brightnessMatrix.scale(brightness);
+            colorMatrix *= brightnessMatrix;
+        }
+
+        shader->setColorMatrix(colorMatrix);
+    }
+
     shader->bind();
 
 
