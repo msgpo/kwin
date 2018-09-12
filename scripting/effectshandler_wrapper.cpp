@@ -298,7 +298,7 @@ static T *unbox(const QJSValue &value)
     return qobject_cast<T *>(value.toQObject());
 }
 
-void EffectsHandlerWrapper::moveWindow(QJSValue w, const QPoint &pos, bool snap, double snapAdjust)
+void EffectsHandlerWrapper::moveWindow(const QJSValue &w, const QPoint &pos, bool snap, double snapAdjust)
 {
     EffectWindowWrapper *wrappedWindow = unbox<EffectWindowWrapper>(w);
     if (wrappedWindow == nullptr) {
@@ -308,7 +308,7 @@ void EffectsHandlerWrapper::moveWindow(QJSValue w, const QPoint &pos, bool snap,
     m_wrapped->moveWindow(wrappedWindow->window(), pos, snap, snapAdjust);
 }
 
-void EffectsHandlerWrapper::windowToDesktop(QJSValue w, int desktop)
+void EffectsHandlerWrapper::windowToDesktop(const QJSValue &w, int desktop)
 {
     EffectWindowWrapper *wrappedWindow = unbox<EffectWindowWrapper>(w);
     if (wrappedWindow == nullptr) {
@@ -318,7 +318,7 @@ void EffectsHandlerWrapper::windowToDesktop(QJSValue w, int desktop)
     m_wrapped->windowToDesktop(wrappedWindow->window(), desktop);
 }
 
-void EffectsHandlerWrapper::windowToScreen(QJSValue w, int screen)
+void EffectsHandlerWrapper::windowToScreen(const QJSValue &w, int screen)
 {
     EffectWindowWrapper *wrappedWindow = unbox<EffectWindowWrapper>(w);
     if (wrappedWindow == nullptr) {
@@ -370,7 +370,7 @@ QJSValue EffectsHandlerWrapper::findWindow(KWayland::Server::SurfaceInterface *s
     return m_engine->newQObject(findWrappedWindow(w));
 }
 
-void EffectsHandlerWrapper::setElevatedWindow(QJSValue w, bool set)
+void EffectsHandlerWrapper::setElevatedWindow(const QJSValue &w, bool set)
 {
     EffectWindowWrapper *wrappedWindow = unbox<EffectWindowWrapper>(w);
     if (wrappedWindow == nullptr) {
@@ -420,7 +420,7 @@ QJSValue EffectsHandlerWrapper::activeWindow() const
     return m_engine->newQObject(findWrappedWindow(m_wrapped->activeWindow()));
 }
 
-void EffectsHandlerWrapper::activateWindow(QJSValue w)
+void EffectsHandlerWrapper::activateWindow(const QJSValue &w)
 {
     EffectWindowWrapper *wrappedWindow = unbox<EffectWindowWrapper>(w);
     if (wrappedWindow == nullptr) {

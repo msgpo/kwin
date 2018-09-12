@@ -63,9 +63,9 @@ public:
 
     EffectWindowWrapper *findWrappedWindow(EffectWindow *w) const;
 
-    Q_INVOKABLE void moveWindow(QJSValue w, const QPoint &pos, bool snap = false, double snapAdjust = 1.0);
-    Q_INVOKABLE void windowToDesktop(QJSValue w, int desktop);
-    Q_INVOKABLE void windowToScreen(QJSValue w, int screen);
+    Q_INVOKABLE void moveWindow(const QJSValue &w, const QPoint &pos, bool snap = false, double snapAdjust = 1.0);
+    Q_INVOKABLE void windowToDesktop(const QJSValue &w, int desktop);
+    Q_INVOKABLE void windowToScreen(const QJSValue &w, int screen);
 
     Q_INVOKABLE int desktopAbove(int desktop = 0, bool wrap = true) const;
     Q_INVOKABLE int desktopToRight(int desktop = 0, bool wrap = true) const;
@@ -78,7 +78,7 @@ public:
     Q_INVOKABLE QJSValue findWindow(WId id) const;
     Q_INVOKABLE QJSValue findWindow(KWayland::Server::SurfaceInterface *surf) const;
 
-    Q_INVOKABLE void setElevatedWindow(QJSValue w, bool set);
+    Q_INVOKABLE void setElevatedWindow(const QJSValue &w, bool set);
 
     Q_INVOKABLE void addRepaintFull();
     Q_INVOKABLE void addRepaint(const QRect &r);
@@ -91,7 +91,7 @@ public:
     QString currentActivity() const;
 
     QJSValue activeWindow() const;
-    void activateWindow(QJSValue w);
+    void activateWindow(const QJSValue &w);
 
     QSize desktopGridSize() const;
     int desktopGridWidth() const;
