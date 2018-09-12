@@ -275,6 +275,20 @@ EffectsHandlerWrapper::~EffectsHandlerWrapper()
     qDeleteAll(m_wrappedWindows);
 }
 
+EffectWindowWrapper *EffectsHandlerWrapper::findWrappedWindow(EffectWindow *w) const
+{
+    if (w == nullptr) {
+        return nullptr;
+    }
+    EffectWindowWrapper *&wrapped = m_wrappedWindows[w];
+    if (wrapped != nullptr) {
+        return wrapped;
+    }
+    wrapped = new EffectWindowWrapper(m_engine, const_cast<EffectsHandlerWrapper *>(this), w);
+    QQmlEngine::setObjectOwnership(wrapped, QQmlEngine::CppOwnership);
+    return wrapped;
+}
+
 static inline EffectWindowWrapper *toEffectWindowWrapper(QJSValue value)
 {
     if (!value.isQObject()) {
@@ -511,20 +525,6 @@ QSize EffectsHandlerWrapper::virtualScreenSize() const
 QRect EffectsHandlerWrapper::virtualScreenGeometry() const
 {
     return m_wrapped->virtualScreenGeometry();
-}
-
-EffectWindowWrapper *EffectsHandlerWrapper::findWrappedWindow(EffectWindow *w) const
-{
-    if (w == nullptr) {
-        return nullptr;
-    }
-    EffectWindowWrapper *&wrapped = m_wrappedWindows[w];
-    if (wrapped != nullptr) {
-        return wrapped;
-    }
-    wrapped = new EffectWindowWrapper(m_engine, const_cast<EffectsHandlerWrapper *>(this), w);
-    QQmlEngine::setObjectOwnership(wrapped, QQmlEngine::CppOwnership);
-    return wrapped;
 }
 
 } // namespace KWin
