@@ -289,17 +289,18 @@ EffectWindowWrapper *EffectsHandlerWrapper::findWrappedWindow(EffectWindow *w) c
     return wrapped;
 }
 
-static inline EffectWindowWrapper *toEffectWindowWrapper(QJSValue value)
+template <typename T>
+static T *unbox(const QJSValue &value)
 {
     if (!value.isQObject()) {
         return nullptr;
     }
-    return qobject_cast<EffectWindowWrapper *>(value.toQObject());
+    return qobject_cast<T *>(value.toQObject());
 }
 
 void EffectsHandlerWrapper::moveWindow(QJSValue w, const QPoint &pos, bool snap, double snapAdjust)
 {
-    EffectWindowWrapper *wrappedWindow = toEffectWindowWrapper(w);
+    EffectWindowWrapper *wrappedWindow = unbox<EffectWindowWrapper>(w);
     if (wrappedWindow == nullptr) {
         // TODO: Handle errors.
         return;
@@ -309,7 +310,7 @@ void EffectsHandlerWrapper::moveWindow(QJSValue w, const QPoint &pos, bool snap,
 
 void EffectsHandlerWrapper::windowToDesktop(QJSValue w, int desktop)
 {
-    EffectWindowWrapper *wrappedWindow = toEffectWindowWrapper(w);
+    EffectWindowWrapper *wrappedWindow = unbox<EffectWindowWrapper>(w);
     if (wrappedWindow == nullptr) {
         // TODO: Handle errors.
         return;
@@ -319,7 +320,7 @@ void EffectsHandlerWrapper::windowToDesktop(QJSValue w, int desktop)
 
 void EffectsHandlerWrapper::windowToScreen(QJSValue w, int screen)
 {
-    EffectWindowWrapper *wrappedWindow = toEffectWindowWrapper(w);
+    EffectWindowWrapper *wrappedWindow = unbox<EffectWindowWrapper>(w);
     if (wrappedWindow == nullptr) {
         // TODO: Handle errors.
         return;
@@ -371,7 +372,7 @@ QJSValue EffectsHandlerWrapper::findWindow(KWayland::Server::SurfaceInterface *s
 
 void EffectsHandlerWrapper::setElevatedWindow(QJSValue w, bool set)
 {
-    EffectWindowWrapper *wrappedWindow = toEffectWindowWrapper(w);
+    EffectWindowWrapper *wrappedWindow = unbox<EffectWindowWrapper>(w);
     if (wrappedWindow == nullptr) {
         // TODO: Handle errors.
         return;
@@ -421,7 +422,7 @@ QJSValue EffectsHandlerWrapper::activeWindow() const
 
 void EffectsHandlerWrapper::activateWindow(QJSValue w)
 {
-    EffectWindowWrapper *wrappedWindow = toEffectWindowWrapper(w);
+    EffectWindowWrapper *wrappedWindow = unbox<EffectWindowWrapper>(w);
     if (wrappedWindow == nullptr) {
         // TODO: Handle errors.
         return;
