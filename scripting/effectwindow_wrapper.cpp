@@ -106,322 +106,80 @@ EffectWindow *EffectWindowWrapper::window() const
     return m_wrapped;
 }
 
-bool EffectWindowWrapper::hasAlpha() const
-{
-    return m_wrapped->hasAlpha();
-}
+#define WRAP_GETTER(rettype, methodname)            \
+    rettype EffectWindowWrapper::methodname() const \
+    {                                               \
+        return m_wrapped->methodname();             \
+    }
 
-qreal EffectWindowWrapper::opacity() const
-{
-    return m_wrapped->opacity();
-}
-
-QPoint EffectWindowWrapper::pos() const
-{
-    return m_wrapped->pos();
-}
-
-int EffectWindowWrapper::x() const
-{
-    return m_wrapped->x();
-}
-
-int EffectWindowWrapper::y() const
-{
-    return m_wrapped->y();
-}
-
-QSize EffectWindowWrapper::size() const
-{
-    return m_wrapped->size();
-}
-int EffectWindowWrapper::width() const
-{
-    return m_wrapped->width();
-}
-int EffectWindowWrapper::height() const
-{
-    return m_wrapped->height();
-}
-
-QRect EffectWindowWrapper::geometry() const
-{
-    return m_wrapped->geometry();
-}
-
-QRect EffectWindowWrapper::expandedGeometry() const
-{
-    return m_wrapped->expandedGeometry();
-}
-
-QRect EffectWindowWrapper::rect() const
-{
-    return m_wrapped->rect();
-}
-
-int EffectWindowWrapper::screen() const
-{
-    return m_wrapped->screen();
-}
-
-int EffectWindowWrapper::desktop() const
-{
-    return m_wrapped->desktop();
-}
-
-bool EffectWindowWrapper::isOnAllDesktops() const
-{
-    return m_wrapped->isOnAllDesktops();
-}
-
-bool EffectWindowWrapper::isOnCurrentDesktop() const
-{
-    return m_wrapped->isOnCurrentDesktop();
-}
-
-QString EffectWindowWrapper::windowClass() const
-{
-    return m_wrapped->windowClass();
-}
-
-QString EffectWindowWrapper::windowRole() const
-{
-    return m_wrapped->windowRole();
-}
-
-bool EffectWindowWrapper::isDesktop() const
-{
-    return m_wrapped->isDesktop();
-}
-
-bool EffectWindowWrapper::isDock() const
-{
-    return m_wrapped->isDock();
-}
-
-bool EffectWindowWrapper::isToolbar() const
-{
-    return m_wrapped->isToolbar();
-}
-
-bool EffectWindowWrapper::isMenu() const
-{
-    return m_wrapped->isMenu();
-}
-
-bool EffectWindowWrapper::isNormalWindow() const
-{
-    return m_wrapped->isNormalWindow();
-}
-
-bool EffectWindowWrapper::isDialog() const
-{
-    return m_wrapped->isDialog();
-}
-
-bool EffectWindowWrapper::isSplash() const
-{
-    return m_wrapped->isSplash();
-}
-
-bool EffectWindowWrapper::isUtility() const
-{
-    return m_wrapped->isUtility();
-}
-
-bool EffectWindowWrapper::isDropdownMenu() const
-{
-    return m_wrapped->isDropdownMenu();
-}
-
-bool EffectWindowWrapper::isPopupMenu() const
-{
-    return m_wrapped->isPopupMenu();
-}
-
-bool EffectWindowWrapper::isTooltip() const
-{
-    return m_wrapped->isTooltip();
-}
-
-bool EffectWindowWrapper::isNotification() const
-{
-    return m_wrapped->isNotification();
-}
-
-bool EffectWindowWrapper::isOnScreenDisplay() const
-{
-    return m_wrapped->isOnScreenDisplay();
-}
-
-bool EffectWindowWrapper::isComboBox() const
-{
-    return m_wrapped->isComboBox();
-}
-
-bool EffectWindowWrapper::isDNDIcon() const
-{
-    return m_wrapped->isDNDIcon();
-}
-
-int EffectWindowWrapper::windowType() const
-{
-    return m_wrapped->windowType();
-}
-
-bool EffectWindowWrapper::isManaged() const
-{
-    return m_wrapped->isManaged();
-}
-
-bool EffectWindowWrapper::isDeleted() const
-{
-    return m_wrapped->isDeleted();
-}
-
-bool EffectWindowWrapper::hasOwnShape() const
-{
-    return m_wrapped->hasOwnShape();
-}
-
-QRegion EffectWindowWrapper::shape() const
-{
-    return m_wrapped->shape();
-}
-
-QString EffectWindowWrapper::caption() const
-{
-    return m_wrapped->caption();
-}
-
-bool EffectWindowWrapper::keepAbove() const
-{
-    return m_wrapped->keepAbove();
-}
-
-bool EffectWindowWrapper::keepBelow() const
-{
-    return m_wrapped->keepBelow();
-}
-
-bool EffectWindowWrapper::isMinimized() const
-{
-    return m_wrapped->isMinimized();
-}
+WRAP_GETTER(bool, hasAlpha)
+WRAP_GETTER(qreal, opacity)
+WRAP_GETTER(QPoint, pos)
+WRAP_GETTER(int, x)
+WRAP_GETTER(int, y)
+WRAP_GETTER(QSize, size)
+WRAP_GETTER(int, width)
+WRAP_GETTER(int, height)
+WRAP_GETTER(QRect, geometry)
+WRAP_GETTER(QRect, expandedGeometry)
+WRAP_GETTER(QRect, rect)
+WRAP_GETTER(int, screen)
+WRAP_GETTER(int, desktop)
+WRAP_GETTER(bool, isOnAllDesktops)
+WRAP_GETTER(bool, isOnCurrentDesktop)
+WRAP_GETTER(QString, windowClass)
+WRAP_GETTER(QString, windowRole)
+WRAP_GETTER(bool, isDesktop)
+WRAP_GETTER(bool, isDock)
+WRAP_GETTER(bool, isToolbar)
+WRAP_GETTER(bool, isMenu)
+WRAP_GETTER(bool, isNormalWindow)
+WRAP_GETTER(bool, isDialog)
+WRAP_GETTER(bool, isSplash)
+WRAP_GETTER(bool, isUtility)
+WRAP_GETTER(bool, isDropdownMenu)
+WRAP_GETTER(bool, isPopupMenu)
+WRAP_GETTER(bool, isTooltip)
+WRAP_GETTER(bool, isNotification)
+WRAP_GETTER(bool, isOnScreenDisplay)
+WRAP_GETTER(bool, isComboBox)
+WRAP_GETTER(bool, isDNDIcon)
+WRAP_GETTER(int, windowType)
+WRAP_GETTER(bool, isManaged)
+WRAP_GETTER(bool, isDeleted)
+WRAP_GETTER(bool, hasOwnShape)
+WRAP_GETTER(QRegion, shape)
+WRAP_GETTER(QString, caption)
+WRAP_GETTER(bool, keepAbove)
+WRAP_GETTER(bool, keepBelow)
+WRAP_GETTER(bool, isMinimized)
 
 void EffectWindowWrapper::setMinimized(bool minimized)
 {
     return m_wrapped->setMinimized(minimized);
 }
 
-bool EffectWindowWrapper::isModal() const
-{
-    return m_wrapped->isModal();
-}
-
-bool EffectWindowWrapper::isMovable() const
-{
-    return m_wrapped->isMovable();
-}
-
-bool EffectWindowWrapper::isMovableAcrossScreens() const
-{
-    return m_wrapped->isMovableAcrossScreens();
-}
-
-bool EffectWindowWrapper::isSpecialWindow() const
-{
-    return m_wrapped->isSpecialWindow();
-}
-
-QSize EffectWindowWrapper::basicUnit() const
-{
-    return m_wrapped->basicUnit();
-}
-
-bool EffectWindowWrapper::isUserMove() const
-{
-    return m_wrapped->isUserMove();
-}
-
-bool EffectWindowWrapper::isUserResize() const
-{
-    return m_wrapped->isUserResize();
-}
-
-QIcon EffectWindowWrapper::icon() const
-{
-    return m_wrapped->icon();
-}
-
-QRect EffectWindowWrapper::iconGeometry() const
-{
-    return m_wrapped->iconGeometry();
-}
-
-bool EffectWindowWrapper::isSkipSwitcher() const
-{
-    return m_wrapped->isSkipSwitcher();
-}
-
-bool EffectWindowWrapper::skipsCloseAnimation() const
-{
-    return m_wrapped->skipsCloseAnimation();
-}
-
-QRect EffectWindowWrapper::contentsRect() const
-{
-    return m_wrapped->contentsRect();
-}
-
-QRect EffectWindowWrapper::decorationInnerRect() const
-{
-    return m_wrapped->decorationInnerRect();
-}
-
-bool EffectWindowWrapper::hasDecoration() const
-{
-    return m_wrapped->hasDecoration();
-}
-
-QStringList EffectWindowWrapper::activities() const
-{
-    return m_wrapped->activities();
-}
-
-bool EffectWindowWrapper::isOnCurrentActivity() const
-{
-    return m_wrapped->isOnCurrentActivity();
-}
-
-bool EffectWindowWrapper::isOnAllActivities() const
-{
-    return m_wrapped->isOnAllActivities();
-}
-
-bool EffectWindowWrapper::decorationHasAlpha() const
-{
-    return m_wrapped->decorationHasAlpha();
-}
-
-bool EffectWindowWrapper::isVisible() const
-{
-    return m_wrapped->isVisible();
-}
-
-bool EffectWindowWrapper::isFullScreen() const
-{
-    return m_wrapped->isFullScreen();
-}
-
-bool EffectWindowWrapper::isUnresponsive() const
-{
-    return m_wrapped->isUnresponsive();
-}
-
-KWayland::Server::SurfaceInterface *EffectWindowWrapper::surface() const
-{
-    return m_wrapped->surface();
-}
+WRAP_GETTER(bool, isModal)
+WRAP_GETTER(bool, isMovable)
+WRAP_GETTER(bool, isMovableAcrossScreens)
+WRAP_GETTER(bool, isSpecialWindow)
+WRAP_GETTER(QSize, basicUnit)
+WRAP_GETTER(bool, isUserMove)
+WRAP_GETTER(bool, isUserResize)
+WRAP_GETTER(QIcon, icon)
+WRAP_GETTER(QRect, iconGeometry)
+WRAP_GETTER(bool, isSkipSwitcher)
+WRAP_GETTER(bool, skipsCloseAnimation)
+WRAP_GETTER(QRect, contentsRect)
+WRAP_GETTER(QRect, decorationInnerRect)
+WRAP_GETTER(bool, hasDecoration)
+WRAP_GETTER(QStringList, activities)
+WRAP_GETTER(bool, isOnCurrentActivity)
+WRAP_GETTER(bool, isOnAllActivities)
+WRAP_GETTER(bool, decorationHasAlpha)
+WRAP_GETTER(bool, isVisible)
+WRAP_GETTER(bool, isFullScreen)
+WRAP_GETTER(bool, isUnresponsive)
+WRAP_GETTER(KWayland::Server::SurfaceInterface *, surface)
 
 } // namespace KWin
