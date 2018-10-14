@@ -3531,9 +3531,13 @@ void AbstractClient::sendToScreen(int newScreen)
     if (qtMode != QuickTileMode(QuickTileFlag::None) && qtMode != quickTileMode())
         setQuickTileMode(qtMode, true);
 
-    auto tso = workspace()->ensureStackingOrder(transients());
-    for (auto it = tso.constBegin(), end = tso.constEnd(); it != end; ++it)
-        (*it)->sendToScreen(newScreen);
+    const auto tso = workspace()->ensureStackingOrder(transients());
+    for (const auto &transient : tso) {
+        auto *c = qobject_cast<AbstractClient *>(transient);
+        if (c != nullptr) {
+            c->sendToScreen(newScreen);
+        }
+    }
 }
 
 } // namespace

@@ -267,6 +267,7 @@ public:
      */
     const ToplevelList& stackingOrder() const;
     ToplevelList xStackingOrder() const;
+    ToplevelList ensureStackingOrder(const ToplevelList &clients) const;
     ClientList ensureStackingOrder(const ClientList& clients) const;
     QList<AbstractClient*> ensureStackingOrder(const QList<AbstractClient*> &clients) const;
 
@@ -510,7 +511,7 @@ private:
     void raiseClientWithinApplication(AbstractClient* c);
     void lowerClientWithinApplication(AbstractClient* c);
     bool allowFullClientRaising(const AbstractClient* c, xcb_timestamp_t timestamp);
-    bool keepTransientAbove(const AbstractClient* mainwindow, const AbstractClient* transient);
+    bool keepTransientAbove(const Toplevel* mainwindow, const Toplevel* transient);
     void blockStackingUpdates(bool block);
     void updateToolWindows(bool also_hide);
     void fixPositionAfterCrash(xcb_window_t w, const xcb_get_geometry_reply_t *geom);

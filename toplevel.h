@@ -215,6 +215,16 @@ class KWIN_EXPORT Toplevel
      **/
     Q_PROPERTY(bool popupWindow READ isPopupWindow)
 
+    /**
+     * Whether the client is a transient to another window.
+     **/
+    Q_PROPERTY(bool transient READ isTransient NOTIFY transientChanged)
+
+    /**
+     * The client to which this client is a transient if any.
+     **/
+    Q_PROPERTY(Toplevel *transientFor READ transientFor NOTIFY transientChanged)
+
 public:
     explicit Toplevel();
     virtual xcb_window_t frameId() const;
@@ -457,6 +467,54 @@ public:
      **/
     virtual bool isPopupWindow() const;
 
+    /**
+     * TODO: Write description.
+     **/
+    virtual bool isTransient() const;
+
+    /**
+     * TODO: Write description.
+     **/
+    Toplevel *transientFor();
+    const Toplevel *transientFor() const;
+
+    /**
+     * TODO: Write description.
+     **/
+    const ToplevelList &transients() const;
+
+    /**
+     * TODO: Write description.
+     *
+     * @todo Remove boolean trap.
+     **/
+    virtual bool hasTransient(const Toplevel *transient, bool indirect) const;
+
+    /**
+     * TODO: Write description.
+     **/
+    virtual bool isTransientFor(const Toplevel *parent) const;
+
+    /**
+     * TODO: Write description.
+     **/
+    virtual bool hasTransientPlacementHint() const;
+
+    /**
+     * TODO: Write description.
+     **/
+    virtual QPoint transientPlacementHint() const;
+
+    /**
+     * TODO: Write description.
+     **/
+    virtual void addTransient(Toplevel *transient);
+
+    /**
+     * TODO: Write description.
+     **/
+    virtual void removeTransient(Toplevel *transient);
+
 Q_SIGNALS:
     void opacityChanged(KWin::Toplevel* toplevel, qreal oldOpacity);
     void damaged(KWin::Toplevel* toplevel, const QRect& damage);
@@ -517,6 +575,11 @@ Q_SIGNALS:
      */
     void screenScaleChanged();
 
+    /**
+     * TODO: Write description.
+     **/
+    void transientChanged();
+
 protected Q_SLOTS:
     /**
      * Checks whether the screen number for this Toplevel changed and updates if needed.
@@ -563,6 +626,10 @@ protected:
     friend QDebug& operator<<(QDebug& stream, const Toplevel*);
     void deleteEffectWindow();
     void setDepth(int depth);
+
+    void setTransientFor(Toplevel *transientFor);
+    void removeTransientFromList(Toplevel *transient);
+
     QRect geom;
     xcb_visualid_t m_visual;
     int bit_depth;
@@ -598,6 +665,9 @@ private:
     QSharedPointer<QOpenGLFramebufferObject> m_internalFBO;
     // when adding new data members, check also copyToDeleted()
     qreal m_screenScale = 1.0;
+
+    Toplevel *m_transientFor = nullptr;
+    ToplevelList m_transients;
 };
 
 inline xcb_window_t Toplevel::window() const

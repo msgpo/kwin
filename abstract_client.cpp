@@ -109,11 +109,6 @@ bool AbstractClient::belongToSameApplication(const AbstractClient *c1, const Abs
     return c1->belongsToSameApplication(c2, checks);
 }
 
-bool AbstractClient::isTransient() const
-{
-    return false;
-}
-
 void AbstractClient::setTabGroup(TabGroup* group)
 {
     tab_group = group;
@@ -325,9 +320,13 @@ void AbstractClient::updateLayer()
         return;
     StackingUpdatesBlocker blocker(workspace());
     invalidateLayer(); // invalidate, will be updated when doing restacking
-    for (auto it = transients().constBegin(),
-                                  end = transients().constEnd(); it != end; ++it)
-        (*it)->updateLayer();
+
+    for (const auto &transient : transients()) {
+        auto *c = qobject_cast<AbstractClient *>(transient);
+        if (c != nullptr) {
+            c->updateLayer();
+        }
+    }
 }
 
 void AbstractClient::invalidateLayer()
@@ -504,11 +503,13 @@ void AbstractClient::setDesktop(int desktop)
         workspace()->updateOnAllDesktopsOfTransients(this);
     }
 
-    auto transients_stacking_order = workspace()->ensureStackingOrder(transients());
-    for (auto it = transients_stacking_order.constBegin();
-            it != transients_stacking_order.constEnd();
-            ++it)
-        (*it)->setDesktop(desktop);
+    const auto transientsStackingOrder = workspace()->ensureStackingOrder(transients());
+    for (const auto &transient : transientsStackingOrder) {
+        auto *c = qobject_cast<AbstractClient *>(transient);
+        if (c != nullptr) {
+            c->setDesktop(desktop);
+        }
+    }
 
     if (isModal())  // if a modal dialog is moved, move the mainwindow with it as otherwise
         // the (just moved) modal dialog will confusingly return to the mainwindow with
@@ -795,7 +796,13 @@ void AbstractClient::setupWindowManagementInterface()
     w->setResizable(isResizable());
     w->setMovable(isMovable());
     w->setVirtualDesktopChangeable(true); // FIXME Matches Client::actionSupported(), but both should be implemented.
-    w->setParentWindow(transientFor() ? transientFor()->windowManagementInterface() : nullptr);
+
+    KWayland::Server::PlasmaWindowInterface *parentWindow = nullptr;
+    if (auto *transientFor_ = qobject_cast<AbstractClient *>(transientFor())) {
+        parentWindow = transientFor_->windowManagementInterface();
+    }
+    w->setParentWindow(parentWindow);
+
     w->setGeometry(geom);
     connect(this, &AbstractClient::skipTaskbarChanged, w,
         [w, this] {
@@ -840,7 +847,11 @@ void AbstractClient::setupWindowManagementInterface()
     connect(this, &AbstractClient::shadeChanged, w, [w, this] { w->setShaded(isShade()); });
     connect(this, &AbstractClient::transientChanged, w,
         [w, this] {
-            w->setParentWindow(transientFor() ? transientFor()->windowManagementInterface() : nullptr);
+            KWayland::Server::PlasmaWindowInterface *parentWindow = nullptr;
+            if (auto *transientFor_ = qobject_cast<AbstractClient *>(transientFor())) {
+                parentWindow = transientFor_->windowManagementInterface();
+            }
+            w->setParentWindow(parentWindow);
         }
     );
     connect(this, &AbstractClient::geometryChanged, w,
@@ -1141,51 +1152,12 @@ bool AbstractClient::performMouseCommand(Options::MouseCommand cmd, const QPoint
     return replay;
 }
 
-void AbstractClient::setTransientFor(AbstractClient *transientFor)
+QList<AbstractClient *> AbstractClient::mainClients() const
 {
-    if (transientFor == this) {
-        // cannot be transient for one self
-        return;
+    if (const auto *t = qobject_cast<const AbstractClient *>(transientFor())) {
+        return {const_cast<AbstractClient *>(t)};
     }
-    if (m_transientFor == transientFor) {
-        return;
-    }
-    m_transientFor = transientFor;
-    emit transientChanged();
-}
-
-const AbstractClient *AbstractClient::transientFor() const
-{
-    return m_transientFor;
-}
-
-AbstractClient *AbstractClient::transientFor()
-{
-    return m_transientFor;
-}
-
-bool AbstractClient::hasTransientPlacementHint() const
-{
-    return false;
-}
-
-QPoint AbstractClient::transientPlacementHint() const
-{
-    return QPoint();
-}
-
-bool AbstractClient::hasTransient(const AbstractClient *c, bool indirect) const
-{
-    Q_UNUSED(indirect);
-    return c->transientFor() == this;
-}
-
-QList< AbstractClient* > AbstractClient::mainClients() const
-{
-    if (const AbstractClient *t = transientFor()) {
-        return QList<AbstractClient*>{const_cast< AbstractClient* >(t)};
-    }
-    return QList<AbstractClient*>();
+    return {};
 }
 
 QList<AbstractClient*> AbstractClient::allMainClients() const
@@ -1211,26 +1183,6 @@ void AbstractClient::setModal(bool m)
 bool AbstractClient::isModal() const
 {
     return m_modal;
-}
-
-void AbstractClient::addTransient(AbstractClient *cl)
-{
-    assert(!m_transients.contains(cl));
-    assert(cl != this);
-    m_transients.append(cl);
-}
-
-void AbstractClient::removeTransient(AbstractClient *cl)
-{
-    m_transients.removeAll(cl);
-    if (cl->transientFor() == this) {
-        cl->setTransientFor(nullptr);
-    }
-}
-
-void AbstractClient::removeTransientFromList(AbstractClient *cl)
-{
-    m_transients.removeAll(cl);
 }
 
 bool AbstractClient::isActiveFullScreen() const

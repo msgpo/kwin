@@ -178,15 +178,6 @@ class KWIN_EXPORT AbstractClient : public Toplevel
      **/
     Q_PROPERTY(bool wantsInput READ wantsInput)
     /**
-     * Whether the Client is a transient Window to another Window.
-     * @see transientFor
-     **/
-    Q_PROPERTY(bool transient READ isTransient NOTIFY transientChanged)
-    /**
-     * The Client to which this Client is a transient if any.
-     **/
-    Q_PROPERTY(KWin::AbstractClient *transientFor READ transientFor NOTIFY transientChanged)
-    /**
      * Whether the Client represents a modal window.
      **/
     Q_PROPERTY(bool modal READ isModal NOTIFY modalChanged)
@@ -385,26 +376,6 @@ public:
     virtual bool isFullScreen() const = 0;
     // TODO: remove boolean trap
     virtual AbstractClient *findModal(bool allow_itself = false) = 0;
-    virtual bool isTransient() const;
-    /**
-     * @returns Whether there is a hint available to place the AbstractClient on it's parent, default @c false.
-     * @see transientPlacementHint
-     **/
-    virtual bool hasTransientPlacementHint() const;
-    /**
-     * @returns The recommended position of the transient in parent coordinates
-     **/
-    virtual QPoint transientPlacementHint() const;
-    const AbstractClient* transientFor() const;
-    AbstractClient* transientFor();
-    /**
-     * @returns @c true if c is the transient_for window for this client,
-     *  or recursively the transient_for window
-     * @todo: remove boolean trap
-     **/
-    virtual bool hasTransient(const AbstractClient* c, bool indirect) const;
-    const QList<AbstractClient*>& transients() const; // Is not indirect
-    virtual void removeTransient(AbstractClient* cl);
     virtual QList<AbstractClient*> mainClients() const; // Call once before loop , is not indirect
     QList<AbstractClient*> allMainClients() const; // Call once before loop , is indirect
     /**
@@ -765,7 +736,6 @@ Q_SIGNALS:
     void captionChanged();
     void clientMaximizedStateChanged(KWin::AbstractClient*, MaximizeMode);
     void clientMaximizedStateChanged(KWin::AbstractClient* c, bool h, bool v);
-    void transientChanged();
     void modalChanged();
     void quickTileModeChanged();
     void moveResizedChanged();
@@ -849,13 +819,6 @@ protected:
 
     void updateColorScheme(QString path);
     virtual void updateColorScheme() = 0;
-
-    void setTransientFor(AbstractClient *transientFor);
-    virtual void addTransient(AbstractClient* cl);
-    /**
-     * Just removes the @p cl from the transients without any further checks.
-     **/
-    void removeTransientFromList(AbstractClient* cl);
 
     Layer belongsToLayer() const;
     virtual bool belongsToDesktop() const;
@@ -1115,8 +1078,6 @@ private:
 
     KWayland::Server::PlasmaWindowInterface *m_windowManagementInterface = nullptr;
 
-    AbstractClient *m_transientFor = nullptr;
-    QList<AbstractClient*> m_transients;
     bool m_modal = false;
     Layer m_layer = UnknownLayer;
 
@@ -1201,11 +1162,6 @@ inline void AbstractClient::resizeWithChecks(const QSize& s, AbstractClient::For
 inline void AbstractClient::setGeometry(const QRect& r, ForceGeometry_t force)
 {
     setGeometry(r.x(), r.y(), r.width(), r.height(), force);
-}
-
-inline const QList<AbstractClient*>& AbstractClient::transients() const
-{
-    return m_transients;
 }
 
 inline bool AbstractClient::areGeometryUpdatesBlocked() const

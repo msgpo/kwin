@@ -201,15 +201,19 @@ void Workspace::updateMinimizedOfTransients(AbstractClient* c)
 {
     // if mainwindow is minimized or shaded, minimize transients too
     if (c->isMinimized()) {
-        for (auto it = c->transients().constBegin();
-                it != c->transients().constEnd();
-                ++it) {
-            if ((*it)->isModal())
-                continue; // there's no reason to hide modal dialogs with the main client
-            // but to keep them to eg. watch progress or whatever
-            if (!(*it)->isMinimized()) {
-                (*it)->minimize();
-                updateMinimizedOfTransients((*it));
+        for (const auto &transient : c->transients()) {
+            auto *tc = qobject_cast<AbstractClient *>(transient);
+            if (tc == nullptr) {
+                continue;
+            }
+            if (tc->isModal()) {
+                // There's no reason to hide modal dialogs with the main client
+                // but to keep them to eg. watch progress or whatever.
+                continue;
+            }
+            if (!tc->isMinimized()) {
+                tc->minimize();
+                updateMinimizedOfTransients(tc);
             }
         }
         if (c->isModal()) { // if a modal dialog is minimized, minimize its mainwindow too
@@ -217,13 +221,15 @@ void Workspace::updateMinimizedOfTransients(AbstractClient* c)
             c2->minimize();
         }
     } else {
-        // else unmiminize the transients
-        for (auto it = c->transients().constBegin();
-                it != c->transients().constEnd();
-                ++it) {
-            if ((*it)->isMinimized()) {
-                (*it)->unminimize();
-                updateMinimizedOfTransients((*it));
+        // else unmiminize the
+        for (const auto &transient : c->transients()) {
+            auto *tc = qobject_cast<AbstractClient *>(transient);
+            if (tc == nullptr) {
+                continue;
+            }
+            if (tc->isMinimized()) {
+                tc->unminimize();
+                updateMinimizedOfTransients(tc);
             }
         }
         if (c->isModal()) {
@@ -239,11 +245,14 @@ void Workspace::updateMinimizedOfTransients(AbstractClient* c)
  */
 void Workspace::updateOnAllDesktopsOfTransients(AbstractClient* c)
 {
-    for (auto it = c->transients().constBegin();
-            it != c->transients().constEnd();
-            ++it) {
-        if ((*it)->isOnAllDesktops() != c->isOnAllDesktops())
-            (*it)->setOnAllDesktops(c->isOnAllDesktops());
+    for (const auto &transient : c->transients()) {
+        auto *tc = qobject_cast<AbstractClient *>(transient);
+        if (tc == nullptr) {
+            continue;
+        }
+        if (tc->isOnAllDesktops() != c->isOnAllDesktops()) {
+            tc->setOnAllDesktops(c->isOnAllDesktops());
+        }
     }
 }
 
@@ -545,7 +554,7 @@ void Client::checkGroupTransients()
             // so don't make them transient for the ones that are transient for it
             if (*it1 == *it2)
                 continue;
-            for (AbstractClient* cl = (*it2)->transientFor();
+            for (Toplevel *cl = (*it2)->transientFor();
                     cl != NULL;
                     cl = cl->transientFor()) {
                 if (cl == *it1) {
@@ -648,28 +657,25 @@ xcb_window_t Client::verifyTransientFor(xcb_window_t new_transient_for, bool set
     return new_transient_for;
 }
 
-void Client::addTransient(AbstractClient* cl)
+void Client::addTransient(Toplevel *transient)
 {
+    auto *cl = qobject_cast<AbstractClient *>(transient);
+    if (cl == nullptr) {
+        return;
+    }
+
     AbstractClient::addTransient(cl);
     if (workspace()->mostRecentlyActivatedClient() == this && cl->isModal())
         check_active_modal = true;
-//    qDebug() << "ADDTRANS:" << this << ":" << cl;
-//    qDebug() << kBacktrace();
-//    for ( ClientList::ConstIterator it = transients_list.begin();
-//         it != transients_list.end();
-//         ++it )
-//        qDebug() << "AT:" << (*it);
 }
 
-void Client::removeTransient(AbstractClient* cl)
+void Client::removeTransient(Toplevel *transient)
 {
-//    qDebug() << "REMOVETRANS:" << this << ":" << cl;
-//    qDebug() << kBacktrace();
     // cl is transient for this, but this is going away
     // make cl group transient
-    AbstractClient::removeTransient(cl);
-    if (cl->transientFor() == this) {
-        if (Client *c = dynamic_cast<Client*>(cl)) {
+    AbstractClient::removeTransient(transient);
+    if (transient->transientFor() == this) {
+        if (Client *c = dynamic_cast<Client*>(transient)) {
             c->m_transientForId = XCB_WINDOW_NONE;
             c->setTransientFor(nullptr); // SELI
 // SELI       cl->setTransient( rootWindow());
@@ -689,7 +695,7 @@ void Client::checkTransient(xcb_window_t w)
 
 // returns true if cl is the transient_for window for this client,
 // or recursively the transient_for window
-bool Client::hasTransient(const AbstractClient* cl, bool indirect) const
+bool Client::hasTransient(const Toplevel *cl, bool indirect) const
 {
     if (const Client *c = dynamic_cast<const Client*>(cl)) {
         // checkGroupTransients() uses this to break loops, so hasTransient() must detect them
@@ -740,7 +746,7 @@ QList<AbstractClient*> Client::mainClients() const
 {
     if (!isTransient())
         return QList<AbstractClient*>();
-    if (const AbstractClient *t = transientFor())
+    if (const AbstractClient *t = qobject_cast<const AbstractClient *>(transientFor()))
         return QList<AbstractClient*>{const_cast< AbstractClient* >(t)};
     QList<AbstractClient*> result;
     Q_ASSERT(group());
@@ -754,11 +760,15 @@ QList<AbstractClient*> Client::mainClients() const
 
 AbstractClient* Client::findModal(bool allow_itself)
 {
-    for (auto it = transients().constBegin();
-            it != transients().constEnd();
-            ++it)
-        if (AbstractClient* ret = (*it)->findModal(true))
-            return ret;
+    for (const auto &transient : transients()) {
+        auto *c = qobject_cast<AbstractClient *>(transient);
+        if (c == nullptr) {
+            continue;
+        }
+        if (AbstractClient *modal = c->findModal(true)) {
+            return modal;
+        }
+    }
     if (isModal() && allow_itself)
         return this;
     return NULL;

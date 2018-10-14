@@ -22,8 +22,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "workspace.h"
 #include "client.h"
+#include "group.h"
 #include "netinfo.h"
 #include "shadow.h"
+#include "shell_client.h"
 #include "decorations/decoratedclient.h"
 #include "decorations/decorationrenderer.h"
 
@@ -46,6 +48,10 @@ Deleted::Deleted()
     , m_fullscreen(false)
     , m_keepAbove(false)
     , m_keepBelow(false)
+    , m_wasActive(false)
+    , m_wasX11Client(false)
+    , m_wasWaylandClient(false)
+    , m_wasGroupTransient(false)
 {
 }
 
@@ -56,6 +62,18 @@ Deleted::~Deleted()
     assert(delete_refcount == 0);
     if (workspace()) {
         workspace()->removeDeleted(this);
+    }
+    for (Toplevel *toplevel : qAsConst(m_transientFor)) {
+        if (auto *deleted = qobject_cast<Deleted *>(toplevel)) {
+            deleted->removeTransient(this);
+        }
+    }
+    for (Toplevel *transient : transients()) {
+        auto *deleted = qobject_cast<Deleted *>(transient);
+        if (deleted == nullptr) {
+            Q_UNREACHABLE();
+        }
+        deleted->removeTransientFor(this);
     }
     deleteEffectWindow();
 }
@@ -117,7 +135,32 @@ void Deleted::copyToDeleted(Toplevel* c)
         m_keepAbove = client->keepAbove();
         m_keepBelow = client->keepBelow();
         m_caption = client->caption();
+
+        m_wasActive = client->isActive();
+
+        const auto *x11Client = qobject_cast<Client *>(client);
+        m_wasGroupTransient = x11Client && x11Client->groupTransient();
+
+        if (m_wasGroupTransient) {
+            // TODO: Add stacking updates blocker?
+            const auto members = x11Client->group()->members();
+            for (Client *member : members) {
+                if (member == client) {
+                    continue;
+                }
+                addTransientFor(member);
+            }
+        } else {
+            // TODO: Add stacking updates blocker?
+            AbstractClient *transientFor = qobject_cast<AbstractClient *>(client->transientFor());
+            if (transientFor != nullptr) {
+                addTransientFor(transientFor);
+            }
+        }
     }
+
+    m_wasWaylandClient = !!qobject_cast<ShellClient *>(c);
+    m_wasX11Client = !m_wasWaylandClient;
 }
 
 void Deleted::unrefWindow()
@@ -192,6 +235,25 @@ void Deleted::mainClientClosed(Toplevel *client)
         m_mainClients.removeAll(c);
 }
 
+
+void Deleted::transientForClosed(Toplevel *toplevel, Deleted *deleted)
+{
+    if (deleted == nullptr) {
+        m_transientFor.removeAll(toplevel);
+        return;
+    }
+
+    // TODO: Add stacking updates blocker?
+
+    const int index = m_transientFor.indexOf(toplevel);
+    if (index == -1) {
+        return;
+    }
+
+    m_transientFor[index] = deleted;
+    deleted->addTransient(this);
+}
+
 xcb_window_t Deleted::frameId() const
 {
     return m_frame;
@@ -205,6 +267,17 @@ double Deleted::opacity() const
 QByteArray Deleted::windowRole() const
 {
     return m_windowRole;
+}
+
+void Deleted::addTransientFor(AbstractClient *parent)
+{
+    m_transientFor.append(parent);
+    connect(parent, &AbstractClient::windowClosed, this, &Deleted::transientForClosed);
+}
+
+void Deleted::removeTransientFor(Deleted *parent)
+{
+    m_transientFor.removeAll(parent);
 }
 
 } // namespace

@@ -80,6 +80,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "utils.h"
 #include "client.h"
+#include "deleted.h"
 #include "focuschain.h"
 #include "netinfo.h"
 #include "workspace.h"
@@ -370,7 +371,7 @@ void Workspace::raiseClient(AbstractClient* c, bool nogroup)
     if (!nogroup && c->isTransient()) {
         QList<AbstractClient*> transients;
         AbstractClient *transient_parent = c;
-        while ((transient_parent = transient_parent->transientFor()))
+        while ((transient_parent = qobject_cast<AbstractClient *>(transient_parent->transientFor())))
             transients << transient_parent;
         foreach (transient_parent, transients)
             raiseClient(transient_parent, true);
@@ -528,24 +529,21 @@ ToplevelList Workspace::constrainedStackingOrder()
     for (int i = stacking.size() - 1;
             i >= 0;
        ) {
-        AbstractClient *current = qobject_cast<AbstractClient*>(stacking[i]);
-        if (!current || !current->isTransient()) {
+        Toplevel *current = stacking[i];
+        if (!current->isTransient()) {
             --i;
             continue;
         }
         int i2 = -1;
         // find topmost client this one is transient for
         for (i2 = stacking.size() - 1; i2 >= 0; --i2) {
-            AbstractClient *c2 = qobject_cast<AbstractClient *>(stacking[i2]);
-            if (!c2) {
-                continue;
-            }
-            if (c2 == current) {
+            Toplevel *parent = stacking[i2];
+            if (parent == current) {
                 i2 = -1; // Don't reorder, already on top of its main window.
                 break;
             }
-            if (c2->hasTransient(current, true)
-                    && keepTransientAbove(c2, current)) {
+            if (current->isTransientFor(parent)
+                    && keepTransientAbove(parent, current)) {
                 break;
             }
         }
@@ -553,6 +551,7 @@ ToplevelList Workspace::constrainedStackingOrder()
             --i;
             continue;
         }
+        // TODO: Need to add an additional check whether the transient has deleted transients.
         stacking.removeAt(i);
         --i; // move onto the next item (for next for () iteration)
         --i2; // adjust index of the mainwindow after the remove above
@@ -604,6 +603,22 @@ QList<T*> ensureStackingOrderInList(const ToplevelList &stackingOrder, const QLi
 }
 
 // Ensure list is in stacking order
+ToplevelList Workspace::ensureStackingOrder(const ToplevelList &clients) const
+{
+    if (clients.count() < 2) {
+        return clients;
+    }
+
+    ToplevelList result = clients;
+    for (Toplevel *t : qAsConst(stacking_order)) {
+        if (result.removeAll(t) != 0) {
+            result.append(t);
+        }
+    }
+
+    return result;
+}
+
 ClientList Workspace::ensureStackingOrder(const ClientList& list) const
 {
     return ensureStackingOrderInList(stacking_order, list);
@@ -616,11 +631,28 @@ QList<AbstractClient*> Workspace::ensureStackingOrder(const QList<AbstractClient
 
 // check whether a transient should be actually kept above its mainwindow
 // there may be some special cases where this rule shouldn't be enfored
-bool Workspace::keepTransientAbove(const AbstractClient* mainwindow, const AbstractClient* transient)
+bool Workspace::keepTransientAbove(const Toplevel* mainwindow, const Toplevel* transient)
 {
     // #93832 - don't keep splashscreens above dialogs
     if (transient->isSplash() && mainwindow->isDialog())
         return false;
+    if (const auto *deleted = qobject_cast<const Deleted *>(transient)) {
+        // If a group transient was active, we should keep it above no matter
+        // what, because at the time when the transient was closed, it was above
+        // the main window.
+        if (deleted->wasGroupTransient() && deleted->wasActive()) {
+            return true;
+        }
+
+        // This is rather a hack for #76026. Don't keep non-modal dialogs above
+        // the mainwindow, but only if they're group transient (since only such
+        // dialogs have taskbar entry in Kicker). A proper way of doing this
+        // (both kwin and kicker) needs to be found.
+        if (deleted->wasGroupTransient() && deleted->isDialog()
+                && !deleted->isModal()) {
+            return false;
+        }
+    }
     // This is rather a hack for #76026. Don't keep non-modal dialogs above
     // the mainwindow, but only if they're group transient (since only such dialogs
     // have taskbar entry in Kicker). A proper way of doing this (both kwin and kicker)

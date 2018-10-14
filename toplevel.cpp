@@ -553,5 +553,79 @@ QRect Toplevel::inputGeometry() const
     return geometry();
 }
 
+bool Toplevel::isTransient() const
+{
+    return false;
+}
+
+Toplevel *Toplevel::transientFor()
+{
+    return m_transientFor;
+}
+
+const Toplevel *Toplevel::transientFor() const
+{
+    return m_transientFor;
+}
+
+const ToplevelList &Toplevel::transients() const
+{
+    return m_transients;
+}
+
+bool Toplevel::hasTransient(const Toplevel *transient, bool indirect) const
+{
+    Q_UNUSED(indirect);
+    return transient->transientFor() == this;
+}
+
+bool Toplevel::isTransientFor(const Toplevel *parent) const
+{
+    return parent->hasTransient(this, true);
+}
+
+bool Toplevel::hasTransientPlacementHint() const
+{
+    return false;
+}
+
+QPoint Toplevel::transientPlacementHint() const
+{
+    return {};
+}
+
+void Toplevel::setTransientFor(Toplevel *transientFor)
+{
+    if (transientFor == this) {
+        // Cannot be transient for one self.
+        return;
+    }
+    if (m_transientFor == transientFor) {
+        return;
+    }
+    m_transientFor = transientFor;
+    emit transientChanged();
+}
+
+void Toplevel::addTransient(Toplevel *transient)
+{
+    Q_ASSERT(!m_transients.contains(transient));
+    Q_ASSERT(transient != this);
+    m_transients.append(transient);
+}
+
+void Toplevel::removeTransient(Toplevel *transient)
+{
+    m_transients.removeAll(transient);
+    if (transient->transientFor() == this) {
+        transient->setTransientFor(nullptr);
+    }
+}
+
+void Toplevel::removeTransientFromList(Toplevel *transient)
+{
+    m_transients.removeAll(transient);
+}
+
 } // namespace
 
