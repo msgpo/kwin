@@ -3,6 +3,7 @@
  This file is part of the KDE project.
 
 Copyright (C) 2016, 2017 Martin Gräßlin <mgraesslin@kde.org>
+Copyright (C) 2018 Vlad Zagorodniy <vladzzag@gmail.com>
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -18,6 +19,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 *********************************************************************/
 #include "keyboard_layout.h"
+#include "keyboard_layout_icon_provider.h"
 #include "keyboard_layout_switching.h"
 #include "keyboard_input.h"
 #include "input_event.h"
@@ -37,6 +39,120 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 namespace KWin
 {
+
+// libxkbcommon has API only for getting the full name of the current layout,
+// there is no API for getting the current layout in the form of the ISO
+// two-character country code (the one that is passed in RMLVO).
+// This translation table is derived from /usr/share/X11/xkb/rules/base.lst
+static const QHash<QString, QString> s_layoutNameToLayout {
+    {QStringLiteral("English (US)"),                              QStringLiteral("us")},
+    {QStringLiteral("Afghani"),                                   QStringLiteral("af")},
+    {QStringLiteral("Arabic"),                                    QStringLiteral("ara")},
+    {QStringLiteral("Albanian"),                                  QStringLiteral("al")},
+    {QStringLiteral("Armenian"),                                  QStringLiteral("am")},
+    {QStringLiteral("German (Austria)"),                          QStringLiteral("at")},
+    {QStringLiteral("English (Australian)"),                      QStringLiteral("au")},
+    {QStringLiteral("Azerbaijani"),                               QStringLiteral("az")},
+    {QStringLiteral("Belarusian"),                                QStringLiteral("by")},
+    {QStringLiteral("Belgian"),                                   QStringLiteral("be")},
+    {QStringLiteral("Bangla"),                                    QStringLiteral("bd")},
+    {QStringLiteral("Indian"),                                    QStringLiteral("in")},
+    {QStringLiteral("Bosnian"),                                   QStringLiteral("ba")},
+    {QStringLiteral("Portuguese (Brazil)"),                       QStringLiteral("br")},
+    {QStringLiteral("Bulgarian"),                                 QStringLiteral("bg")},
+    {QStringLiteral("Berber (Algeria, Latin)"),                   QStringLiteral("dz")},
+    {QStringLiteral("Arabic (Morocco)"),                          QStringLiteral("ma")},
+    {QStringLiteral("English (Cameroon)"),                        QStringLiteral("cm")},
+    {QStringLiteral("Burmese"),                                   QStringLiteral("mm")},
+    {QStringLiteral("French (Canada)"),                           QStringLiteral("ca")},
+    {QStringLiteral("French (Democratic Republic of the Congo)"), QStringLiteral("cd")},
+    {QStringLiteral("Chinese"),                                   QStringLiteral("cn")},
+    {QStringLiteral("Croatian"),                                  QStringLiteral("hr")},
+    {QStringLiteral("Czech"),                                     QStringLiteral("cz")},
+    {QStringLiteral("Danish"),                                    QStringLiteral("dk")},
+    {QStringLiteral("Dutch"),                                     QStringLiteral("nl")},
+    {QStringLiteral("Dzongkha"),                                  QStringLiteral("bt")},
+    {QStringLiteral("Estonian"),                                  QStringLiteral("ee")},
+    {QStringLiteral("Persian"),                                   QStringLiteral("ir")},
+    {QStringLiteral("Iraqi"),                                     QStringLiteral("iq")},
+    {QStringLiteral("Faroese"),                                   QStringLiteral("fo")},
+    {QStringLiteral("Finnish"),                                   QStringLiteral("fi")},
+    {QStringLiteral("French"),                                    QStringLiteral("fr")},
+    {QStringLiteral("English (Ghana)"),                           QStringLiteral("gh")},
+    {QStringLiteral("French (Guinea)"),                           QStringLiteral("gn")},
+    {QStringLiteral("Georgian"),                                  QStringLiteral("ge")},
+    {QStringLiteral("German"),                                    QStringLiteral("de")},
+    {QStringLiteral("Greek"),                                     QStringLiteral("gr")},
+    {QStringLiteral("Hungarian"),                                 QStringLiteral("hu")},
+    {QStringLiteral("Icelandic"),                                 QStringLiteral("is")},
+    {QStringLiteral("Hebrew"),                                    QStringLiteral("il")},
+    {QStringLiteral("Italian"),                                   QStringLiteral("it")},
+    {QStringLiteral("Japanese"),                                  QStringLiteral("jp")},
+    {QStringLiteral("Kyrgyz"),                                    QStringLiteral("kg")},
+    {QStringLiteral("Khmer (Cambodia)"),                          QStringLiteral("kh")},
+    {QStringLiteral("Kazakh"),                                    QStringLiteral("kz")},
+    {QStringLiteral("Lao"),                                       QStringLiteral("la")},
+    {QStringLiteral("Spanish (Latin American)"),                  QStringLiteral("latam")},
+    {QStringLiteral("Lithuanian"),                                QStringLiteral("lt")},
+    {QStringLiteral("Latvian"),                                   QStringLiteral("lv")},
+    {QStringLiteral("Maori"),                                     QStringLiteral("mao")},
+    {QStringLiteral("Montenegrin"),                               QStringLiteral("me")},
+    {QStringLiteral("Macedonian"),                                QStringLiteral("mk")},
+    {QStringLiteral("Maltese"),                                   QStringLiteral("mt")},
+    {QStringLiteral("Mongolian"),                                 QStringLiteral("mn")},
+    {QStringLiteral("Norwegian"),                                 QStringLiteral("no")},
+    {QStringLiteral("Polish"),                                    QStringLiteral("pl")},
+    {QStringLiteral("Portuguese"),                                QStringLiteral("pt")},
+    {QStringLiteral("Romanian"),                                  QStringLiteral("ro")},
+    {QStringLiteral("Russian"),                                   QStringLiteral("ru")},
+    {QStringLiteral("Serbian"),                                   QStringLiteral("rs")},
+    {QStringLiteral("Slovenian"),                                 QStringLiteral("si")},
+    {QStringLiteral("Slovak"),                                    QStringLiteral("sk")},
+    {QStringLiteral("Spanish"),                                   QStringLiteral("es")},
+    {QStringLiteral("Swedish"),                                   QStringLiteral("se")},
+    {QStringLiteral("German (Switzerland)"),                      QStringLiteral("ch")},
+    {QStringLiteral("Arabic (Syria)"),                            QStringLiteral("sy")},
+    {QStringLiteral("Tajik"),                                     QStringLiteral("tj")},
+    {QStringLiteral("Sinhala (phonetic)"),                        QStringLiteral("lk")},
+    {QStringLiteral("Thai"),                                      QStringLiteral("th")},
+    {QStringLiteral("Turkish"),                                   QStringLiteral("tr")},
+    {QStringLiteral("Taiwanese"),                                 QStringLiteral("tw")},
+    {QStringLiteral("Ukrainian"),                                 QStringLiteral("ua")},
+    {QStringLiteral("English (UK)"),                              QStringLiteral("gb")},
+    {QStringLiteral("Uzbek"),                                     QStringLiteral("uz")},
+    {QStringLiteral("Vietnamese"),                                QStringLiteral("vn")},
+    {QStringLiteral("Korean"),                                    QStringLiteral("kr")},
+    {QStringLiteral("Japanese (PC-98)"),                          QStringLiteral("nec_vndr/jp")},
+    {QStringLiteral("Irish"),                                     QStringLiteral("ie")},
+    {QStringLiteral("Urdu (Pakistan)"),                           QStringLiteral("pk")},
+    {QStringLiteral("Dhivehi"),                                   QStringLiteral("mv")},
+    {QStringLiteral("English (South Africa)"),                    QStringLiteral("za")},
+    {QStringLiteral("Esperanto"),                                 QStringLiteral("epo")},
+    {QStringLiteral("Nepali"),                                    QStringLiteral("np")},
+    {QStringLiteral("English (Nigeria)"),                         QStringLiteral("ng")},
+    {QStringLiteral("Amharic"),                                   QStringLiteral("et")},
+    {QStringLiteral("Wolof"),                                     QStringLiteral("sn")},
+    {QStringLiteral("Braille"),                                   QStringLiteral("brai")},
+    {QStringLiteral("Turkmen"),                                   QStringLiteral("tm")},
+    {QStringLiteral("Bambara"),                                   QStringLiteral("ml")},
+    {QStringLiteral("Swahili (Tanzania)"),                        QStringLiteral("tz")},
+    {QStringLiteral("French (Togo)"),                             QStringLiteral("tg")},
+    {QStringLiteral("Swahili (Kenya)"),                           QStringLiteral("ke")},
+    {QStringLiteral("Tswana"),                                    QStringLiteral("bw")},
+    {QStringLiteral("Filipino"),                                  QStringLiteral("ph")},
+    {QStringLiteral("Moldavian"),                                 QStringLiteral("md")},
+    {QStringLiteral("Indonesian (Jawi)"),                         QStringLiteral("id")},
+    {QStringLiteral("Malay (Jawi, Arabic Keyboard)"),             QStringLiteral("my")}
+};
+
+static QString layoutNameToLayout(const QString &layoutName)
+{
+    auto it = s_layoutNameToLayout.constFind(layoutName);
+    if (it == s_layoutNameToLayout.constEnd()) {
+        return QStringLiteral("--");
+    }
+    return *it;
+}
 
 KeyboardLayout::KeyboardLayout(Xkb *xkb)
     : QObject()
@@ -97,19 +213,40 @@ void KeyboardLayout::initNotifierItem()
 {
     bool showNotifier = true;
     bool showSingle = false;
+    bool showFlag = false;
+    bool showLabel = true;
+
     if (m_config) {
         const auto config = m_config->group(QStringLiteral("Layout"));
         showNotifier = config.readEntry("ShowLayoutIndicator", true);
         showSingle = config.readEntry("ShowSingle", false);
+        showFlag = config.readEntry(QStringLiteral("ShowFlag"), false);
+        showLabel = config.readEntry(QStringLiteral("ShowLabel"), true);
     }
+
     const bool shouldShow = showNotifier && (showSingle || m_xkb->numberOfLayouts() > 1);
-    if (shouldShow) {
-        if (m_notifierItem) {
-            return;
-        }
-    } else {
+    if (!shouldShow) {
         delete m_notifierItem;
         m_notifierItem = nullptr;
+        m_iconProvider = nullptr;
+        return;
+    }
+
+    auto displayMode = [showFlag, showLabel] {
+        if (showFlag && showLabel) {
+            return KeyboardLayoutIconProvider::Mode::LabelOnFlag;
+        }
+        if (showFlag) {
+            return KeyboardLayoutIconProvider::Mode::Flag;
+        }
+        if (showLabel) {
+            return KeyboardLayoutIconProvider::Mode::Label;
+        }
+        Q_UNREACHABLE();
+    };
+
+    if (m_notifierItem) {
+        m_iconProvider->setMode(displayMode());
         return;
     }
 
@@ -120,9 +257,11 @@ void KeyboardLayout::initNotifierItem()
     m_notifierItem->setTitle(i18nc("tooltip title", "Keyboard Layout"));
     m_notifierItem->setToolTipIconByName(QStringLiteral("preferences-desktop-keyboard"));
     m_notifierItem->setStandardActionsEnabled(false);
-
-    // TODO: proper icon
     m_notifierItem->setIconByName(QStringLiteral("preferences-desktop-keyboard"));
+
+    m_iconProvider = new KeyboardLayoutIconProvider(m_notifierItem);
+    m_iconProvider->setFallbackIcon(QStringLiteral("preferences-desktop-keyboard"));
+    m_iconProvider->setMode(displayMode());
 
     connect(m_notifierItem, &KStatusNotifierItem::activateRequested, this, &KeyboardLayout::switchToNextLayout);
     connect(m_notifierItem, &KStatusNotifierItem::scrollRequested, this,
@@ -137,6 +276,9 @@ void KeyboardLayout::initNotifierItem()
             }
         }
     );
+
+    connect(m_iconProvider, &KeyboardLayoutIconProvider::iconsInvalidated,
+            this, &KeyboardLayout::updateNotifier);
 
     m_notifierItem->setStatus(KStatusNotifierItem::Active);
 }
@@ -246,8 +388,28 @@ void KeyboardLayout::updateNotifier()
     if (!m_notifierItem) {
         return;
     }
-    m_notifierItem->setToolTipSubTitle(translatedLayout(m_xkb->layoutName()));
-    // TODO: update icon
+
+    const QString layoutName = m_xkb->layoutName();
+    const QString layout = layoutNameToLayout(layoutName);
+
+    m_notifierItem->setToolTipSubTitle(translatedLayout(layoutName));
+
+    switch (m_iconProvider->mode()) {
+    case KeyboardLayoutIconProvider::Mode::Label:
+        m_notifierItem->setToolTipIconByName(QStringLiteral("preferences-desktop-keyboard"));
+        break;
+
+    case KeyboardLayoutIconProvider::Mode::Flag:
+    case KeyboardLayoutIconProvider::Mode::LabelOnFlag:
+        m_notifierItem->setToolTipIconByPixmap(m_iconProvider->flag(layout));
+        break;
+
+    default:
+        Q_UNREACHABLE();
+        break;
+    }
+
+    m_notifierItem->setIconByPixmap(m_iconProvider->icon(layout));
 }
 
 void KeyboardLayout::reinitNotifierMenu()
@@ -257,9 +419,34 @@ void KeyboardLayout::reinitNotifierMenu()
     }
     const auto layouts = m_xkb->layoutNames();
 
-    QMenu *menu = new QMenu;
+    QMenu *menu = m_notifierItem->contextMenu();
+    if (!menu) {
+        menu = new QMenu();
+        m_notifierItem->setContextMenu(menu);
+    }
+
+    menu->clear();
+
     for (auto it = layouts.begin(); it != layouts.end(); it++) {
-        menu->addAction(translatedLayout(it.value()), std::bind(&KeyboardLayout::switchToLayout, this, it.key()));
+        const QString text = translatedLayout(*it);
+        auto handler = std::bind(&KeyboardLayout::switchToLayout, this, it.key());
+
+        QIcon icon;
+        switch (m_iconProvider->mode()) {
+        case KeyboardLayoutIconProvider::Mode::Label:
+            break;
+
+        case KeyboardLayoutIconProvider::Mode::Flag:
+        case KeyboardLayoutIconProvider::Mode::LabelOnFlag:
+            icon = m_iconProvider->flag(layoutNameToLayout(*it));
+            break;
+
+        default:
+            Q_UNREACHABLE();
+            break;
+        }
+
+        menu->addAction(icon, text, handler);
     }
 
     menu->addSeparator();
@@ -281,8 +468,6 @@ void KeyboardLayout::reinitNotifierMenu()
             p->start();
         }
     );
-
-    m_notifierItem->setContextMenu(menu);
 }
 
 static const QString s_keyboardService = QStringLiteral("org.kde.keyboard");

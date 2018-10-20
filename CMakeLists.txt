@@ -71,6 +71,7 @@ find_package(KF5 ${KF5_MIN_VERSION} REQUIRED COMPONENTS
     CoreAddons
     Crash
     GlobalAccel
+    GuiAddons
     I18n
     Init
     Notifications
@@ -394,6 +395,7 @@ set(kwin_KDEINIT_SRCS
    input_event_spy.cpp
    keyboard_input.cpp
    keyboard_layout.cpp
+   keyboard_layout_icon_provider.cpp
    keyboard_layout_switching.cpp
    keyboard_repeat.cpp
    pointer_input.cpp
@@ -566,6 +568,7 @@ set(kwin_KDE_LIBS
     KF5::ConfigWidgets
     KF5::GlobalAccel
     KF5::GlobalAccelPrivate
+    KF5::GuiAddons
     KF5::I18n
     KF5::Notifications
     KF5::Package

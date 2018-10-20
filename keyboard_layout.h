@@ -34,6 +34,7 @@ namespace KWin
 {
 class Xkb;
 class KeyboardLayoutDBusInterface;
+class KeyboardLayoutIconProvider;
 
 namespace KeyboardLayoutSwitching
 {
@@ -82,6 +83,7 @@ private:
     QVector<QAction*> m_layoutShortcuts;
     KeyboardLayoutDBusInterface *m_dbusInterface = nullptr;
     KeyboardLayoutSwitching::Policy *m_policy = nullptr;
+    KeyboardLayoutIconProvider *m_iconProvider = nullptr;
 };
 
 class KeyboardLayoutDBusInterface : public QObject
