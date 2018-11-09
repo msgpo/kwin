@@ -22,9 +22,19 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #ifndef KWIN_ZOOM_H
 #define KWIN_ZOOM_H
 
+#include <config-kwin.h>
+
 #include <kwineffects.h>
 #include <QTime>
 #include <QTimeLine>
+
+#if HAVE_QACCESSIBILITY_CLIENT
+namespace QAccessibleClient
+{
+class AccessibleObject;
+class Registry;
+}
+#endif
 
 namespace KWin
 {
@@ -89,10 +99,12 @@ private Q_SLOTS:
     void moveMouseToFocus();
     void moveMouseToCenter();
     void timelineFrameChanged(int frame);
-    void focusChanged(int px, int py, int rx, int ry, int rwidth, int rheight);
     void slotMouseChanged(const QPoint& pos, const QPoint& old,
                               Qt::MouseButtons buttons, Qt::MouseButtons oldbuttons,
                               Qt::KeyboardModifiers modifiers, Qt::KeyboardModifiers oldmodifiers);
+#if HAVE_QACCESSIBILITY_CLIENT
+    void slotFocusChanged(const QAccessibleClient::AccessibleObject &object);
+#endif
     void recreateTexture();
 private:
     void showCursor();
@@ -127,6 +139,9 @@ private:
     QTimeLine timeline;
     int xMove, yMove;
     double moveFactor;
+#if HAVE_QACCESSIBILITY_CLIENT
+    QAccessibleClient::Registry *registry = nullptr;
+#endif
 };
 
 } // namespace

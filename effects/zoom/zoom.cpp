@@ -39,6 +39,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <xcb/render.h>
 #endif
 
+#if HAVE_QACCESSIBILITY_CLIENT
+#include <qaccessibilityclient/accessibleobject.h>
+#include <qaccessibilityclient/registry.h>
+#endif
+
 namespace KWin
 {
 
@@ -216,27 +221,28 @@ void ZoomEffect::reconfigure(ReconfigureFlags)
     mousePointer = MousePointerType(ZoomConfig::mousePointer());
     // Track moving of the mouse.
     mouseTracking = MouseTrackingType(ZoomConfig::mouseTracking());
+#if HAVE_QACCESSIBILITY_CLIENT
     // Enable tracking of the focused location.
     bool _enableFocusTracking = ZoomConfig::enableFocusTracking();
     if (enableFocusTracking != _enableFocusTracking) {
         enableFocusTracking = _enableFocusTracking;
-        if (QDBusConnection::sessionBus().isConnected()) {
-            if (enableFocusTracking)
-                QDBusConnection::sessionBus().connect(QStringLiteral("org.kde.kaccessibleapp"),
-                                                      QStringLiteral("/Adaptor"),
-                                                      QStringLiteral("org.kde.kaccessibleapp.Adaptor"),
-                                                      QStringLiteral("focusChanged"),
-                                                      this, SLOT(focusChanged(int,int,int,int,int,int)));
-            else
-                QDBusConnection::sessionBus().disconnect(QStringLiteral("org.kde.kaccessibleapp"),
-                                                         QStringLiteral("/Adaptor"),
-                                                         QStringLiteral("org.kde.kaccessibleapp.Adaptor"),
-                                                         QStringLiteral("focusChanged"),
-                                                         this, SLOT(focusChanged(int,int,int,int,int,int)));
+        if (_enableFocusTracking) {
+            registry = new QAccessibleClient::Registry(this);
+            connect(registry, &QAccessibleClient::Registry::focusChanged,
+                    this, &ZoomEffect::slotFocusChanged);
+            connect(registry, &QAccessibleClient::Registry::textCaretMoved,
+                    this, &ZoomEffect::slotFocusChanged);
+            registry->subscribeEventListeners(
+                QAccessibleClient::Registry::Focus |
+                QAccessibleClient::Registry::TextCaretMoved);
+        } else {
+            registry->deleteLater();
+            registry = nullptr;
         }
     }
     // When the focus changes, move the zoom area to the focused location.
     followFocus = ZoomConfig::enableFollowFocus();
+#endif
     // The time in milliseconds to wait before a focus-event takes away a mouse-move.
     focusDelay = qMax(uint(0), ZoomConfig::focusDelay());
     // The factor the zoom-area will be moved on touching an edge on push-mode or using the navigation KAction's.
@@ -316,6 +322,7 @@ void ZoomEffect::paintScreen(int mask, QRegion region, ScreenPaintData& data)
             }
         }
 
+#if HAVE_QACCESSIBILITY_CLIENT
         // use the focusPoint if focus tracking is enabled
         if (enableFocusTracking && followFocus) {
             bool acceptFocus = true;
@@ -331,6 +338,7 @@ void ZoomEffect::paintScreen(int mask, QRegion region, ScreenPaintData& data)
                 prevPoint = focusPoint;
             }
         }
+#endif
     }
 
     effects->paintScreen(mask, region, data);
@@ -514,17 +522,21 @@ void ZoomEffect::slotMouseChanged(const QPoint& pos, const QPoint& old, Qt::Mous
     }
 }
 
-void ZoomEffect::focusChanged(int px, int py, int rx, int ry, int rwidth, int rheight)
+#if HAVE_QACCESSIBILITY_CLIENT
+void ZoomEffect::slotFocusChanged(const QAccessibleClient::AccessibleObject &object)
 {
-    if (zoom == 1.0)
+    if (zoom == 1.0) {
         return;
-    const QSize screenSize = effects->virtualScreenSize();
-    focusPoint = (px >= 0 && py >= 0) ? QPoint(px, py) : QPoint(rx + qMax(0, (qMin(screenSize.width(), rwidth) / 2) - 60), ry + qMax(0, (qMin(screenSize.height(), rheight) / 2) - 60));
+    }
+
+    focusPoint = object.focusPoint();
+
     if (enableFocusTracking) {
         lastFocusEvent = QTime::currentTime();
         effects->addRepaintFull();
     }
 }
+#endif
 
 bool ZoomEffect::isActive() const
 {

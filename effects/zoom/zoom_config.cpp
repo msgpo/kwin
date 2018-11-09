@@ -58,6 +58,11 @@ ZoomEffectConfig::ZoomEffectConfig(QWidget* parent, const QVariantList& args) :
 
     addConfig(ZoomConfig::self(), m_ui);
 
+#if !HAVE_QACCESSIBILITY_CLIENT
+    m_ui->kcfg_EnableFocusTracking->setVisible(false);
+    m_ui->kcfg_EnableFollowFocus->setVisible(false);
+#endif
+
     connect(m_ui->editor, SIGNAL(keyChange()), this, SLOT(changed()));
 
     // Shortcut config. The shortcut belongs to the component "kwin"!

@@ -275,6 +275,15 @@ set_package_properties(Libcap PROPERTIES
 )
 set(HAVE_LIBCAP ${Libcap_FOUND})
 
+find_package(QAccessibilityClient)
+set_package_properties(QAccessibilityClient PROPERTIES
+    URL "https://projects.kde.org/projects/playground/accessibility/libqaccessibilityclient"
+    DESCRIPTION "KDE client-side accessibility library"
+    TYPE OPTIONAL
+    PURPOSE "Required to enable keyboard focus tracking."
+)
+set(HAVE_QACCESSIBILITY_CLIENT ${QAccessibilityClient_FOUND})
+
 include(ECMQMLModules)
 ecm_find_qmlmodule(QtQuick 2.3)
 ecm_find_qmlmodule(QtQuick.Controls 1.2)
@@ -310,6 +319,10 @@ include_directories(${XKB_INCLUDE_DIR})
 
 include_directories(${epoxy_INCLUDE_DIR})
 set(HAVE_EPOXY_GLX ${epoxy_HAS_GLX})
+
+if (QAccessibilityClient_FOUND)
+    include_directories(${QACCESSIBILITYCLIENT_INCLUDE_DIR})
+endif()
 
 # for things that are also used by kwin libraries
 configure_file(libkwineffects/kwinconfig.h.cmake ${CMAKE_CURRENT_BINARY_DIR}/libkwineffects/kwinconfig.h )
