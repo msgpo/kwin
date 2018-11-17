@@ -1270,6 +1270,16 @@ void GLRenderTarget::initFBO()
     mValid = true;
 }
 
+static QRect mapToOpenGL(const QRect &rect, const QRect &outerRect, qreal scale = 1.0)
+{
+    return QRect(
+        (rect.x() - outerRect.x()) * scale,
+        (outerRect.height() - (rect.y() - outerRect.y() + rect.height())) * scale,
+        rect.width() * scale,
+        rect.height() * scale
+    );
+}
+
 void GLRenderTarget::blitFromFramebuffer(const QRect &source, const QRect &destination, GLenum filter)
 {
     if (!GLRenderTarget::blitSupported()) {
@@ -1280,19 +1290,72 @@ void GLRenderTarget::blitFromFramebuffer(const QRect &source, const QRect &desti
         initFBO();
     }
 
-    GLRenderTarget::pushRenderTarget(this);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, mFramebuffer);
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
-    const QRect s = source.isNull() ? s_virtualScreenGeometry : source;
-    const QRect d = destination.isNull() ? QRect(0, 0, mTexture.width(), mTexture.height()) : destination;
+    const QRect screenRect = s_virtualScreenGeometry;
+    const qreal screenScale = s_virtualScreenScale;
 
-    glBlitFramebuffer((s.x() - s_virtualScreenGeometry.x()) * s_virtualScreenScale,
-                      (s_virtualScreenGeometry.height() - (s.y() - s_virtualScreenGeometry.y() + s.height())) * s_virtualScreenScale,
-                      (s.x() - s_virtualScreenGeometry.x() + s.width()) * s_virtualScreenScale,
-                      (s_virtualScreenGeometry.height() - (s.y() - s_virtualScreenGeometry.y())) * s_virtualScreenScale,
-                      d.x(), mTexture.height() - d.y() - d.height(), d.x() + d.width(), mTexture.height() - d.y(),
+    const QRect sourceRect = source.isNull() ? screenRect : source;
+    const QRect targetRect = destination.isNull() ? mTexture.rect() : destination;
+
+    blitFramebuffer(nullptr, mapToOpenGL(sourceRect, screenRect, screenScale),
+                    this, mapToOpenGL(targetRect, mTexture.rect()),
+                    filter);
+}
+
+void GLRenderTarget::blitToFramebuffer(const QRect &source, const QRect &destination, GLenum filter)
+{
+    if (!GLRenderTarget::blitSupported()) {
+        return;
+    }
+
+    if (!mValid) {
+        initFBO();
+    }
+
+    const QRect screenRect = s_virtualScreenGeometry;
+    const qreal screenScale = s_virtualScreenScale;
+
+    const QRect sourceRect = source.isNull() ? mTexture.rect() : source;
+    const QRect targetRect = destination.isNull() ? screenRect : destination;
+
+    blitFramebuffer(this, mapToOpenGL(sourceRect, mTexture.rect()),
+                    nullptr, mapToOpenGL(targetRect, screenRect, screenScale),
+                    filter);
+}
+
+void GLRenderTarget::blitFramebuffer(GLRenderTarget *source, const QRect &sourceRect,
+                                     GLRenderTarget *target, const QRect &targetRect,
+                                     GLenum filter)
+{
+    Q_ASSERT(!sourceRect.isNull());
+    Q_ASSERT(!targetRect.isNull());
+
+    const GLint sourceFbo = source ? source->mFramebuffer : 0;
+    const GLint targetFbo = target ? target->mFramebuffer : 0;
+
+    const GLint srcX0 = sourceRect.x();
+    const GLint srcY0 = sourceRect.y();
+    const GLint srcX1 = sourceRect.x() + sourceRect.width();
+    const GLint srcY1 = sourceRect.y() + sourceRect.height();
+
+    const GLint dstX0 = targetRect.x();
+    const GLint dstY0 = targetRect.y();
+    const GLint dstX1 = targetRect.x() + targetRect.width();
+    const GLint dstY1 = targetRect.y() + targetRect.height();
+
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, sourceFbo);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, targetFbo);
+
+    glBlitFramebuffer(srcX0, srcY0, srcX1, srcY1,
+                      dstX0, dstY0, dstX1, dstY1,
                       GL_COLOR_BUFFER_BIT, filter);
-    GLRenderTarget::popRenderTarget();
+
+    if (s_renderTargets.isEmpty()) {
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glViewport(s_virtualScreenViewport[0], s_virtualScreenViewport[1],
+                   s_virtualScreenViewport[2], s_virtualScreenViewport[3]);
+    } else {
+        s_renderTargets.top()->enable();
+    }
 }
 
 void GLRenderTarget::attachTexture(const GLTexture& target)

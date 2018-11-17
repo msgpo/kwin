@@ -65,6 +65,7 @@ public:
 
     bool isNull() const;
     QSize size() const;
+    QRect rect() const;
     int width() const;
     int height() const;
     /**

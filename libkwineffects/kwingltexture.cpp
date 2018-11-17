@@ -347,6 +347,12 @@ QSize GLTexture::size() const
     return d->m_size;
 }
 
+QRect GLTexture::rect() const
+{
+    Q_D(const GLTexture);
+    return QRect(QPoint(0, 0), d->m_size);
+}
+
 void GLTexture::update(const QImage &image, const QPoint &offset, const QRect &src)
 {
     if (image.isNull() || isNull())

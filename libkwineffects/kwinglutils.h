@@ -501,6 +501,48 @@ public:
     void blitFromFramebuffer(const QRect &source = QRect(), const QRect &destination = QRect(), GLenum filter = GL_LINEAR);
 
     /**
+     * Blits the content of the texture attached to this framebuffer object
+     * onto the current draw framebuffer.
+     *
+     * Be aware that framebuffer blitting may not be supported on all hardware.
+     * Use @link blitSupported to check whether it is supported.
+     *
+     * @param source Geometry in attached texture, if not specified complete
+     *     texture is used as destination.
+     * @param destination Geometry in screen coordinates which should be blitted,
+     *     if not specified complete framebuffer is used.
+     * @param filter Specifies the interpolation method to be applied if the image
+     *     needs to be stretched.
+     * @see blitSupported
+     * @since 5.15
+     **/
+    void blitToFramebuffer(const QRect &source = {}, const QRect &destination = {},
+                           GLenum filter = GL_LINEAR);
+
+    /**
+     * Blits the content of the @p sourceRect in the @p source framebuffer object
+     * to the @p targetRect in the @target framebuffer object.
+     *
+     * Be aware that framebuffer blitting may not be supported on all hardware.
+     * Use @link blitSupported to check whether it is supported.
+     *
+     * @param source The source framebuffer object.
+     * @param sourceRect Specifies the bounds of the source rectangle within the
+     *     source framebuffer object. The origin is the bottom-left corner of the
+     *     source texture.
+     * @param target The target framebuffer object.
+     * @param targetRect Specifies the bounds of the target rectangle withing the
+     *     target framebuffer object. The origin is the bottom-left corner of the
+     *     target texture.
+     * @param filter Specifies the interpolation method to be applied if the image
+     *     needs to be stretched.
+     * @since 5.15
+     **/
+    static void blitFramebuffer(GLRenderTarget *source, const QRect &sourceRect,
+                                GLRenderTarget *target, const QRect &targetRect,
+                                GLenum filter = GL_LINEAR);
+
+    /**
      * Sets the virtual screen size to @p s.
      * @since 5.2
      **/
