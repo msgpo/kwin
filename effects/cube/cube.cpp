@@ -233,6 +233,8 @@ void CubeEffect::reconfigure(ReconfigureFlags)
     touchEdge(CubeConfig::touchBorderActivate(), m_cubeAction);
     touchEdge(CubeConfig::touchBorderActivateCylinder(), m_cylinderAction);
     touchEdge(CubeConfig::touchBorderActivateSphere(), m_sphereAction);
+
+    m_multisampling = CubeConfig::multisampling();
 }
 
 CubeEffect::~CubeEffect()
@@ -367,6 +369,9 @@ void CubeEffect::prePaintScreen(ScreenPrePaintData& data, int time)
 {
     if (activated) {
         data.mask |= PAINT_SCREEN_TRANSFORMED | Effect::PAINT_SCREEN_WITH_TRANSFORMED_WINDOWS | PAINT_SCREEN_BACKGROUND_FIRST;
+        if (m_multisampling) {
+            data.mask |= PAINT_SCREEN_MULTISAMPLE;
+        }
         if (animationState == AnimationState::None && !animations.empty()) {
             startAnimation(animations.dequeue());
         }
