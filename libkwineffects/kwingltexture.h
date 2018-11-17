@@ -57,8 +57,8 @@ public:
     explicit GLTexture(const QImage& image, GLenum target = GL_TEXTURE_2D);
     explicit GLTexture(const QPixmap& pixmap, GLenum target = GL_TEXTURE_2D);
     explicit GLTexture(const QString& fileName);
-    GLTexture(GLenum internalFormat, int width, int height, int levels = 1);
-    explicit GLTexture(GLenum internalFormat, const QSize &size, int levels = 1);
+    GLTexture(GLenum internalFormat, int width, int height, int levels = 1, int samples = 1);
+    explicit GLTexture(GLenum internalFormat, const QSize &size, int levels = 1, int samples = 1);
     virtual ~GLTexture();
 
     GLTexture & operator = (const GLTexture& tex);
@@ -137,6 +137,15 @@ public:
      * @since 5.2.1
      **/
     static bool supportsFormatRG();
+
+    /**
+     * Returns @c true if multisample textures are supported, and @c false otherwise.
+     *
+     * This requires OpenGL 3.2, or OpenGL ES 3.1
+     *
+     * @since 5.15
+     **/
+    static bool supportsMultisampling();
 
 protected:
     QExplicitlySharedDataPointer<GLTexturePrivate> d_ptr;

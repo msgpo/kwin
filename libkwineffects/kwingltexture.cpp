@@ -48,6 +48,8 @@ bool GLTexturePrivate::s_supportsUnpack = false;
 bool GLTexturePrivate::s_supportsTextureStorage = false;
 bool GLTexturePrivate::s_supportsTextureSwizzle = false;
 bool GLTexturePrivate::s_supportsTextureFormatRG = false;
+bool GLTexturePrivate::s_supportsMultisampling = false;
+bool GLTexturePrivate::s_supportsTextureStorageMultisample = false;
 uint GLTexturePrivate::s_textureObjectCounter = 0;
 uint GLTexturePrivate::s_fbo = 0;
 
@@ -89,6 +91,7 @@ GLTexture::GLTexture(const QImage& image, GLenum target)
     d->m_yInverted = true;
     d->m_canUseMipmaps = false;
     d->m_mipLevels = 1;
+    d->m_samples = 1;
 
     d->updateMatrix();
 
@@ -190,25 +193,38 @@ GLTexture::GLTexture(const QString& fileName)
 {
 }
 
-GLTexture::GLTexture(GLenum internalFormat, int width, int height, int levels)
+GLTexture::GLTexture(GLenum internalFormat, int width, int height, int levels, int samples)
      : d_ptr(new GLTexturePrivate())
 {
     Q_D(GLTexture);
 
-    d->m_target = GL_TEXTURE_2D;
+    const bool useMultisampling = d->s_supportsMultisampling && samples > 1;
+
+    d->m_target = useMultisampling ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D;
     d->m_scale.setWidth(1.0 / width);
     d->m_scale.setHeight(1.0 / height);
     d->m_size = QSize(width, height);
-    d->m_canUseMipmaps = levels > 1;
+    d->m_canUseMipmaps = !useMultisampling && levels > 1;
     d->m_mipLevels = levels;
-    d->m_filter = levels > 1 ? GL_NEAREST_MIPMAP_LINEAR : GL_NEAREST;
+    d->m_filter = d->m_canUseMipmaps ? GL_NEAREST_MIPMAP_LINEAR : GL_NEAREST;
+    d->m_samples = samples;
 
     d->updateMatrix();
 
     glGenTextures(1, &d->m_texture);
     bind();
 
-    if (!GLPlatform::instance()->isGLES()) {
+    if (useMultisampling) {
+        if (d->s_supportsTextureStorageMultisample) {
+            glTexStorage2DMultisample(d->m_target, d->m_samples, internalFormat,
+                                      width, height, GL_TRUE);
+            d->m_immutable = true;
+        } else {
+            glTexImage2DMultisample(d->m_target, d->m_samples, internalFormat,
+                                    width, height, GL_TRUE);
+        }
+        d->m_internalFormat = internalFormat;
+    } else if (!GLPlatform::instance()->isGLES()) {
         if (d->s_supportsTextureStorage) {
             glTexStorage2D(d->m_target, levels, internalFormat, width, height);
             d->m_immutable = true;
@@ -234,8 +250,8 @@ GLTexture::GLTexture(GLenum internalFormat, int width, int height, int levels)
     unbind();
 }
 
-GLTexture::GLTexture(GLenum internalFormat, const QSize &size, int levels)
-    : GLTexture(internalFormat, size.width(), size.height(), levels)
+GLTexture::GLTexture(GLenum internalFormat, const QSize &size, int levels, int samples)
+    : GLTexture(internalFormat, size.width(), size.height(), levels, samples)
 {
 }
 
@@ -293,6 +309,8 @@ void GLTexturePrivate::initStatic()
         s_supportsTextureFormatRG = hasGLVersion(3, 0) || hasGLExtension(QByteArrayLiteral("GL_ARB_texture_rg"));
         s_supportsARGB32 = true;
         s_supportsUnpack = true;
+        s_supportsMultisampling = hasGLVersion(3, 2);
+        s_supportsTextureStorageMultisample = hasGLVersion(4, 3) || hasGLExtension(QByteArrayLiteral("GL_ARB_texture_storage_multisample"));
     } else {
         s_supportsFramebufferObjects = true;
         s_supportsTextureStorage = hasGLVersion(3, 0) || hasGLExtension(QByteArrayLiteral("GL_EXT_texture_storage"));
@@ -306,6 +324,8 @@ void GLTexturePrivate::initStatic()
             hasGLExtension(QByteArrayLiteral("GL_EXT_texture_format_BGRA8888"));
 
         s_supportsUnpack = hasGLExtension(QByteArrayLiteral("GL_EXT_unpack_subimage"));
+        s_supportsMultisampling = hasGLVersion(3, 1);
+        s_supportsTextureStorageMultisample = hasGLVersion(3, 1);
     }
 }
 
@@ -333,6 +353,11 @@ void GLTexture::update(const QImage &image, const QPoint &offset, const QRect &s
         return;
 
     Q_D(GLTexture);
+
+    // We can't use glTexSubImage2D with multisample textures, so do nothing.
+    if (d->m_target == GL_TEXTURE_2D_MULTISAMPLE) {
+        return;
+    }
 
     bool useUnpack = !src.isNull() && d->s_supportsUnpack && d->s_supportsARGB32 && image.format() == QImage::Format_ARGB32_Premultiplied;
 
@@ -518,11 +543,11 @@ void GLTexture::clear()
         // Clear the texture
         glBindFramebuffer(GL_FRAMEBUFFER, GLTexturePrivate::s_fbo);
         glClearColor(0, 0, 0, 0);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, d->m_texture, 0);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, d->m_target, d->m_texture, 0);
         glClear(GL_COLOR_BUFFER_BIT);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     } else {
-        if (const int size = width()*height()) {
+        if (const int size = width()*height() && d->m_target == GL_TEXTURE_2D) {
             uint32_t *buffer = new uint32_t[size];
             memset(buffer, 0, size*sizeof(uint32_t));
             bind();
@@ -653,6 +678,11 @@ bool GLTexture::supportsSwizzle()
 bool GLTexture::supportsFormatRG()
 {
     return GLTexturePrivate::s_supportsTextureFormatRG;
+}
+
+bool GLTexture::supportsMultisampling()
+{
+    return GLTexturePrivate::s_supportsMultisampling;
 }
 
 } // namespace KWin

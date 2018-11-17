@@ -64,6 +64,7 @@ public:
     bool m_wrapModeChanged;
     bool m_immutable;
     int m_mipLevels;
+    int m_samples;
 
     int m_unnormalizeActive; // 0 - no, otherwise refcount
     int m_normalizeActive; // 0 - no, otherwise refcount
@@ -78,8 +79,12 @@ public:
     static bool s_supportsTextureStorage;
     static bool s_supportsTextureSwizzle;
     static bool s_supportsTextureFormatRG;
+    static bool s_supportsMultisampling;
+    static bool s_supportsTextureStorageMultisample;
+
     static GLuint s_fbo;
     static uint s_textureObjectCounter;
+
 private:
     friend void KWin::cleanupGL();
     static void cleanup();
