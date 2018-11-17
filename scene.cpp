@@ -125,6 +125,7 @@ void Scene::paintScreen(int* mask, const QRegion &damage, const QRegion &repaint
     *mask = pdata.mask;
     region = pdata.paint;
 
+    // TODO: Force full screen painting when PAINT_SCREEN_MULTISAMPLE is set.
     if (*mask & (PAINT_SCREEN_TRANSFORMED | PAINT_SCREEN_WITH_TRANSFORMED_WINDOWS)) {
         // Region painting is not possible with transformations,
         // because screen damage doesn't match transformed positions.
@@ -190,6 +191,12 @@ void Scene::idle()
     last_time.invalidate();
 }
 
+void Scene::finalPrePaintScreen(ScreenPrePaintData &data, int time)
+{
+    Q_UNUSED(data)
+    Q_UNUSED(time)
+}
+
 // the function that'll be eventually called by paintScreen() above
 void Scene::finalPaintScreen(int mask, QRegion region, ScreenPaintData& data)
 {
@@ -197,6 +204,10 @@ void Scene::finalPaintScreen(int mask, QRegion region, ScreenPaintData& data)
         paintGenericScreen(mask, data);
     else
         paintSimpleScreen(mask, region);
+}
+
+void Scene::finalPostPaintScreen()
+{
 }
 
 // The generic painting code that can handle even transformations.

@@ -1001,6 +1001,14 @@ SceneOpenGL2::SceneOpenGL2(OpenGLBackend *backend, QObject *parent)
         return;
     }
 
+    if (GLTexture::supportsMultisampling()) {
+        m_multisampling.supported = true;
+        // TODO: Don't hardcode the number of samples.
+        GLint maxSamples = 0;
+        glGetIntegerv(GL_MAX_SAMPLES, &maxSamples);
+        m_multisampling.samples = qMax(maxSamples, 4);
+    }
+
     qCDebug(KWIN_OPENGL) << "OpenGL 2 compositing successfully initialized";
     init_ok = true;
 }
@@ -1106,6 +1114,46 @@ void SceneOpenGL2::performPaintWindow(EffectWindowImpl* w, int mask, QRegion reg
         m_lanczosFilter->performPaint(w, mask, region, data);
     } else
         w->sceneWindow()->performPaint(mask, region, data);
+}
+
+void SceneOpenGL2::finalPrePaintScreen(ScreenPrePaintData &data, int time)
+{
+    Q_UNUSED(time)
+
+    if (!m_multisampling.supported) {
+        return;
+    }
+
+    if (!(data.mask & PAINT_SCREEN_MULTISAMPLE)) {
+        if (m_multisampling.renderTarget) {
+            m_multisampling.renderTarget.reset();
+            m_multisampling.texture.reset();
+        }
+        return;
+    }
+
+    if (!m_multisampling.renderTarget) {
+        m_multisampling.texture.reset(new GLTexture(GL_RGBA8, screens()->size(), 1, m_multisampling.samples));
+        m_multisampling.renderTarget.reset(new GLRenderTarget(*m_multisampling.texture));
+    }
+
+    GLRenderTarget::pushRenderTarget(m_multisampling.renderTarget.data());
+    m_multisampling.pushedRenderTarget = true;
+    glEnable(GL_MULTISAMPLE);
+}
+
+void SceneOpenGL2::finalPostPaintScreen()
+{
+    if (!m_multisampling.pushedRenderTarget) {
+        return;
+    }
+    glDisable(GL_MULTISAMPLE);
+    m_multisampling.pushedRenderTarget = false;
+    GLRenderTarget::popRenderTarget();
+
+    // TODO: Take the scale factor into account.
+    const QRect screenRect = GLRenderTarget::virtualScreenGeometry();
+    m_multisampling.renderTarget->blitToFramebuffer(screenRect, screenRect);
 }
 
 //****************************************

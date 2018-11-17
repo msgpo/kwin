@@ -131,6 +131,9 @@ protected:
     virtual void updateProjectionMatrix() override;
     void paintCursor() override;
 
+    void finalPrePaintScreen(ScreenPrePaintData &data, int time) override;
+    void finalPostPaintScreen() override;
+
 private:
     void performPaintWindow(EffectWindowImpl* w, int mask, QRegion region, WindowPaintData& data);
     QMatrix4x4 createProjectionMatrix() const;
@@ -141,6 +144,15 @@ private:
     QMatrix4x4 m_projectionMatrix;
     QMatrix4x4 m_screenProjectionMatrix;
     GLuint vao;
+
+    struct MultisamplingContext {
+        bool supported = false;
+        QScopedPointer<GLTexture> texture;
+        QScopedPointer<GLRenderTarget> renderTarget;
+        bool pushedRenderTarget = false;
+        int samples;
+    };
+    MultisamplingContext m_multisampling;
 };
 
 class SceneOpenGL::Window
