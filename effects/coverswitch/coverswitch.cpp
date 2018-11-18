@@ -114,12 +114,16 @@ void CoverSwitchEffect::reconfigure(ReconfigureFlags)
     mirrorColor[1][2] = tmp.blueF();
     mirrorColor[1][3] = -1.0;
 
+    m_multisampling   = CoverSwitchConfig::multisampling();
 }
 
 void CoverSwitchEffect::prePaintScreen(ScreenPrePaintData& data, int time)
 {
     if (mActivated || stop || stopRequested) {
         data.mask |= Effect::PAINT_SCREEN_WITH_TRANSFORMED_WINDOWS;
+        if (m_multisampling) {
+            data.mask |= PAINT_SCREEN_MULTISAMPLE;
+        }
         if (animation || start || stop) {
             timeLine.update(std::chrono::milliseconds(time));
         }
