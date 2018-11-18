@@ -45,12 +45,17 @@ void FallApartEffect::reconfigure(ReconfigureFlags)
 {
     FallApartConfig::self()->read();
     blockSize = FallApartConfig::blockSize();
+    multisampling = FallApartConfig::multisampling();
 }
 
 void FallApartEffect::prePaintScreen(ScreenPrePaintData& data, int time)
 {
-    if (!windows.isEmpty())
-        data.mask |= PAINT_SCREEN_WITH_TRANSFORMED_WINDOWS;
+    data.mask |= PAINT_SCREEN_WITH_TRANSFORMED_WINDOWS;
+
+    if (multisampling) {
+        data.mask |= PAINT_SCREEN_MULTISAMPLE;
+    }
+
     effects->prePaintScreen(data, time);
 }
 

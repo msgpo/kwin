@@ -60,6 +60,7 @@ private:
     QHash< EffectWindow*, double > windows;
     bool isRealWindow(EffectWindow* w);
     int blockSize;
+    bool multisampling;
 };
 
 } // namespace

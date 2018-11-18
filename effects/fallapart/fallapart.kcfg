@@ -10,5 +10,8 @@
             <min>1</min>
             <max>100000</max>
         </entry>
+        <entry name="Multisampling" type="Bool">
+            <default>true</default>
+        </entry>
     </group>
 </kcfg>
