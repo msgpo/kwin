@@ -147,6 +147,7 @@ private:
     // Shortcuts
     QList<QKeySequence> m_shortcutCurrent;
     QList<QKeySequence> m_shortcutAll;
+    bool m_multisampling;
 };
 
 class FlipSwitchEffect::ItemInfo
