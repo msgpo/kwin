@@ -1287,10 +1287,46 @@ QRect AbstractClient::transientPlacement(const QRect &bounds) const
     return QRect();
 }
 
-bool AbstractClient::hasTransient(const AbstractClient *c, bool indirect) const
+// returns true if cl is the transient_for window for this client,
+// or recursively the transient_for window
+bool AbstractClient::hasTransient(const AbstractClient* cl, bool indirect) const
 {
-    Q_UNUSED(indirect);
-    return c->transientFor() == this;
+    // checkGroupTransients() uses this to break loops, so hasTransient() must detect them
+    QVector<const AbstractClient*> set;
+    return hasTransientInternal(cl, indirect, set);
+}
+
+bool AbstractClient::hasTransientInternal(const AbstractClient* cl, bool indirect, QVector<const AbstractClient*>& set) const
+{
+    if (const auto *t = cl->transientFor()) {
+        if (t == this)
+            return true;
+        if (!indirect)
+            return false;
+        if (set.contains(cl))
+            return false;
+        set.append(cl);
+        return hasTransientInternal(t, indirect, set);
+    }
+    if (!cl->isTransient())
+        return false;
+    if (group() != cl->group())
+        return false;
+    // cl is group transient, search from top
+    if (transients().contains(const_cast< AbstractClient* >(cl)))
+        return true;
+    if (!indirect)
+        return false;
+    if (set.contains(this))
+        return false;
+    set.append(this);
+    for (auto it = transients().constBegin();
+            it != transients().constEnd();
+            ++it) {
+        if ((*it)->hasTransientInternal(cl, indirect, set))
+            return true;
+    }
+    return false;
 }
 
 QList< AbstractClient* > AbstractClient::mainClients() const

@@ -408,7 +408,7 @@ public:
      *  or recursively the transient_for window
      * @todo: remove boolean trap
      **/
-    virtual bool hasTransient(const AbstractClient* c, bool indirect) const;
+    bool hasTransient(const AbstractClient* c, bool indirect) const;
     const QList<AbstractClient*>& transients() const; // Is not indirect
     virtual void removeTransient(AbstractClient* cl);
     virtual QList<AbstractClient*> mainClients() const; // Call once before loop , is not indirect
@@ -1131,6 +1131,7 @@ protected:
 
 private:
     void handlePaletteChange();
+    bool hasTransientInternal(const AbstractClient* c, bool indirect, QVector<const AbstractClient*> &set) const;
     QSharedPointer<TabBox::TabBoxClientImpl> m_tabBoxClient;
     bool m_firstInTabBox = false;
     bool m_skipTaskbar = false;

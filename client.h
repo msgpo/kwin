@@ -96,7 +96,6 @@ public:
     bool groupTransient() const override;
     bool wasOriginallyGroupTransient() const;
     QList<AbstractClient*> mainClients() const override; // Call once before loop , is not indirect
-    bool hasTransient(const AbstractClient* c, bool indirect) const override;
     void checkTransient(xcb_window_t w);
     AbstractClient* findModal(bool allow_itself = false) override;
     const Group* group() const override;
@@ -415,7 +414,6 @@ private:
     void fetchIconicName();
     QString readName() const;
     void setCaption(const QString& s, bool force = false);
-    bool hasTransientInternal(const Client* c, bool indirect, ConstClientList& set) const;
     void setShortcutInternal() override;
 
     void configureRequest(int value_mask, int rx, int ry, int rw, int rh, int gravity, bool from_tool);

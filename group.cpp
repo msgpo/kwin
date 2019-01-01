@@ -687,55 +687,6 @@ void Client::checkTransient(xcb_window_t w)
     setTransient(w);
 }
 
-// returns true if cl is the transient_for window for this client,
-// or recursively the transient_for window
-bool Client::hasTransient(const AbstractClient* cl, bool indirect) const
-{
-    if (const Client *c = dynamic_cast<const Client*>(cl)) {
-        // checkGroupTransients() uses this to break loops, so hasTransient() must detect them
-        ConstClientList set;
-        return hasTransientInternal(c, indirect, set);
-    }
-    return false;
-}
-
-bool Client::hasTransientInternal(const Client* cl, bool indirect, ConstClientList& set) const
-{
-    if (const Client *t = dynamic_cast<const Client*>(cl->transientFor())) {
-        if (t == this)
-            return true;
-        if (!indirect)
-            return false;
-        if (set.contains(cl))
-            return false;
-        set.append(cl);
-        return hasTransientInternal(t, indirect, set);
-    }
-    if (!cl->isTransient())
-        return false;
-    if (group() != cl->group())
-        return false;
-    // cl is group transient, search from top
-    if (transients().contains(const_cast< Client* >(cl)))
-        return true;
-    if (!indirect)
-        return false;
-    if (set.contains(this))
-        return false;
-    set.append(this);
-    for (auto it = transients().constBegin();
-            it != transients().constEnd();
-            ++it) {
-        const Client *c = qobject_cast<const Client *>(*it);
-        if (!c) {
-            continue;
-        }
-        if (c->hasTransientInternal(cl, indirect, set))
-            return true;
-    }
-    return false;
-}
-
 QList<AbstractClient*> Client::mainClients() const
 {
     if (!isTransient())
