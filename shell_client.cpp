@@ -139,10 +139,6 @@ void ShellClient::initSurface(T *shellSurface)
     connect(shellSurface, &T::windowClassChanged, this,
         [this, resourceName] (const QByteArray &windowClass) {
             setResourceClass(resourceName, windowClass);
-            if (!m_internal) {
-                setupWindowRules(true);
-                applyWindowRules();
-            }
             setDesktopFileName(windowClass);
         }
     );
@@ -198,10 +194,11 @@ void ShellClient::initSurface(T *shellSurface)
     connect(this, &ShellClient::geometryChanged, this, &ShellClient::updateClientOutputs);
     connect(screens(), &Screens::changed, this, &ShellClient::updateClientOutputs);
 
+    setDesktopFileName(shellSurface->windowClass());
+
     if (!m_internal) {
-        setupWindowRules(false);
+        QTimer::singleShot(0, this, &ShellClient::installWindowRules);
     }
-    setDesktopFileName(rules()->checkDesktopFile(shellSurface->windowClass(), true).toUtf8());
 }
 
 void ShellClient::init()
@@ -341,6 +338,7 @@ void ShellClient::init()
     // set initial desktop
     setDesktop(rules()->checkDesktop(m_internal ? int(NET::OnAllDesktops) : VirtualDesktopManager::self()->current(), true));
     // TODO: merge in checks from Client::manage?
+    // TODO: Delete them?
     if (rules()->checkMinimize(false, true)) {
         minimize(true);   // No animation
     }
@@ -367,13 +365,6 @@ void ShellClient::init()
     }
 
     AbstractClient::updateColorScheme(QString());
-
-    if (!m_internal) {
-        discardTemporaryRules();
-        applyWindowRules(); // Just in case
-        RuleBook::self()->discardUsed(this, false);   // Remove ApplyNow rules
-        updateWindowRules(Rules::All); // Was blocked while !isManaged()
-    }
 }
 
 void ShellClient::destroyClient()
@@ -1990,6 +1981,21 @@ bool ShellClient::isPopupWindow() const
         return true;
     }
     return false;
+}
+
+void ShellClient::installWindowRules()
+{
+    qDebug() << "Caption:" << caption();
+    qDebug() << "Resource name:" << resourceName();
+    qDebug() << "Resource class:" << resourceClass();
+
+    connect(this, &ShellClient::windowClassChanged, this, &ShellClient::evaluateWindowRules);
+
+    setupWindowRules(false);
+    discardTemporaryRules();
+    applyWindowRules(); // Just in case
+    RuleBook::self()->discardUsed(this, false);   // Remove ApplyNow rules
+    updateWindowRules(Rules::All); // Was blocked while !isManaged()
 }
 
 }
