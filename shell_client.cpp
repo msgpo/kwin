@@ -386,6 +386,10 @@ void ShellClient::destroyClient()
         del = Deleted::create(this);
     }
     emit windowClosed(this, del);
+
+    // Remove Force Temporarily rules.
+    RuleBook::self()->discardUsed(this, true);
+
     destroyWindowManagementInterface();
     destroyDecoration();
 
@@ -1285,6 +1289,10 @@ void ShellClient::unmap()
 {
     m_unmapped = true;
     m_requestedClientSize = QSize(0, 0);
+
+    // Remove Force Temporarily rules.
+    RuleBook::self()->discardUsed(this, true);
+
     destroyWindowManagementInterface();
     if (Workspace::self()) {
         addWorkspaceRepaint(visibleRect());
