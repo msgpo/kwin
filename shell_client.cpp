@@ -767,6 +767,9 @@ bool ShellClient::isMinimizable() const
     if (m_internal) {
         return false;
     }
+    if (!rules()->checkMinimize(true)) {
+        return false;
+    }
     return (!m_plasmaShellSurface || m_plasmaShellSurface->role() == PlasmaShellSurfaceInterface::Role::Normal);
 }
 
