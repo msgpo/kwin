@@ -243,6 +243,7 @@ void AbstractClient::doSetSkipPager()
 void AbstractClient::setSkipTaskbar(bool b)
 {
     int was_wants_tab_focus = wantsTabFocus();
+    b = rules()->checkSkipTaskbar(b);
     if (b == skipTaskbar())
         return;
     m_skipTaskbar = b;
