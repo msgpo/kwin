@@ -138,10 +138,11 @@ void ShellClient::initSurface(T *shellSurface)
         resourceName = info.fileName().toUtf8();
     }
     setResourceClass(resourceName, shellSurface->windowClass());
+    setDesktopFileName(shellSurface->windowClass());
     connect(shellSurface, &T::windowClassChanged, this,
         [this, resourceName] (const QByteArray &windowClass) {
             setResourceClass(resourceName, windowClass);
-            if (!m_internal) {
+            if (!m_internal && !m_unmapped) {
                 setupWindowRules(true);
                 applyWindowRules();
             }
@@ -199,11 +200,6 @@ void ShellClient::initSurface(T *shellSurface)
 
     connect(this, &ShellClient::geometryChanged, this, &ShellClient::updateClientOutputs);
     connect(screens(), &Screens::changed, this, &ShellClient::updateClientOutputs);
-
-    if (!m_internal) {
-        setupWindowRules(false);
-    }
-    setDesktopFileName(rules()->checkDesktopFile(shellSurface->windowClass(), true).toUtf8());
 }
 
 void ShellClient::init()
@@ -341,17 +337,7 @@ void ShellClient::init()
     }
 
     // set initial desktop
-    setDesktop(rules()->checkDesktop(m_internal ? int(NET::OnAllDesktops) : VirtualDesktopManager::self()->current(), true));
-    // TODO: merge in checks from Client::manage?
-    if (rules()->checkMinimize(false, true)) {
-        minimize(true);   // No animation
-    }
-    setSkipTaskbar(rules()->checkSkipTaskbar(m_plasmaShellSurface ? m_plasmaShellSurface->skipTaskbar() : false, true));
-    setSkipPager(rules()->checkSkipPager(false, true));
-    setSkipSwitcher(rules()->checkSkipSwitcher(false, true));
-    setKeepAbove(rules()->checkKeepAbove(false, true));
-    setKeepBelow(rules()->checkKeepBelow(false, true));
-    setShortcut(rules()->checkShortcut(QString(), true));
+    setDesktop(m_internal ? int(NET::OnAllDesktops) : VirtualDesktopManager::self()->current());
 
     // setup shadow integration
     getShadow();
@@ -371,10 +357,7 @@ void ShellClient::init()
     AbstractClient::updateColorScheme(QString());
 
     if (!m_internal) {
-        discardTemporaryRules();
-        applyWindowRules(); // Just in case
-        RuleBook::self()->discardUsed(this, false);   // Remove ApplyNow rules
-        updateWindowRules(Rules::All); // Was blocked while !isManaged()
+        evaluateWindowRulesInit();
     }
 }
 
@@ -527,6 +510,10 @@ void ShellClient::markAsMapped()
 {
     if (!m_unmapped) {
         return;
+    }
+
+    if (!m_internal) {
+        evaluateWindowRulesInit();
     }
 
     m_unmapped = false;
@@ -2005,6 +1992,29 @@ bool ShellClient::isPopupWindow() const
         return true;
     }
     return false;
+}
+
+void ShellClient::evaluateWindowRulesInit()
+{
+    setupWindowRules(false);
+
+    // TODO: Add more checks.
+    setDesktop(rules()->checkDesktop(desktop(), true));
+    setDesktopFileName(rules()->checkDesktopFile(desktopFileName(), true).toUtf8());
+    if (rules()->checkMinimize(isMinimized(), true)) {
+        minimize(true); // No animation.
+    }
+    setSkipTaskbar(rules()->checkSkipTaskbar(skipTaskbar(), true));
+    setSkipPager(rules()->checkSkipPager(skipPager(), true));
+    setSkipSwitcher(rules()->checkSkipSwitcher(skipSwitcher(), true));
+    setKeepAbove(rules()->checkKeepAbove(keepAbove(), true));
+    setKeepBelow(rules()->checkKeepBelow(keepBelow(), true));
+    setShortcut(rules()->checkShortcut(shortcut().toString(), true));
+    updateColorScheme();
+
+    discardTemporaryRules();
+    RuleBook::self()->discardUsed(this, false); // Remove Apply Now rules.
+    updateWindowRules(Rules::All);
 }
 
 }
