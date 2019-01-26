@@ -196,6 +196,7 @@ private Q_SLOTS:
 
 private:
     void init();
+    void finishInit();
     template <class T>
     void initSurface(T *shellSurface);
     void requestGeometry(const QRect &rect);
@@ -219,6 +220,8 @@ private:
     void updatePendingGeometry();
     QPoint popupOffset(const QRect &anchorRect, const Qt::Edges anchorEdge, const Qt::Edges gravity) const;
     void evaluateWindowRulesInit();
+    void blockRequestGeometry();
+    void unblockRequestGeometry();
     static void deleteClient(ShellClient *c);
 
     KWayland::Server::ShellSurfaceInterface *m_shellSurface;
@@ -274,18 +277,11 @@ private:
         RequestGeometryBlocker(ShellClient *client)
             : m_client(client)
         {
-            m_client->m_requestGeometryBlockCounter++;
+            m_client->blockRequestGeometry();
         }
         ~RequestGeometryBlocker()
         {
-            m_client->m_requestGeometryBlockCounter--;
-            if (m_client->m_requestGeometryBlockCounter == 0) {
-                if (m_client->m_blockedRequestGeometry.isValid()) {
-                    m_client->requestGeometry(m_client->m_blockedRequestGeometry);
-                } else if (m_client->m_xdgShellSurface) {
-                    m_client->m_xdgShellSurface->configure(m_client->xdgSurfaceStates());
-                }
-            }
+            m_client->unblockRequestGeometry();
         }
     private:
         ShellClient *m_client;
