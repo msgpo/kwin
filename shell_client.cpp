@@ -195,6 +195,12 @@ void ShellClient::initSurface(T *shellSurface)
                 // ignore for wl_shell - there it is mutual exclusive and messes with the geometry
                 return;
             }
+
+            // If the maximized state of the client hasn't been changed due to a window
+            // rule or because the requested state is the same as the current, then the
+            // compositor still has to emit a configure event.
+            RequestGeometryBlocker blocker(this);
+
             maximize(maximized ? MaximizeFull : MaximizeRestore);
         }
     );
@@ -362,6 +368,8 @@ void ShellClient::finishInit() {
         if (originalGeometry != ruledGeometry) {
             setGeometry(ruledGeometry);
         }
+
+        maximize(rules()->checkMaximize(maximizeMode(), true));
 
         setDesktop(rules()->checkDesktop(desktop(), true));
         setDesktopFileName(rules()->checkDesktopFile(desktopFileName(), true).toUtf8());
@@ -737,6 +745,9 @@ bool ShellClient::isMaximizable() const
     if (!isResizable()) {
         return false;
     }
+    if (rules()->checkMaximize(MaximizeRestore) != MaximizeRestore || rules()->checkMaximize(MaximizeFull) != MaximizeFull) {
+        return false;
+    }
     return true;
 }
 
@@ -829,8 +840,6 @@ void ShellClient::changeMaximize(bool horizontal, bool vertical, bool adjust)
     const MaximizeMode oldMode = m_requestedMaximizeMode;
     const QRect oldGeometry = geometry();
 
-    StackingUpdatesBlocker blocker(workspace());
-    RequestGeometryBlocker geometryBlocker(this);
     // 'adjust == true' means to update the size only, e.g. after changing workspace size
     if (!adjust) {
         if (vertical)
@@ -838,7 +847,14 @@ void ShellClient::changeMaximize(bool horizontal, bool vertical, bool adjust)
         if (horizontal)
             m_requestedMaximizeMode = MaximizeMode(m_requestedMaximizeMode ^ MaximizeHorizontal);
     }
-    // TODO: add more checks as in Client
+
+    m_requestedMaximizeMode = rules()->checkMaximize(m_requestedMaximizeMode);
+    if (!adjust && m_requestedMaximizeMode == oldMode) {
+        return;
+    }
+
+    StackingUpdatesBlocker blocker(workspace());
+    RequestGeometryBlocker geometryBlocker(this);
 
     // call into decoration update borders
     if (isDecorated() && decoration()->client() && !(options->borderlessMaximizedWindows() && m_requestedMaximizeMode == KWin::MaximizeFull)) {
@@ -879,7 +895,6 @@ void ShellClient::changeMaximize(bool horizontal, bool vertical, bool adjust)
         }
     }
 
-    // TODO: check rules
     if (m_requestedMaximizeMode == MaximizeFull) {
         m_geomMaximizeRestore = oldGeometry;
         // TODO: Client has more checks
@@ -1433,6 +1448,7 @@ void ShellClient::updateMaximizeMode(MaximizeMode maximizeMode)
     }
 
     m_maximizeMode = maximizeMode;
+    updateWindowRules(Rules::MaximizeHoriz | Rules::MaximizeVert | Rules::Position | Rules::Size);
 
     emit clientMaximizedStateChanged(this, m_maximizeMode);
     emit clientMaximizedStateChanged(this, m_maximizeMode & MaximizeHorizontal, m_maximizeMode & MaximizeVertical);
