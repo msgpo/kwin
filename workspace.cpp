@@ -39,7 +39,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "input.h"
 #include "logind.h"
 #include "moving_client_x11_filter.h"
-#include "killwindow.h"
 #include "netinfo.h"
 #include "outline.h"
 #include "placement.h"

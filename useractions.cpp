@@ -43,6 +43,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "shell_client.h"
 #include "virtualdesktops.h"
 #include "scripting/scripting.h"
+#include "osd.h"
+#include "unmanaged.h"
 
 #ifdef KWIN_BUILD_ACTIVITIES
 #include "activities.h"
@@ -66,7 +68,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <QWidgetAction>
 #include <kauthorized.h>
 
-#include "killwindow.h"
 #ifdef KWIN_BUILD_TABBOX
 #include "tabbox.h"
 #endif
@@ -1665,10 +1666,21 @@ void Workspace::slotUntab()
  */
 void Workspace::slotKillWindow()
 {
-    if (m_windowKiller.isNull()) {
-        m_windowKiller.reset(new KillWindow());
-    }
-    m_windowKiller->start();
+    OSD::show(i18n("Select window to force close with left click or enter.\nEscape or right click to cancel."),
+              QStringLiteral("window-close"));
+    kwinApp()->platform()->startInteractiveWindowSelection(
+        [] (KWin::Toplevel *t) {
+            OSD::hide();
+            if (!t) {
+                return;
+            }
+            if (AbstractClient *c = qobject_cast<AbstractClient*>(t)) {
+                c->killWindow();
+            } else if (Unmanaged *u = qobject_cast<Unmanaged*>(t)) {
+                xcb_kill_client(connection(), u->window());
+            }
+        }, QByteArrayLiteral("pirate")
+    );
 }
 
 /*!

@@ -418,7 +418,6 @@ set(kwin_KDEINIT_SRCS
    options.cpp
    outline.cpp
    events.cpp
-   killwindow.cpp
    geometrytip.cpp
    screens.cpp
    outputscreens.cpp

@@ -54,7 +54,6 @@ class Window;
 
 class AbstractClient;
 class Client;
-class KillWindow;
 class ShortcutDialog;
 class UserActionsMenu;
 class Compositor;
@@ -620,8 +619,6 @@ private:
     bool blocked_propagating_new_clients; // Propagate also new clients after enabling stacking updates?
     QScopedPointer<Xcb::Window> m_nullFocus;
     friend class StackingUpdatesBlocker;
-
-    QScopedPointer<KillWindow> m_windowKiller;
 
     QList<X11EventFilter *> m_eventFilters;
     QList<X11EventFilter *> m_genericEventFilters;
