@@ -21,6 +21,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define KWIN_LIBINPUT_EVENTS_H
 
 #include "../input.h"
+#include "../kwinnamespace.h"
 
 #include <libinput.h>
 
@@ -95,6 +96,8 @@ public:
     quint64 timeMicroseconds() const;
     QVector<InputRedirection::PointerAxis> axis() const;
     qreal axisValue(InputRedirection::PointerAxis a) const;
+    qint32 discreteAxisValue(InputRedirection::PointerAxis axis) const;
+    PointerAxisSource axisSource() const;
 
     operator libinput_event_pointer*() {
         return m_pointerEvent;

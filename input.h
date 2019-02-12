@@ -49,6 +49,8 @@ class TouchInputRedirection;
 class WindowSelectorFilter;
 class SwitchEvent;
 
+enum class PointerAxisSource;
+
 namespace Decoration
 {
 class DecoratedClientImpl;
@@ -122,7 +124,7 @@ public:
     /**
      * @internal
      **/
-    void processPointerAxis(PointerAxis axis, qreal delta, uint32_t time);
+    void processPointerAxis(PointerAxis axis, qreal delta, qint32 discreteDelta, PointerAxisSource source, uint32_t time);
     /**
      * @internal
      **/

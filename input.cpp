@@ -22,6 +22,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "input_event.h"
 #include "input_event_spy.h"
 #include "keyboard_input.h"
+#include "kwinnamespace.h"
 #include "pointer_input.h"
 #include "touch_input.h"
 #include "touch_hide_cursor_spy.h"
@@ -1330,8 +1331,27 @@ public:
     bool wheelEvent(QWheelEvent *event) override {
         auto seat = waylandServer()->seat();
         seat->setTimestamp(event->timestamp());
-        const Qt::Orientation orientation = event->angleDelta().x() == 0 ? Qt::Vertical : Qt::Horizontal;
-        seat->pointerAxis(orientation, orientation == Qt::Horizontal ? event->angleDelta().x() : event->angleDelta().y());
+        auto event_ = static_cast<WheelEvent *>(event);
+        KWayland::Server::PointerAxisSource source;
+        switch (event_->axisSource()) {
+        case KWin::PointerAxisSource::Wheel:
+            source = KWayland::Server::PointerAxisSource::Wheel;
+            break;
+        case KWin::PointerAxisSource::Finger:
+            source = KWayland::Server::PointerAxisSource::Finger;
+            break;
+        case KWin::PointerAxisSource::Continuous:
+            source = KWayland::Server::PointerAxisSource::Continuous;
+            break;
+        case KWin::PointerAxisSource::WheelTilt:
+            source = KWayland::Server::PointerAxisSource::WheelTilt;
+            break;
+        case KWin::PointerAxisSource::Unknown:
+        default:
+            source = KWayland::Server::PointerAxisSource::Unknown;
+            break;
+        }
+        seat->pointerAxisV5(event_->orientation(), event_->delta(), event_->discreteDelta(), source);
         return true;
     }
     bool keyEvent(QKeyEvent *event) override {
@@ -1703,7 +1723,7 @@ void InputRedirection::setupWorkspace()
                             break;
                         }
                         // TODO: Fix time
-                        m_pointer->processAxis(axis, delta, 0);
+                        m_pointer->processAxis(axis, delta, 0, PointerAxisSource::Unknown, 0);
                         waylandServer()->simulateUserActivity();
                     }
                 );
@@ -1997,9 +2017,9 @@ void InputRedirection::processPointerButton(uint32_t button, InputRedirection::P
     m_pointer->processButton(button, state, time);
 }
 
-void InputRedirection::processPointerAxis(InputRedirection::PointerAxis axis, qreal delta, uint32_t time)
+void InputRedirection::processPointerAxis(InputRedirection::PointerAxis axis, qreal delta, qint32 discreteDelta, PointerAxisSource source, uint32_t time)
 {
-    m_pointer->processAxis(axis, delta, time);
+    m_pointer->processAxis(axis, delta, discreteDelta, source, time);
 }
 
 void InputRedirection::processKeyboardKey(uint32_t key, InputRedirection::KeyboardKeyState state, uint32_t time)

@@ -110,7 +110,7 @@ public:
     /**
      * @internal
      **/
-    void processAxis(InputRedirection::PointerAxis axis, qreal delta, uint32_t time, LibInput::Device *device = nullptr);
+    void processAxis(InputRedirection::PointerAxis axis, qreal delta, qint32 discreteDelta, PointerAxisSource source, uint32_t time, LibInput::Device *device = nullptr);
     /**
      * @internal
      **/
