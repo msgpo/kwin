@@ -805,6 +805,11 @@ public:
      **/
     virtual Group *group();
 
+    /**
+     * Whether window rules can be applied to this client.
+     **/
+    virtual bool supportsWindowRules() const;
+
 public Q_SLOTS:
     virtual void closeWindow() = 0;
 

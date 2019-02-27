@@ -2030,4 +2030,9 @@ Group *AbstractClient::group()
     return nullptr;
 }
 
+bool AbstractClient::supportsWindowRules() const
+{
+    return true;
+}
+
 }

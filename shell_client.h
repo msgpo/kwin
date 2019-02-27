@@ -163,6 +163,8 @@ public:
         return true;
     }
 
+    bool supportsWindowRules() const override;
+
 protected:
     void addDamage(const QRegion &damage) override;
     bool belongsToSameApplication(const AbstractClient *other, SameApplicationChecks checks) const override;
@@ -291,6 +293,7 @@ private:
     QHash<qint32, PingReason> m_pingSerials;
 
     bool m_compositingSetup = false;
+    bool m_initialized = false;
 };
 
 }
