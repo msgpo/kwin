@@ -91,6 +91,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "deleted.h"
 #include "effects.h"
 #include "composite.h"
+#include "outline.h"
 #include "screenedge.h"
 #include "shell_client.h"
 #include "wayland_server.h"
@@ -769,7 +770,44 @@ void Workspace::updateXStackingOrder()
             }
         }
     }
+
+    if (outline()->isActive()) {
+        restackCompositedOutlineVisual();
+    }
+
     m_xStackingDirty = false;
+}
+
+void Workspace::restackCompositedOutlineVisual()
+{
+    if (!outline()->client()) {
+        return;
+    }
+
+    auto outlineVisual = dynamic_cast<CompositedOutlineVisual *>(outline()->visual());
+    if (!outlineVisual) {
+        return;
+    }
+
+    int outlineIndex = -1;
+    for (int i = x_stacking.count() - 1; i >= 0; --i) {
+        if (x_stacking[i]->isOutline()) {
+            outlineIndex = i;
+            break;
+        }
+    }
+
+    if (outlineIndex == -1) {
+        return;
+    }
+
+    const int clientIndex = x_stacking.indexOf(outline()->client());
+    if (clientIndex == -1) {
+        return;
+    }
+
+    qDebug() << "outline index:" << outlineIndex;
+    qDebug() << "client index:" << clientIndex;
 }
 
 //*******************************

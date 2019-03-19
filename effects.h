@@ -478,6 +478,8 @@ public:
 
     QWindow *internalWindow() const override;
 
+    bool isOutline() const override;
+
     const Toplevel* window() const;
     Toplevel* window();
 

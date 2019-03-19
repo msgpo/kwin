@@ -522,6 +522,7 @@ private:
     void updateToolWindows(bool also_hide);
     void fixPositionAfterCrash(xcb_window_t w, const xcb_get_geometry_reply_t *geom);
     void saveOldScreenSizes();
+    void restackCompositedOutlineVisual();
 
     /// This is the right way to create a new client
     Client* createClient(xcb_window_t w, bool is_mapped);

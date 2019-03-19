@@ -3261,11 +3261,11 @@ void AbstractClient::setElectricBorderMode(QuickTileMode mode)
 void AbstractClient::setElectricBorderMaximizing(bool maximizing)
 {
     m_electricMaximizing = maximizing;
+    // TODO: Pass the client to Outline::show
     if (maximizing)
         outline()->show(electricBorderMaximizeGeometry(Cursor::pos(), desktop()), moveResizeGeometry());
     else
         outline()->hide();
-    elevate(maximizing);
 }
 
 QRect AbstractClient::electricBorderMaximizeGeometry(QPoint pos, int desktop)

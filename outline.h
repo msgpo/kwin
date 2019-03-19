@@ -23,6 +23,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <kwinglobals.h>
 #include <QRect>
 #include <QObject>
+#include <QPointer>
 
 #include <kwin_export.h>
 
@@ -30,6 +31,8 @@ class QQmlContext;
 class QQmlComponent;
 
 namespace KWin {
+
+class AbstractClient;
 class OutlineVisual;
 
 /**
@@ -97,10 +100,31 @@ public:
     void show(const QRect &outlineGeometry, const QRect &visualParentGeometry);
 
     /**
+     * Shows the outline for the given @p client.
+     *
+     * To stop the outline process use hide().
+     *
+     * @param outlineGeometry The geometry of the outline to be shown
+     * @param client The client for which the outline will be shown
+     * @see hide
+     **/
+    void show(const QRect &outlineGeometry, AbstractClient *client);
+
+    /**
      * Hides shown outline.
      * @see showOutline
      **/
     void hide();
+
+    /**
+     *
+     **/
+    OutlineVisual *visual() const;
+
+    /**
+     *
+     **/
+    AbstractClient *client() const;
 
     const QRect &geometry() const;
     const QRect &visualParentGeometry() const;
@@ -120,6 +144,7 @@ Q_SIGNALS:
 private:
     void createHelper();
     QScopedPointer<OutlineVisual> m_visual;
+    QPointer<AbstractClient> m_client;
     QRect m_outlineGeometry;
     QRect m_visualParentGeometry;
     bool m_active;

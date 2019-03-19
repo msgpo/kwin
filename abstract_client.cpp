@@ -1457,7 +1457,6 @@ void AbstractClient::leaveMoveResize()
         ScreenEdges::self()->reserveDesktopSwitching(false, Qt::Vertical|Qt::Horizontal);
     if (isElectricBorderMaximizing()) {
         outline()->hide();
-        elevate(false);
     }
 }
 

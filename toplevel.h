@@ -283,6 +283,7 @@ public:
 
     virtual bool isLockScreen() const;
     virtual bool isInputMethod() const;
+    virtual bool isOutline() const;
 
     /**
      * Returns the virtual desktop within the workspace() the client window
@@ -760,6 +761,11 @@ inline bool Toplevel::isLockScreen() const
 }
 
 inline bool Toplevel::isInputMethod() const
+{
+    return false;
+}
+
+inline bool Toplevel::isOutline() const
 {
     return false;
 }

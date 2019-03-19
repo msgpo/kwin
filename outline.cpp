@@ -21,6 +21,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 // own
 #include "outline.h"
 // KWin
+#include "abstract_client.h"
 #include "composite.h"
 #include "main.h"
 #include "platform.h"
@@ -70,6 +71,7 @@ void Outline::hide()
     if (!m_active) {
         return;
     }
+    m_client = nullptr;
     m_active = false;
     emit activeChanged();
     if (m_visual.isNull()) {
@@ -88,6 +90,22 @@ void Outline::show(const QRect &outlineGeometry, const QRect &visualParentGeomet
     setGeometry(outlineGeometry);
     setVisualParentGeometry(visualParentGeometry);
     show();
+}
+
+void Outline::show(const QRect &outlineGeometry, AbstractClient *client)
+{
+    Q_UNUSED(outlineGeometry)
+    Q_UNUSED(client)
+}
+
+OutlineVisual *Outline::visual() const
+{
+    return m_visual.data();
+}
+
+AbstractClient *Outline::client() const
+{
+    return m_client.data();
 }
 
 void Outline::setGeometry(const QRect& outlineGeometry)
@@ -179,6 +197,9 @@ void CompositedOutlineVisual::show()
             qCDebug(KWIN_CORE) << "Component failed to load: " << m_qmlComponent->errors();
         } else {
             m_mainItem.reset(m_qmlComponent->create(m_qmlContext.data()));
+        }
+        if (auto w = qobject_cast<QQuickWindow*>(m_mainItem.data())) {
+            w->setProperty("__kwin_outline", true);
         }
     }
 }
