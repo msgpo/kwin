@@ -57,6 +57,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "platform.h"
 #include "shell_client.h"
 #include "wayland_server.h"
+#include "stacking_order.h"
 
 #include "decorations/decorationbridge.h"
 #include <KDecoration2/DecorationSettings>
@@ -202,7 +203,8 @@ EffectsHandlerImpl::EffectsHandlerImpl(Compositor *compositor, Scene *scene)
         connect(activities, &Activities::currentChanged, this, &EffectsHandler::currentActivityChanged);
     }
 #endif
-    connect(ws, &Workspace::stackingOrderChanged, this, &EffectsHandler::stackingOrderChanged);
+    StackingOrder *stackingOrder = ws->stackingOrder2();
+    connect(stackingOrder, &StackingOrder::changed, this, &EffectsHandler::stackingOrderChanged);
 #ifdef KWIN_BUILD_TABBOX
     TabBox::TabBox *tabBox = TabBox::TabBox::self();
     connect(tabBox, &TabBox::TabBox::tabBoxAdded,    this, &EffectsHandler::tabBoxAdded);
@@ -1112,7 +1114,7 @@ EffectWindow *EffectsHandlerImpl::findWindow(const QUuid &id) const
 
 EffectWindowList EffectsHandlerImpl::stackingOrder() const
 {
-    ToplevelList list = Workspace::self()->xStackingOrder();
+    const ToplevelList list = workspace()->stackingOrder2()->toplevels();
     EffectWindowList ret;
     for (Toplevel *t : list) {
         if (EffectWindow *w = effectWindow(t))

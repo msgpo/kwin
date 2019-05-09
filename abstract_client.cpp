@@ -20,23 +20,24 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "abstract_client.h"
 
 #include "appmenu.h"
+#include "cursor.h"
 #include "decorations/decoratedclient.h"
 #include "decorations/decorationpalette.h"
 #include "decorations/decorationbridge.h"
-#include "cursor.h"
 #include "effects.h"
 #include "focuschain.h"
 #include "outline.h"
+#include "screenedge.h"
 #include "screens.h"
+#include "stacking_order.h"
 #ifdef KWIN_BUILD_TABBOX
 #include "tabbox.h"
 #endif
-#include "screenedge.h"
 #include "tabgroup.h"
 #include "useractions.h"
+#include "wayland_server.h"
 #include "workspace.h"
 
-#include "wayland_server.h"
 #include <KWayland/Server/plasmawindowmanagement_interface.h>
 
 #include <KDecoration2/Decoration>
@@ -353,6 +354,8 @@ Layer AbstractClient::belongsToLayer() const
     // and the docks move into the NotificationLayer (which is between Above- and
     // ActiveLayer, so that active fullscreen windows will still cover everything)
     // Since the desktop is also activated, nothing should be in the ActiveLayer, though
+    if (isInternal())
+        return UnmanagedLayer;
     if (isDesktop())
         return workspace()->showingDesktop() ? AboveLayer : DesktopLayer;
     if (isSplash())          // no damn annoying splashscreens
@@ -1344,6 +1347,7 @@ void AbstractClient::addTransient(AbstractClient *cl)
     assert(!m_transients.contains(cl));
     assert(cl != this);
     m_transients.append(cl);
+    workspace()->stackingOrder2()->constrain(this, cl);
 }
 
 void AbstractClient::removeTransient(AbstractClient *cl)
@@ -1352,6 +1356,7 @@ void AbstractClient::removeTransient(AbstractClient *cl)
     if (cl->transientFor() == this) {
         cl->setTransientFor(nullptr);
     }
+    workspace()->stackingOrder2()->unconstrain(this, cl);
 }
 
 void AbstractClient::removeTransientFromList(AbstractClient *cl)
@@ -2078,6 +2083,11 @@ const Group *AbstractClient::group() const
 Group *AbstractClient::group()
 {
     return nullptr;
+}
+
+bool AbstractClient::isInternal() const
+{
+    return false;
 }
 
 }

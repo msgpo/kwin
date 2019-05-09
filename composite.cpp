@@ -20,22 +20,22 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "composite.h"
 
 #include "dbusinterface.h"
-#include "utils.h"
-#include <QTextStream>
-#include "workspace.h"
 #include "client.h"
-#include "unmanaged.h"
 #include "deleted.h"
 #include "effects.h"
 #include "overlaywindow.h"
+#include "platform.h"
 #include "scene.h"
 #include "screens.h"
 #include "shadow.h"
-#include "useractions.h"
-#include "xcbutils.h"
-#include "platform.h"
 #include "shell_client.h"
+#include "stacking_order.h"
+#include "unmanaged.h"
+#include "useractions.h"
+#include "utils.h"
 #include "wayland_server.h"
+#include "workspace.h"
+#include "xcbutils.h"
 #include "decorations/decoratedclient.h"
 
 #include <kwingltexture.h>
@@ -44,13 +44,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <stdio.h>
 
-#include <QtConcurrentRun>
+#include <QDateTime>
 #include <QFutureWatcher>
 #include <QMenu>
-#include <QTimerEvent>
-#include <QDateTime>
 #include <QOpenGLContext>
 #include <QQuickWindow>
+#include <QTextStream>
+#include <QTimerEvent>
+#include <QtConcurrentRun>
+
 #include <KGlobalAccel>
 #include <KLocalizedString>
 #include <KPluginLoader>
@@ -671,7 +673,7 @@ void Compositor::performCompositing()
     }
 
     // Create a list of all windows in the stacking order
-    ToplevelList windows = Workspace::self()->xStackingOrder();
+    ToplevelList windows = workspace()->stackingOrder2()->toplevels();
     ToplevelList damaged;
 
     // Reset the damage state of each window and fetch the damage region

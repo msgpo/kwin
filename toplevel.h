@@ -605,6 +605,9 @@ protected:
     bool m_isDamaged;
 
 private:
+    int stackPosition() const;
+    void setStackPosition(int position);
+
     // when adding new data members, check also copyToDeleted()
     QUuid m_internalId;
     Xcb::Window m_client;
@@ -627,8 +630,10 @@ private:
      * An FBO object KWin internal windows might render to.
      **/
     QSharedPointer<QOpenGLFramebufferObject> m_internalFBO;
-    // when adding new data members, check also copyToDeleted()
     qreal m_screenScale = 1.0;
+    int m_stackPosition = -1;
+
+    friend class StackingOrder;
 };
 
 inline xcb_window_t Toplevel::window() const

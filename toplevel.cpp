@@ -567,5 +567,15 @@ bool Toplevel::isLocalhost() const
     return m_clientMachine->isLocal();
 }
 
+int Toplevel::stackPosition() const
+{
+    return m_stackPosition;
+}
+
+void Toplevel::setStackPosition(int position)
+{
+    m_stackPosition = position;
+}
+
 } // namespace
 

@@ -817,6 +817,14 @@ public:
      **/
     virtual Group *group();
 
+    /**
+     * Returns whether this is an internal client.
+     *
+     * Internal clients are created by KWin for special purpose clients, like task switcher,
+     * or on screen display clients, etc.
+     **/
+    virtual bool isInternal() const;
+
 public Q_SLOTS:
     virtual void closeWindow() = 0;
 

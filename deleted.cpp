@@ -51,7 +51,6 @@ Deleted::Deleted()
     , m_wasActive(false)
     , m_wasX11Client(false)
     , m_wasWaylandClient(false)
-    , m_wasGroupTransient(false)
     , m_wasPopupWindow(false)
     , m_wasOutline(false)
 {
@@ -64,14 +63,6 @@ Deleted::~Deleted()
     assert(delete_refcount == 0);
     if (workspace()) {
         workspace()->removeDeleted(this);
-    }
-    for (Toplevel *toplevel : qAsConst(m_transientFor)) {
-        if (auto *deleted = qobject_cast<Deleted *>(toplevel)) {
-            deleted->removeTransient(this);
-        }
-    }
-    for (Deleted *transient : qAsConst(m_transients)) {
-        transient->removeTransientFor(this);
     }
     deleteEffectWindow();
 }
@@ -127,7 +118,6 @@ void Deleted::copyToDeleted(Toplevel* c)
         m_modal = client->isModal();
         m_mainClients = client->mainClients();
         foreach (AbstractClient *c, m_mainClients) {
-            addTransientFor(c);
             connect(c, &AbstractClient::windowClosed, this, &Deleted::mainClientClosed);
         }
         m_fullscreen = client->isFullScreen();
@@ -137,8 +127,6 @@ void Deleted::copyToDeleted(Toplevel* c)
         m_caption = client->caption();
 
         m_wasActive = client->isActive();
-
-        m_wasGroupTransient = client->groupTransient();
     }
 
     for (auto vd : m_desktops) {
@@ -230,22 +218,6 @@ void Deleted::mainClientClosed(Toplevel *client)
         m_mainClients.removeAll(c);
 }
 
-void Deleted::transientForClosed(Toplevel *toplevel, Deleted *deleted)
-{
-    if (deleted == nullptr) {
-        m_transientFor.removeAll(toplevel);
-        return;
-    }
-
-    const int index = m_transientFor.indexOf(toplevel);
-    if (index == -1) {
-        return;
-    }
-
-    m_transientFor[index] = deleted;
-    deleted->addTransient(this);
-}
-
 xcb_window_t Deleted::frameId() const
 {
     return m_frame;
@@ -273,27 +245,6 @@ QVector<uint> Deleted::x11DesktopIds() const
         }
     );
     return x11Ids;
-}
-
-void Deleted::addTransient(Deleted *transient)
-{
-    m_transients.append(transient);
-}
-
-void Deleted::removeTransient(Deleted *transient)
-{
-    m_transients.removeAll(transient);
-}
-
-void Deleted::addTransientFor(AbstractClient *parent)
-{
-    m_transientFor.append(parent);
-    connect(parent, &AbstractClient::windowClosed, this, &Deleted::transientForClosed);
-}
-
-void Deleted::removeTransientFor(Deleted *parent)
-{
-    m_transientFor.removeAll(parent);
 }
 
 } // namespace

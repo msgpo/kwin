@@ -38,6 +38,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "group.h"
 #include "input.h"
 #include "logind.h"
+#include "main.h"
 #include "moving_client_x11_filter.h"
 #include "killwindow.h"
 #include "netinfo.h"
@@ -48,17 +49,17 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "screens.h"
 #include "platform.h"
 #include "scripting/scripting.h"
+#include "shell_client.h"
+#include "stacking_order.h"
 #ifdef KWIN_BUILD_TABBOX
 #include "tabbox.h"
 #endif
 #include "unmanaged.h"
 #include "useractions.h"
 #include "virtualdesktops.h"
-#include "shell_client.h"
 #include "was_user_interaction_x11_filter.h"
 #include "wayland_server.h"
 #include "xcbutils.h"
-#include "main.h"
 #include "decorations/decorationbridge.h"
 // KDE
 #include <KConfig>
@@ -126,6 +127,7 @@ Workspace::Workspace(const QString &sessionKey)
     , startup(0)
     , set_active_client_recursion(0)
     , block_stacking_updates(0)
+    , m_stackingOrder(new StackingOrder(this))
 {
     // If KWin was already running it saved its configuration after loosing the selection -> Reread
     QFuture<void> reparseConfigFuture = QtConcurrent::run(options, &Options::reparseConfiguration);
@@ -310,8 +312,9 @@ void Workspace::init()
                     if (!stacking_order.contains(c))    // It'll be updated later, and updateToolWindows() requires
                         stacking_order.append(c);      // c to be in stacking_order
                 }
+                m_stackingOrder->add(c);
                 markXStackingOrderAsDirty();
-                updateStackingOrder(true);
+                updateStackingOrder();
                 updateClientArea();
                 if (c->wantsInput() && !c->isMinimized()) {
                     activateClient(c);
@@ -325,7 +328,7 @@ void Workspace::init()
                             c->placeIn(area);
                         }
                         markXStackingOrderAsDirty();
-                        updateStackingOrder(true);
+                        updateStackingOrder();
                         updateClientArea();
                         if (c->wantsInput()) {
                             activateClient(c);
@@ -335,7 +338,7 @@ void Workspace::init()
                 connect(c, &ShellClient::windowHidden, this,
                     [this] {
                         markXStackingOrderAsDirty();
-                        updateStackingOrder(true);
+                        updateStackingOrder();
                         updateClientArea();
                     }
                 );
@@ -362,7 +365,7 @@ void Workspace::init()
                 clientHidden(c);
                 emit clientRemoved(c);
                 markXStackingOrderAsDirty();
-                updateStackingOrder(true);
+                updateStackingOrder();
                 updateClientArea();
             }
         );
@@ -633,6 +636,7 @@ void Workspace::addClient(Client* c)
         unconstrained_stacking_order.append(c);   // Raise if it hasn't got any stacking position yet
     if (!stacking_order.contains(c))    // It'll be updated later, and updateToolWindows() requires
         stacking_order.append(c);      // c to be in stacking_order
+    m_stackingOrder->add(c);
     markXStackingOrderAsDirty();
     updateClientArea(); // This cannot be in manage(), because the client got added only now
     updateClientLayer(c);
@@ -655,6 +659,7 @@ void Workspace::addClient(Client* c)
 
 void Workspace::addUnmanaged(Unmanaged* c)
 {
+    m_stackingOrder->add(c);
     unmanaged.append(c);
     markXStackingOrderAsDirty();
 }
@@ -736,6 +741,7 @@ void Workspace::addDeleted(Deleted* c, Toplevel *orig)
     } else {
         stacking_order.append(c);
     }
+    m_stackingOrder->replace(orig, c);
     markXStackingOrderAsDirty();
     connect(c, SIGNAL(needsRepaint()), m_compositor, SLOT(scheduleRepaint()));
 }
@@ -747,6 +753,7 @@ void Workspace::removeDeleted(Deleted* c)
     deleted.removeAll(c);
     unconstrained_stacking_order.removeAll(c);
     stacking_order.removeAll(c);
+    m_stackingOrder->remove(c);
     markXStackingOrderAsDirty();
     if (c->wasClient() && m_compositor) {
         m_compositor->updateCompositeBlocking();

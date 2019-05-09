@@ -54,10 +54,11 @@ class Window;
 
 class AbstractClient;
 class Client;
+class Compositor;
 class KillWindow;
 class ShortcutDialog;
+class StackingOrder;
 class UserActionsMenu;
-class Compositor;
 class X11EventFilter;
 enum class Predicate;
 
@@ -260,6 +261,11 @@ public:
     QVector< QRect > previousScreenSizes() const;
     int oldDisplayWidth() const;
     int oldDisplayHeight() const;
+
+    /**
+     * Returns the stacking order of the clients.
+     **/
+    StackingOrder *stackingOrder2() const;
 
     /**
      * Returns the list of clients sorted in stacking order, with topmost client
@@ -522,7 +528,6 @@ private:
     void lowerClientWithinApplication(AbstractClient* c);
     bool allowFullClientRaising(const AbstractClient* c, xcb_timestamp_t timestamp);
     bool keepTransientAbove(const AbstractClient* mainwindow, const AbstractClient* transient);
-    bool keepDeletedTransientAbove(const Toplevel *mainWindow, const Deleted *transient) const;
     void blockStackingUpdates(bool block);
     void updateToolWindows(bool also_hide);
     void fixPositionAfterCrash(xcb_window_t w, const xcb_get_geometry_reply_t *geom);
@@ -637,6 +642,8 @@ private:
     QList<X11EventFilter *> m_genericEventFilters;
     QScopedPointer<X11EventFilter> m_movingClientFilter;
 
+    StackingOrder *m_stackingOrder;
+
 private:
     friend bool performTransiencyCheck();
     friend Workspace *workspace();
@@ -700,6 +707,11 @@ inline void Workspace::addGroup(Group* group)
 inline void Workspace::removeGroup(Group* group)
 {
     groups.removeAll(group);
+}
+
+inline StackingOrder *Workspace::stackingOrder2() const
+{
+    return m_stackingOrder;
 }
 
 inline const ToplevelList& Workspace::stackingOrder() const

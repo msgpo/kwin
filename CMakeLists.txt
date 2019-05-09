@@ -451,6 +451,7 @@ set(kwin_KDEINIT_SRCS
    logind.cpp
    onscreennotification.cpp
    osd.cpp
+   stacking_order.cpp
     screenedge.cpp
     scripting/scripting.cpp
     scripting/workspace_wrapper.cpp

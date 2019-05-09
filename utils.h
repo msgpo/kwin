@@ -58,6 +58,7 @@ const NET::WindowTypes SUPPORTED_UNMANAGED_WINDOW_TYPES_MASK = NET::NormalMask |
 const QPoint invalidPoint(INT_MIN, INT_MIN);
 
 class Toplevel;
+class AbstractClient;
 class Client;
 class Unmanaged;
 class Deleted;
@@ -65,6 +66,7 @@ class Group;
 class Options;
 
 typedef QList< Toplevel* > ToplevelList;
+typedef QList<AbstractClient *> AbstractClientList;
 typedef QList< Client* > ClientList;
 typedef QList< const Client* > ConstClientList;
 typedef QList< Unmanaged* > UnmanagedList;
