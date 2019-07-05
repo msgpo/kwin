@@ -25,8 +25,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "../screens.h"
 #endif
 #include "../logind.h"
-#include "../udev.h"
+#include "../toolkit/udev_context.h"
 #include "libinput_logging.h"
+
 
 #include <QDBusMessage>
 #include <QDBusConnection>
@@ -122,7 +123,7 @@ void Connection::createThread()
 Connection *Connection::create(QObject *parent)
 {
     Q_ASSERT(!s_self);
-    static Udev s_udev;
+    static UdevContext s_udev;
     if (!s_udev.isValid()) {
         qCWarning(KWIN_LIBINPUT) << "Failed to initialize udev";
         return nullptr;

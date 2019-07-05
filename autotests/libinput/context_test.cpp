@@ -20,7 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "mock_libinput.h"
 #include "mock_udev.h"
 #include "../../libinput/context.h"
-#include "../../udev.h"
+#include "../../toolkit/udev_context.h"
 #include <QtTest>
 Q_LOGGING_CATEGORY(KWIN_CORE, "kwin_core", QtCriticalMsg)
 
@@ -47,7 +47,7 @@ void TestContext::testCreateFailUdev()
 {
     // this test verifies that isValid is false if the setup fails
     // we create an Udev without a mockUdev
-    Udev u;
+    UdevContext u;
     QVERIFY(!(udev*)(u));
     Context context(u);
     QVERIFY(!context.isValid());
@@ -73,7 +73,7 @@ void TestContext::testAssignSeat()
     // setup udev so that we can create a context
     udev::s_mockUdev = new udev;
     QVERIFY(udev::s_mockUdev);
-    Udev u;
+    UdevContext u;
     QVERIFY((udev*)(u));
     Context context(u);
     QVERIFY(context.isValid());

@@ -29,7 +29,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "main.h"
 #include "scene_qpainter_drm_backend.h"
 #include "screens_drm.h"
-#include "udev.h"
 #include "wayland_server.h"
 #if HAVE_GBM
 #include "egl_gbm_backend.h"
@@ -38,6 +37,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #if HAVE_EGL_STREAMS
 #include "egl_stream_backend.h"
 #endif
+
+#include "toolkit/udev_context.h"
+#include "toolkit/udev_enumerator.h"
+#include "toolkit/udev_monitor.h"
+
 // KWayland
 #include <KWayland/Server/seat_interface.h>
 #include <KWayland/Server/outputconfiguration_interface.h>
@@ -73,8 +77,8 @@ namespace KWin
 
 DrmBackend::DrmBackend(QObject *parent)
     : Platform(parent)
-    , m_udev(new Udev)
-    , m_udevMonitor(m_udev->monitor())
+    , m_udevContext(new UdevContext())
+    , m_udevMonitor(new UdevMonitor(m_udevContext.data()))
     , m_dpmsFilter()
 {
 #if HAVE_EGL_STREAMS
@@ -250,15 +254,32 @@ void DrmBackend::pageFlipHandler(int fd, unsigned int frame, unsigned int sec, u
     }
 }
 
+static UdevDevice findPrimaryDevice(const UdevContext &context)
+{
+    UdevEnumerator enumerator(context);
+    enumerator.matchSeat(QStringLiteral("seat0"));
+    enumerator.matchSubsystem(QStringLiteral("drm"));
+    enumerator.matchSysfsName(QStringLiteral("card[0-9]*"));
+
+    const UdevDeviceList devices = enumerator.scan();
+    for (const UdevDevice &device : devices) {
+        if (device.types() & UdevDevice::PrimaryGpu) {
+            return device;
+        }
+    }
+
+    return UdevDevice();
+}
+
 void DrmBackend::openDrm()
 {
     connect(LogindIntegration::self(), &LogindIntegration::sessionActiveChanged, this, &DrmBackend::activate);
-    UdevDevice::Ptr device = m_udev->primaryGpu();
-    if (!device) {
+    UdevDevice device = findPrimaryDevice(*m_udevContext.data());
+    if (!device.isValid()) {
         qCWarning(KWIN_DRM) << "Did not find a GPU";
         return;
     }
-    m_devNode = device->devNode();
+    m_devNode = device.deviceNode().toUtf8();
     int fd = LogindIntegration::self()->takeDevice(m_devNode.constData());
     if (fd < 0) {
         qCWarning(KWIN_DRM) << "failed to open drm device at" << m_devNode;
@@ -279,7 +300,7 @@ void DrmBackend::openDrm()
             drmHandleEvent(m_fd, &e);
         }
     );
-    m_drmId = device->sysNum();
+    m_drmId = device.sysfsNumber();
 
     // trying to activate Atomic Mode Setting (this means also Universal Planes)
     if (!qEnvironmentVariableIsSet("KWIN_DRM_NO_AMS")) {
@@ -358,28 +379,24 @@ void DrmBackend::openDrm()
 
     // setup udevMonitor
     if (m_udevMonitor) {
-        m_udevMonitor->filterSubsystemDevType("drm");
-        const int fd = m_udevMonitor->fd();
-        if (fd != -1) {
-            QSocketNotifier *notifier = new QSocketNotifier(fd, QSocketNotifier::Read, this);
-            connect(notifier, &QSocketNotifier::activated, this,
-                [this] {
-                    auto device = m_udevMonitor->getDevice();
-                    if (!device) {
-                        return;
-                    }
-                    if (device->sysNum() != m_drmId) {
-                        return;
-                    }
-                    if (device->hasProperty("HOTPLUG", "1")) {
-                        qCDebug(KWIN_DRM) << "Received hot plug event for monitored drm device";
-                        updateOutputs();
-                        updateCursor();
-                    }
+        m_udevMonitor->filterBySubsystem(QStringLiteral("drm"));
+        m_udevMonitor->enable();
+
+        connect(m_udevMonitor, &UdevMonitor::deviceChanged, this,
+            [this](const UdevDevice &device) {
+                if (device.sysfsNumber() != m_drmId) {
+                    return;
                 }
-            );
-            m_udevMonitor->enable();
-        }
+
+                if (device.property(QStringLiteral("HOTPLUT")) != "1") {
+                    return;
+                }
+
+                qCDebug(KWIN_DRM) << "Received hot plug event for monitored drm device";
+                updateOutputs();
+                updateCursor();
+            }
+        );
     }
     setReady(true);
 }

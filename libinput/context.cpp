@@ -21,7 +21,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "events.h"
 #include "libinput_logging.h"
 #include "../logind.h"
-#include "../udev.h"
+
+#include "../toolkit/udev_context.h"
 
 #include <fcntl.h>
 #include <errno.h>
@@ -53,7 +54,7 @@ static void libinputLogHandler(libinput *libinput, libinput_log_priority priorit
     }
 }
 
-Context::Context(const Udev &udev)
+Context::Context(const UdevContext &udev)
     : m_libinput(libinput_udev_create_context(&Context::s_interface, this, udev))
     , m_suspended(false)
 {

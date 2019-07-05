@@ -56,7 +56,7 @@ class OutputManagementInterface;
 namespace KWin
 {
 
-class Udev;
+class UdevContext;
 class UdevMonitor;
 
 class DrmOutput;
@@ -173,10 +173,10 @@ private:
     QByteArray generateOutputConfigurationUuid() const;
     DrmOutput *findOutput(quint32 connector);
     DrmOutput *findOutput(const QByteArray &uuid);
-    QScopedPointer<Udev> m_udev;
-    QScopedPointer<UdevMonitor> m_udevMonitor;
+    QScopedPointer<UdevContext> m_udevContext;
+    UdevMonitor *m_udevMonitor;
     int m_fd = -1;
-    int m_drmId = 0;
+    QString m_drmId;
     // all crtcs
     QVector<DrmCrtc*> m_crtcs;
     // all connectors

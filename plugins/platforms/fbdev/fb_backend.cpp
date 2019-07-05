@@ -25,7 +25,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "scene_qpainter_fb_backend.h"
 #include "outputscreens.h"
 #include "virtual_terminal.h"
-#include "udev.h"
+
+#include "toolkit/udev_context.h"
+#include "toolkit/udev_enumerator.h"
+
 // system
 #include <fcntl.h>
 #include <unistd.h>
@@ -80,12 +83,32 @@ void FramebufferBackend::init()
     VirtualTerminal::create(this);
 }
 
+static UdevDevice findPrimaryDevice()
+{
+    UdevContext context;
+
+    UdevEnumerator enumerator(context);
+    enumerator.matchSeat(QStringLiteral("seat0"));
+    enumerator.matchSubsystem(QStringLiteral("graphics"));
+    enumerator.matchSysfsName(QStringLiteral("fb[0-9]*"));
+
+    const UdevDeviceList devices = enumerator.scan();
+    for (const UdevDevice &device : devices) {
+        if (device.types() & UdevDevice::PrimaryFrameBuffer) {
+            return device;
+        }
+    }
+
+    return UdevDevice();
+}
+
 void FramebufferBackend::openFrameBuffer()
 {
     VirtualTerminal::self()->init();
     QString framebufferDevice = deviceIdentifier().constData();
     if (framebufferDevice.isEmpty()) {
-        framebufferDevice = QString(Udev().primaryFramebuffer()->devNode());
+        const UdevDevice device = findPrimaryDevice();
+        framebufferDevice = device.deviceNode();
     }
     int fd = LogindIntegration::self()->takeDevice(framebufferDevice.toUtf8().constData());
     qCDebug(KWIN_FB) << "Using frame buffer device:" << framebufferDevice;

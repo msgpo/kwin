@@ -1,8 +1,8 @@
 /********************************************************************
-KWin - the KDE window manager
-This file is part of the KDE project.
+ KWin - the KDE window manager
+ This file is part of the KDE project.
 
-Copyright (C) 2016 Martin Gräßlin <mgraesslin@kde.org>
+Copyright (C) 2019 Vlad Zagorodniy <vladzzag@gmail.com>
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -18,30 +18,24 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 *********************************************************************/
 
-#include "mock_udev.h"
-
-#include "../toolkit/udev_context.h"
-
-udev *udev::s_mockUdev = nullptr;
+#include "drm_dumb_image_view.h"
+#include "drm_dumb_image.h"
 
 namespace KWin
 {
 
-UdevContext::UdevContext()
-    : m_udev(udev::s_mockUdev)
+DrmDumbImageView::DrmDumbImageView(DrmDumbImage *image)
+    : DrmImageView(image)
 {
 }
 
-UdevContext::UdevContext(const UdevContext &other) = default;
-UdevContext::UdevContext(UdevContext &&other) = default;
-UdevContext::~UdevContext() = default;
-
-UdevContext &UdevContext::operator=(const UdevContext &other) = default;
-UdevContext &UdevContext::operator=(UdevContext &&other) = default;
-
-UdevContext::operator udev*() const
+DrmDumbImageView::~DrmDumbImageView()
 {
-    return m_udev;
 }
 
+bool DrmDumbImageView::isValid() const
+{
+    return false;
 }
+
+} // namespace KWin

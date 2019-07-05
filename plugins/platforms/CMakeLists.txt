@@ -1,5 +1,8 @@
+set(PLATFORM_INSTALL_DIR "${PLUGIN_INSTALL_DIR}/org.kde.kwin.waylandbackends/")
+
 if(HAVE_DRM)
     add_subdirectory(drm)
+    add_subdirectory(native)
 endif()
 if (HAVE_LINUX_FB_H)
     add_subdirectory(fbdev)

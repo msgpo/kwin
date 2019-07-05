@@ -1,0 +1,8 @@
+{
+    "KPlugin": {
+        "Description": "Native platform backend",
+        "Id": "KWinWaylandNativeBackend",
+        "Name": "native"
+    },
+    "input": false
+}

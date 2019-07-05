@@ -26,7 +26,8 @@ set(libinputtest_SRCS
         ${KWIN_SOURCE_DIR}/libinput/events.cpp
         ${KWIN_SOURCE_DIR}/libinput/libinput_logging.cpp
         ${KWIN_SOURCE_DIR}/logind.cpp
-        ${KWIN_SOURCE_DIR}/udev.cpp
+        ${KWIN_SOURCE_DIR}/toolkit/udev_context.cpp
+        ${KWIN_SOURCE_DIR}/toolkit/udev_device.cpp
 )
 add_executable(libinputtest ${libinputtest_SRCS})
 add_definitions(-DKWIN_BUILD_TESTING)

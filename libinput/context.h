@@ -25,7 +25,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 namespace KWin
 {
 
-class Udev;
+class UdevContext;
 
 namespace LibInput
 {
@@ -35,7 +35,7 @@ class Event;
 class Context
 {
 public:
-    Context(const Udev &udev);
+    Context(const UdevContext &udev);
     ~Context();
     bool assignSeat(const char *seat);
     bool isValid() const {

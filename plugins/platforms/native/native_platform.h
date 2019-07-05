@@ -1,8 +1,8 @@
 /********************************************************************
-KWin - the KDE window manager
-This file is part of the KDE project.
+ KWin - the KDE window manager
+ This file is part of the KDE project.
 
-Copyright (C) 2016 Martin Gräßlin <mgraesslin@kde.org>
+Copyright (C) 2019 Vlad Zagorodniy <vladzzag@gmail.com>
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -18,30 +18,32 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 *********************************************************************/
 
-#include "mock_udev.h"
+#pragma once
 
-#include "../toolkit/udev_context.h"
-
-udev *udev::s_mockUdev = nullptr;
+#include "platform.h"
 
 namespace KWin
 {
 
-UdevContext::UdevContext()
-    : m_udev(udev::s_mockUdev)
+class KWIN_EXPORT NativePlatform : public Platform
 {
-}
+    Q_OBJECT
 
-UdevContext::UdevContext(const UdevContext &other) = default;
-UdevContext::UdevContext(UdevContext &&other) = default;
-UdevContext::~UdevContext() = default;
+    Q_INTERFACES(KWin::Platform)
+    Q_PLUGIN_METADATA(IID "org.kde.kwin.Platform" FILE "metadata.json")
 
-UdevContext &UdevContext::operator=(const UdevContext &other) = default;
-UdevContext &UdevContext::operator=(UdevContext &&other) = default;
+public:
+    explicit NativePlatform(QObject *parent = nullptr);
+    ~NativePlatform();
 
-UdevContext::operator udev*() const
-{
-    return m_udev;
-}
+    void init() override;
+    QVector<CompositingType> supportedCompositors() const override;
 
-}
+    OpenGLBackend *createOpenGLBackend() override;
+    QPainterBackend *createQPainterBackend() override;
+
+private:
+    Q_DISABLE_COPY(NativePlatform)
+};
+
+} // namespace KWin

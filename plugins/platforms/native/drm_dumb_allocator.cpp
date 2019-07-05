@@ -1,8 +1,8 @@
 /********************************************************************
-KWin - the KDE window manager
-This file is part of the KDE project.
+ KWin - the KDE window manager
+ This file is part of the KDE project.
 
-Copyright (C) 2016 Martin Gräßlin <mgraesslin@kde.org>
+Copyright (C) 2019 Vlad Zagorodniy <vladzzag@gmail.com>
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -18,30 +18,35 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 *********************************************************************/
 
-#include "mock_udev.h"
-
-#include "../toolkit/udev_context.h"
-
-udev *udev::s_mockUdev = nullptr;
+#include "drm_dumb_allocator.h"
+#include "drm_device.h"
+#include "drm_dumb_image.h"
 
 namespace KWin
 {
 
-UdevContext::UdevContext()
-    : m_udev(udev::s_mockUdev)
+DrmDumbAllocator::DrmDumbAllocator(DrmDevice *device, QObject *parent)
+    : DrmAllocator(device, parent)
 {
 }
 
-UdevContext::UdevContext(const UdevContext &other) = default;
-UdevContext::UdevContext(UdevContext &&other) = default;
-UdevContext::~UdevContext() = default;
-
-UdevContext &UdevContext::operator=(const UdevContext &other) = default;
-UdevContext &UdevContext::operator=(UdevContext &&other) = default;
-
-UdevContext::operator udev*() const
+DrmDumbAllocator::~DrmDumbAllocator()
 {
-    return m_udev;
 }
 
+bool DrmDumbAllocator::isValid() const
+{
+    return device()->supports(DrmDevice::DeviceCapabilityDumbBuffer);
 }
+
+DrmImage *DrmDumbAllocator::allocate(uint32_t width,
+    uint32_t height,
+    uint32_t format,
+    const QVector<uint64_t> &modifiers)
+{
+    Q_UNUSED(modifiers)
+
+    return new DrmDumbImage(device(), width, height, format);
+}
+
+} // namespace KWin

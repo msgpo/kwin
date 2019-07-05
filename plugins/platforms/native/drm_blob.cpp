@@ -1,8 +1,8 @@
 /********************************************************************
-KWin - the KDE window manager
-This file is part of the KDE project.
+ KWin - the KDE window manager
+ This file is part of the KDE project.
 
-Copyright (C) 2016 Martin Gräßlin <mgraesslin@kde.org>
+Copyright (C) 2019 Vlad Zagorodniy <vladzzag@gmail.com>
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -18,30 +18,35 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 *********************************************************************/
 
-#include "mock_udev.h"
+#include "drm_blob.h"
+#include "drm_device.h"
 
-#include "../toolkit/udev_context.h"
-
-udev *udev::s_mockUdev = nullptr;
+#include <xf86drmMode.h>
 
 namespace KWin
 {
 
-UdevContext::UdevContext()
-    : m_udev(udev::s_mockUdev)
+DrmBlob::DrmBlob(DrmDevice *device, const void *data, size_t size)
+    : m_device(device)
+    , m_isValid(!drmModeCreatePropertyBlob(device->fd(), data, size, &m_id))
 {
 }
 
-UdevContext::UdevContext(const UdevContext &other) = default;
-UdevContext::UdevContext(UdevContext &&other) = default;
-UdevContext::~UdevContext() = default;
-
-UdevContext &UdevContext::operator=(const UdevContext &other) = default;
-UdevContext &UdevContext::operator=(UdevContext &&other) = default;
-
-UdevContext::operator udev*() const
+DrmBlob::~DrmBlob()
 {
-    return m_udev;
+    if (m_isValid) {
+        drmModeDestroyPropertyBlob(m_device->fd(), m_id);
+    }
 }
 
+bool DrmBlob::isValid() const
+{
+    return m_isValid;
 }
+
+uint32_t DrmBlob::objectId() const
+{
+    return m_id;
+}
+
+} // namespace KWin

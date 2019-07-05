@@ -497,10 +497,13 @@ set(kwin_KDEINIT_SRCS
     libinput/device.cpp
     libinput/events.cpp
     libinput/libinput_logging.cpp
-    udev.cpp
     touch_hide_cursor_spy.cpp
     internal_client.cpp
     xwl/xwayland_interface.cpp
+    toolkit/udev_context.cpp
+    toolkit/udev_device.cpp
+    toolkit/udev_enumerator.cpp
+    toolkit/udev_monitor.cpp
    )
 
 include(ECMQtDeclareLoggingCategory)
