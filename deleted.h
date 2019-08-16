@@ -49,9 +49,6 @@ public:
     QVector<VirtualDesktop *> desktops() const override;
     QPoint clientPos() const override;
     QSize clientSize() const override;
-    QPoint clientContentPos() const override {
-        return m_contentPos;
-    }
     QRect transparentRect() const override;
     bool isDeleted() const override;
     xcb_window_t frameId() const override;
@@ -184,6 +181,13 @@ public:
         return m_wasOutline;
     }
 
+    QMargins bufferMargins() const override;
+    QPoint bufferOrigin() const override;
+    QRect bufferGeometry() const override;
+    QMargins frameMargins() const override;
+    QPoint frameOrigin() const override;
+    QRect frameGeometry() const override;
+
 protected:
     void debug(QDebug& stream) const override;
 
@@ -201,11 +205,19 @@ private:
     void addTransientFor(AbstractClient *parent);
     void removeTransientFor(Deleted *parent);
 
+    QMargins m_bufferMargins;
+    QMargins m_frameMargins;
+
+    QRect m_bufferGeometry;
+    QRect m_frameGeometry;
+
+    QPoint m_bufferOrigin;
+    QPoint m_frameOrigin;
+
     int delete_refcount;
     int desk;
     QStringList activityList;
     QRect contentsRect; // for clientPos()/clientSize()
-    QPoint m_contentPos;
     QRect transparent_rect;
     xcb_window_t m_frame;
     QVector <VirtualDesktop *> m_desktops;

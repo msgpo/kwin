@@ -184,7 +184,7 @@ void StrutsTest::testWaylandStruts()
 
         QVERIFY(c);
         QVERIFY(!c->isActive());
-        QCOMPARE(c->geometry(), windowGeometry);
+        QCOMPARE(c->frameGeometry(), windowGeometry);
         QVERIFY(c->isDock());
         QVERIFY(c->hasStrut());
         clients.insert(surface, c);
@@ -238,7 +238,7 @@ void StrutsTest::testMoveWaylandPanel()
     auto c = Test::renderAndWaitForShown(surface.data(), windowGeometry.size(), Qt::red, QImage::Format_RGB32);
     QVERIFY(c);
     QVERIFY(!c->isActive());
-    QCOMPARE(c->geometry(), windowGeometry);
+    QCOMPARE(c->frameGeometry(), windowGeometry);
     QVERIFY(c->isDock());
     QVERIFY(c->hasStrut());
     QCOMPARE(workspace()->clientArea(PlacementArea, 0, 1), QRect(0, 0, 1280, 1000));
@@ -251,7 +251,7 @@ void StrutsTest::testMoveWaylandPanel()
     QVERIFY(geometryChangedSpy.isValid());
     plasmaSurface->setPosition(QPoint(1280, 1000));
     QVERIFY(geometryChangedSpy.wait());
-    QCOMPARE(c->geometry(), QRect(1280, 1000, 1280, 24));
+    QCOMPARE(c->frameGeometry(), QRect(1280, 1000, 1280, 24));
     QCOMPARE(workspace()->clientArea(PlacementArea, 0, 1), QRect(0, 0, 1280, 1024));
     QCOMPARE(workspace()->clientArea(MaximizeArea, 0, 1), QRect(0, 0, 1280, 1024));
     QCOMPARE(workspace()->clientArea(PlacementArea, 1, 1), QRect(1280, 0, 1280, 1000));
@@ -282,7 +282,7 @@ void StrutsTest::testWaylandMobilePanel()
     auto c = Test::renderAndWaitForShown(surface.data(), windowGeometry.size(), Qt::red, QImage::Format_RGB32);
     QVERIFY(c);
     QVERIFY(!c->isActive());
-    QCOMPARE(c->geometry(), windowGeometry);
+    QCOMPARE(c->frameGeometry(), windowGeometry);
     QVERIFY(c->isDock());
     QVERIFY(c->hasStrut());
 
@@ -305,7 +305,7 @@ void StrutsTest::testWaylandMobilePanel()
 
     QVERIFY(c1);
     QVERIFY(!c1->isActive());
-    QCOMPARE(c1->geometry(), windowGeometry2);
+    QCOMPARE(c1->frameGeometry(), windowGeometry2);
     QVERIFY(c1->isDock());
     QVERIFY(c1->hasStrut());
 
@@ -600,7 +600,7 @@ void StrutsTest::testX11Struts()
     QCOMPARE(client->window(), w);
     QVERIFY(!client->isDecorated());
     QCOMPARE(client->windowType(), NET::Dock);
-    QCOMPARE(client->geometry(), windowGeometry);
+    QCOMPARE(client->frameGeometry(), windowGeometry);
 
     // this should have affected the client area
     // some props are independent of struts - those first
@@ -713,7 +713,7 @@ void StrutsTest::test363804()
     QCOMPARE(client->window(), w);
     QVERIFY(!client->isDecorated());
     QCOMPARE(client->windowType(), NET::Dock);
-    QCOMPARE(client->geometry(), windowGeometry);
+    QCOMPARE(client->frameGeometry(), windowGeometry);
 
     // now verify the actual updated client areas
     QCOMPARE(workspace()->clientArea(PlacementArea, 0, 1), geometries.at(0));
@@ -793,7 +793,7 @@ void StrutsTest::testLeftScreenSmallerBottomAligned()
     QCOMPARE(client->window(), w);
     QVERIFY(!client->isDecorated());
     QCOMPARE(client->windowType(), NET::Dock);
-    QCOMPARE(client->geometry(), windowGeometry);
+    QCOMPARE(client->frameGeometry(), windowGeometry);
 
     // now verify the actual updated client areas
     QCOMPARE(workspace()->clientArea(PlacementArea, 0, 1), QRect(0, 306, 1366, 744));
@@ -823,7 +823,7 @@ void StrutsTest::testLeftScreenSmallerBottomAligned()
     QVERIFY(client2);
     QVERIFY(client2 != client);
     QVERIFY(client2->isDecorated());
-    QCOMPARE(client2->geometry(), QRect(0, 306, 1366, 744));
+    QCOMPARE(client2->frameGeometry(), QRect(0, 306, 1366, 744));
     QCOMPARE(client2->maximizeMode(), KWin::MaximizeFull);
     // destroy window again
     QSignalSpy normalWindowClosedSpy(client2, &Client::windowClosed);
@@ -905,7 +905,7 @@ void StrutsTest::testWindowMoveWithPanelBetweenScreens()
     QCOMPARE(client->window(), w);
     QVERIFY(!client->isDecorated());
     QCOMPARE(client->windowType(), NET::Dock);
-    QCOMPARE(client->geometry(), windowGeometry);
+    QCOMPARE(client->frameGeometry(), windowGeometry);
 
     // now verify the actual updated client areas
     QCOMPARE(workspace()->clientArea(PlacementArea, 0, 1), QRect(0, 282, 1366, 768));
@@ -940,7 +940,7 @@ void StrutsTest::testWindowMoveWithPanelBetweenScreens()
     QCOMPARE(client2->clientSize(), QSize(200, 300));
     QCOMPARE(client2->pos(), QPoint(1500, 400));
 
-    const QRect origGeo = client2->geometry();
+    const QRect origGeo = client2->frameGeometry();
     Cursor::setPos(origGeo.center());
     workspace()->performWindowOperation(client2, Options::MoveOp);
     QTRY_COMPARE(workspace()->moveResizeClient(), client2);
@@ -953,7 +953,7 @@ void StrutsTest::testWindowMoveWithPanelBetweenScreens()
     client2->keyPressEvent(Qt::Key_Enter);
     QCOMPARE(client2->isMove(), false);
     QVERIFY(workspace()->moveResizeClient() == nullptr);
-    QCOMPARE(client2->geometry(), QRect(origGeo.translated(-800, 0)));
+    QCOMPARE(client2->frameGeometry(), QRect(origGeo.translated(-800, 0)));
 }
 
 }

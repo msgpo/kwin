@@ -121,7 +121,7 @@ void StartTest::testCreateWindow()
     QVERIFY(workspace()->activeClient());
     QCOMPARE(workspace()->activeClient()->pos(), QPoint(0, 0));
     QCOMPARE(workspace()->activeClient()->size(), QSize(100, 50));
-    QCOMPARE(workspace()->activeClient()->geometry(), QRect(0, 0, 100, 50));
+    QCOMPARE(workspace()->activeClient()->frameGeometry(), QRect(0, 0, 100, 50));
 
     // and kwin will render it
     QVERIFY(surfaceRenderedSpy.wait());

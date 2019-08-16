@@ -82,13 +82,13 @@ void AbstractClient::setHiddenInternal(bool set)
     m_hiddenInternal = set;
 }
 
-void AbstractClient::setGeometry(const QRect &rect)
+void AbstractClient::setFrameGeometry(const QRect &rect)
 {
     m_geometry = rect;
     emit geometryChanged();
 }
 
-QRect AbstractClient::geometry() const
+QRect AbstractClient::frameGeometry() const
 {
     return m_geometry;
 }

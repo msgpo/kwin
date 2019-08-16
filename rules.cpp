@@ -906,10 +906,10 @@ void AbstractClient::applyWindowRules()
     // Placement - does need explicit update, just like some others below
     // Geometry : setGeometry() doesn't check rules
     auto client_rules = rules();
-    QRect orig_geom = QRect(pos(), sizeForClientSize(clientSize()));   // handle shading
+    QRect orig_geom = QRect(pos(), constrainedFrameSize(size()));   // handle shading
     QRect geom = client_rules->checkGeometry(orig_geom);
     if (geom != orig_geom)
-        setGeometry(geom);
+        setFrameGeometry(geom);
     // MinSize, MaxSize handled by Geometry
     // IgnoreGeometry
     setDesktop(desktop());
@@ -937,7 +937,7 @@ void AbstractClient::applyWindowRules()
             && !client_rules->checkAcceptFocus(true))
         workspace()->activateNextClient(this);
     // Closeable
-    QSize s = adjustedSize();
+    QSize s = constrainedFrameSize(size());
     if (s != size() && s.isValid())
         resizeWithChecks(s);
     // Autogrouping : Only checked on window manage

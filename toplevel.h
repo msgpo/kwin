@@ -3,6 +3,7 @@
  This file is part of the KDE project.
 
 Copyright (C) 2006 Lubos Lunak <l.lunak@kde.org>
+Copyright (C) 2019 Vlad Zagorodniy <vladzzag@gmail.com>
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -68,24 +69,73 @@ enum class ReleaseReason {
     KWinShutsDown ///< Release on KWin Shutdown (window still valid)
 };
 
-class KWIN_EXPORT Toplevel
-    : public QObject
+/**
+ * The Toplevel class represents a window.
+ *
+ * TODO: Describe geometries a bit better.
+ */
+class KWIN_EXPORT Toplevel : public QObject
 {
     Q_OBJECT
 
     Q_PROPERTY(bool alpha READ hasAlpha NOTIFY hasAlphaChanged)
     Q_PROPERTY(qulonglong frameId READ frameId)
-    Q_PROPERTY(QRect geometry READ geometry NOTIFY geometryChanged)
+
+    /**
+     * This property holds the geometry of the toplevel, excluding invisible
+     * portions, e.g. drop-shadows, etc.
+     *
+     * @deprecated Use frameGeometry property instead.
+     */
+    Q_PROPERTY(QRect geometry READ frameGeometry NOTIFY geometryChanged)
+
+    /**
+     * This property holds rectangle that the pixmap or buffer of this toplevel
+     * occupies on the screen. This rectangle includes invisible portions of
+     * client, e.g. client-side decoration shadow, etc.
+     */
+    Q_PROPERTY(QRect bufferGeometry READ bufferGeometry NOTIFY bufferGeometryChanged)
+
+    /**
+     * This property holds the geometry of the toplevel, excluding invisible
+     * portions, e.g. server-side or client-side drop-shadow, etc.
+     */
+    Q_PROPERTY(QRect frameGeometry READ frameGeometry NOTIFY bufferGeometryChanged)
+
+    /**
+     * This property holds the position of the top-left corner of the frame geometry.
+     */
+    Q_PROPERTY(QPoint pos READ pos NOTIFY frameGeometryChanged)
+
+    /**
+     * This property holds the size of the toplevel's frame geometry.
+     */
+    Q_PROPERTY(QSize size READ size NOTIFY frameGeometryChanged)
+
+    /**
+     * This property holds the x position of the toplevel's frame geometry.
+     */
+    Q_PROPERTY(int x READ x NOTIFY frameGeometryChanged)
+
+    /**
+     * This property holds the y position of the toplevel's frame geometry.
+     */
+    Q_PROPERTY(int y READ y NOTIFY frameGeometryChanged)
+
+    /**
+     * This property holds the width of the toplevel's frame geometry.
+     */
+    Q_PROPERTY(int width READ width NOTIFY frameGeometryChanged)
+
+    /**
+     * This property holds the height of the toplevel's frame geometry.
+     */
+    Q_PROPERTY(int height READ height NOTIFY frameGeometryChanged)
+
     Q_PROPERTY(QRect visibleRect READ visibleRect)
-    Q_PROPERTY(int height READ height)
     Q_PROPERTY(qreal opacity READ opacity WRITE setOpacity NOTIFY opacityChanged)
-    Q_PROPERTY(QPoint pos READ pos)
     Q_PROPERTY(int screen READ screen NOTIFY screenChanged)
-    Q_PROPERTY(QSize size READ size)
-    Q_PROPERTY(int width READ width)
     Q_PROPERTY(qulonglong windowId READ windowId CONSTANT)
-    Q_PROPERTY(int x READ x)
-    Q_PROPERTY(int y READ y)
     Q_PROPERTY(int desktop READ desktop)
 
     /**
@@ -260,7 +310,7 @@ public:
      * @return a unique identifier for the Toplevel. On X11 same as @ref window
      */
     virtual quint32 windowId() const;
-    QRect geometry() const;
+
     /**
      * The geometry of the Toplevel which accepts input events. This might be larger
      * than the actual geometry, e.g. to support resizing outside the window.
@@ -268,13 +318,87 @@ public:
      * Default implementation returns same as geometry.
      */
     virtual QRect inputGeometry() const;
+
+    /**
+     * Returns the extents of invisible portions in the pixmap.
+     *
+     * An X11 pixmap may contain invisible space around the actual contents of the
+     * client. That space is reserved for server-side decoration, which we usually
+     * want to skip when building scene nodes.
+     *
+     * This method always returns null margins object for Wayland clients.
+     */
+    virtual QMargins bufferMargins() const = 0;
+
+    /**
+     *
+     */
+    virtual QPoint bufferOrigin() const = 0;
+
+    /**
+     * Returns the geometry of the pixmap or buffer of the client.
+     *
+     * For X11 clients, this method returns server-side geometry of the client, i.e.
+     * with server-side decoration included.
+     *
+     * For Wayland clients, this method returns geometry of the buffer, excluding
+     * server-side decoration if the client is decorated.
+     */
+    virtual QRect bufferGeometry() const = 0;
+
+    /**
+     * Returns the extents of the server-side decoration.
+     *
+     * Note that the returned margins object will have all margins set to 0 if the
+     * client doesn't have a server-side decoration.
+     */
+    virtual QMargins frameMargins() const = 0;
+
+    /**
+     *
+     */
+    virtual QPoint frameOrigin() const = 0;
+
+    /**
+     *
+     */
+    virtual QRect frameGeometry() const = 0;
+
+    /**
+     * Returns the size of the toplevel's frame geometry.
+     */
     QSize size() const;
+
+    /**
+     * Returns the position of the top-left corner of the frame geometry.
+     */
     QPoint pos() const;
-    QRect rect() const;
+
+    /**
+     * Returns the x position of the toplevel's frame geometry.
+     */
     int x() const;
+
+    /**
+     * Returns the y position of the toplevel's frame geometry.
+     */
     int y() const;
+
+    /**
+     * Returns the width of the toplevel's frame geometry.
+     */
     int width() const;
+
+    /**
+     * Returns the height of the toplevel's frame geometry.
+     */
     int height() const;
+
+    /**
+     *
+     */
+    QRect rect() const;
+
     bool isOnScreen(int screen) const;   // true if it's at least partially there
     bool isOnActiveScreen() const;
     int screen() const; // the screen where the center is
@@ -285,11 +409,6 @@ public:
      */
     qreal screenScale() const; //
     virtual QPoint clientPos() const = 0; // inside of geometry()
-    /**
-     * Describes how the client's content maps to the window geometry including the frame.
-     * The default implementation is a 1:1 mapping meaning the frame is part of the content.
-     */
-    virtual QPoint clientContentPos() const;
     virtual QSize clientSize() const = 0;
     virtual QRect visibleRect() const; // the area the window occupies on the screen
     virtual QRect decorationRect() const; // rect including the decoration shadows
@@ -572,6 +691,16 @@ Q_SIGNALS:
      */
     void shadowChanged();
 
+    /**
+     * Emitted whenever the client's buffer geometry changes.
+     */
+    void bufferGeometryChanged();
+
+    /**
+     * Emitted whenever the client's frame geometry changes.
+     */
+    void frameGeometryChanged();
+
 protected Q_SLOTS:
     /**
      * Checks whether the screen number for this Toplevel changed and updates if needed.
@@ -618,7 +747,6 @@ protected:
     friend QDebug& operator<<(QDebug& stream, const Toplevel*);
     void deleteEffectWindow();
     void setDepth(int depth);
-    QRect geom;
     xcb_visualid_t m_visual;
     int bit_depth;
     NETWinInfo* info;
@@ -665,46 +793,6 @@ inline void Toplevel::setWindowHandles(xcb_window_t w)
 {
     assert(!m_client.isValid() && w != XCB_WINDOW_NONE);
     m_client.reset(w, false);
-}
-
-inline QRect Toplevel::geometry() const
-{
-    return geom;
-}
-
-inline QSize Toplevel::size() const
-{
-    return geom.size();
-}
-
-inline QPoint Toplevel::pos() const
-{
-    return geom.topLeft();
-}
-
-inline int Toplevel::x() const
-{
-    return geom.x();
-}
-
-inline int Toplevel::y() const
-{
-    return geom.y();
-}
-
-inline int Toplevel::width() const
-{
-    return geom.width();
-}
-
-inline int Toplevel::height() const
-{
-    return geom.height();
-}
-
-inline QRect Toplevel::rect() const
-{
-    return QRect(0, 0, width(), height());
 }
 
 inline bool Toplevel::readyForPainting() const
@@ -819,7 +907,8 @@ inline QRegion Toplevel::damage() const
 
 inline QRegion Toplevel::repaints() const
 {
-    return repaints_region.translated(pos()) | layer_repaints_region;
+    const QRect rect = frameGeometry() | bufferGeometry();
+    return repaints_region.translated(rect.topLeft()) | layer_repaints_region;
 }
 
 inline bool Toplevel::shape() const
@@ -916,11 +1005,6 @@ inline KWayland::Server::SurfaceInterface *Toplevel::surface() const
 inline const QSharedPointer<QOpenGLFramebufferObject> &Toplevel::internalFramebufferObject() const
 {
     return m_internalFBO;
-}
-
-inline QPoint Toplevel::clientContentPos() const
-{
-    return QPoint(0, 0);
 }
 
 template <class T, class U>

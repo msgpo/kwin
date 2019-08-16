@@ -75,7 +75,7 @@ bool TabGroup::add(AbstractClient* c, AbstractClient *other, bool after, bool be
 
     bool cannotTab = false;
     ShadeMode oldShadeMode = c->shadeMode();
-    QRect oldGeom = c->geometry();
+    QRect oldGeom = c->frameGeometry();
     int oldDesktop = c->desktop();
 
     c->setShade(m_current->shadeMode());
@@ -85,14 +85,14 @@ bool TabGroup::add(AbstractClient* c, AbstractClient *other, bool after, bool be
         cannotTab = c->desktop() != m_current->desktop();
     }
     if (!cannotTab) {
-        c->setGeometry(m_current->geometry());
-        cannotTab = c->geometry() != m_current->geometry();
+        c->setFrameGeometry(m_current->frameGeometry());
+        cannotTab = c->frameGeometry() != m_current->frameGeometry();
     }
 
     if (cannotTab) {
         c->setShade(oldShadeMode);
         c->setDesktop(oldDesktop);
-        c->setGeometry(oldGeom);
+        c->setFrameGeometry(oldGeom);
         // trigger decoration repaint on the group to make sure that hover animations are properly reset.
         m_current->triggerDecorationRepaint();
         return false; // cannot tab
@@ -275,9 +275,10 @@ void TabGroup::updateMinMaxSize()
     // TODO this leaves another unresolved conflict about the base increment (luckily not used too often)
     const QSize size = m_current->clientSize().expandedTo(m_minSize).boundedTo(m_maxSize);
     if (size != m_current->clientSize()) {
-        const QRect r(m_current->pos(), m_current->sizeForClientSize(size));
+        const QSize frameSize = m_current->mapFromClient(size);
+        const QRect r(m_current->pos(), m_current->constrainedFrameSize(frameSize));
         for (auto i = m_clients.constBegin(), end = m_clients.constEnd(); i != end; ++i)
-            (*i)->setGeometry(r);
+            (*i)->setFrameGeometry(r);
     }
 }
 
@@ -328,8 +329,8 @@ void TabGroup::updateStates(AbstractClient* main, States states, AbstractClient*
             // the order Shaded -> Geometry is somewhat important because one will change the other
             if ((states & Shaded))
                 c->setShade(main->shadeMode());
-            if ((states & Geometry) && c->geometry() != main->geometry())
-                c->setGeometry(main->geometry());
+            if ((states & Geometry) && c->frameGeometry() != main->frameGeometry())
+                c->setFrameGeometry(main->frameGeometry());
             if (states & Desktop) {
                 if (c->isOnAllDesktops() != main->isOnAllDesktops())
                     c->setOnAllDesktops(main->isOnAllDesktops());
@@ -347,7 +348,7 @@ void TabGroup::updateStates(AbstractClient* main, States states, AbstractClient*
             }
 
             // If it's not possible to have the same states then ungroup them, TODO: Check all states
-            if (((states & Geometry) && c->geometry() != main->geometry()) ||
+            if (((states & Geometry) && c->frameGeometry() != main->frameGeometry()) ||
                 ((states & Desktop) && c->desktop() != main->desktop()))
                 toBeRemoved << c;
         }

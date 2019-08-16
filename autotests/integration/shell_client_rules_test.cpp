@@ -1604,12 +1604,12 @@ void TestShellClientRules::testMaximizeForce()
     QVERIFY(states.testFlag(XdgShellSurface::State::Maximized));
 
     // Any attempt to change the maximized state should not succeed.
-    const QRect oldGeometry = client->geometry();
+    const QRect oldGeometry = client->frameGeometry();
     workspace()->slotWindowMaximize();
     QVERIFY(!configureRequestedSpy->wait(100));
     QCOMPARE(client->maximizeMode(), MaximizeMode::MaximizeFull);
     QCOMPARE(client->requestedMaximizeMode(), MaximizeMode::MaximizeFull);
-    QCOMPARE(client->geometry(), oldGeometry);
+    QCOMPARE(client->frameGeometry(), oldGeometry);
 
     // If we create the client again, the maximized state should still be forced.
     shellSurface.reset();
@@ -1743,12 +1743,12 @@ void TestShellClientRules::testMaximizeApplyNow()
     QCOMPARE(client->requestedMaximizeMode(), MaximizeMode::MaximizeRestore);
 
     // The rule should be discarded after it's been applied.
-    const QRect oldGeometry = client->geometry();
+    const QRect oldGeometry = client->frameGeometry();
     client->evaluateWindowRules();
     QVERIFY(!configureRequestedSpy->wait(100));
     QCOMPARE(client->maximizeMode(), MaximizeMode::MaximizeRestore);
     QCOMPARE(client->requestedMaximizeMode(), MaximizeMode::MaximizeRestore);
-    QCOMPARE(client->geometry(), oldGeometry);
+    QCOMPARE(client->frameGeometry(), oldGeometry);
 
     // Destroy the client.
     shellSurface.reset();
@@ -1813,12 +1813,12 @@ void TestShellClientRules::testMaximizeForceTemporarily()
     QVERIFY(states.testFlag(XdgShellSurface::State::Maximized));
 
     // Any attempt to change the maximized state should not succeed.
-    const QRect oldGeometry = client->geometry();
+    const QRect oldGeometry = client->frameGeometry();
     workspace()->slotWindowMaximize();
     QVERIFY(!configureRequestedSpy->wait(100));
     QCOMPARE(client->maximizeMode(), MaximizeMode::MaximizeFull);
     QCOMPARE(client->requestedMaximizeMode(), MaximizeMode::MaximizeFull);
-    QCOMPARE(client->geometry(), oldGeometry);
+    QCOMPARE(client->frameGeometry(), oldGeometry);
 
     // The rule should be discarded if we close the client.
     shellSurface.reset();

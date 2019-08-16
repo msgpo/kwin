@@ -725,7 +725,7 @@ void PointerInputRedirection::updatePointerConstraints()
                 m_locked = false;
                 disconnectLockedPointerAboutToBeUnboundConnection();
                 if (! (hint.x() < 0 || hint.y() < 0) && focus()) {
-                    processMotion(focus()->pos() - focus()->clientContentPos() + hint, waylandServer()->seat()->timestamp());
+                    processMotion(focus()->pos() + focus()->bufferOrigin() + hint, waylandServer()->seat()->timestamp());
                 }
             }
             return;
@@ -743,7 +743,7 @@ void PointerInputRedirection::updatePointerConstraints()
                     if (hint.x() < 0 || hint.y() < 0 || !focus()) {
                         return;
                     }
-                    auto globalHint = focus()->pos() - focus()->clientContentPos() + hint;
+                    auto globalHint = focus()->pos() + focus()->bufferOrigin() + hint;
 
                     // When the resource finally goes away, reposition the cursor according to the hint
                     connect(lock.data(), &KWayland::Server::LockedPointerInterface::unbound, this,

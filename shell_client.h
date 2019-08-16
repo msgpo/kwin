@@ -57,8 +57,13 @@ public:
     ShellClient(KWayland::Server::XdgShellPopupInterface *surface);
     ~ShellClient() override;
 
+    QMargins bufferMargins() const override;
+    QPoint bufferOrigin() const override;
+    QRect bufferGeometry() const override;
+    QMargins frameMargins() const override;
+    QPoint frameOrigin() const override;
+    QRect frameGeometry() const override;
     QStringList activities() const override;
-    QPoint clientContentPos() const override;
     QSize clientSize() const override;
     QRect transparentRect() const override;
     NET::WindowType windowType(bool direct = false, int supported_types = 0) const override;
@@ -107,9 +112,13 @@ public:
     bool dockWantsInput() const override;
     using AbstractClient::resizeWithChecks;
     void resizeWithChecks(int w, int h, ForceGeometry_t force = NormalGeometrySet) override;
-    using AbstractClient::setGeometry;
-    void setGeometry(int x, int y, int w, int h, ForceGeometry_t force = NormalGeometrySet) override;
+    void setFrameGeometry(const QRect &rect, ForceGeometry_t force = NormalGeometrySet) override;
+    void move(const QPoint &position, ForceGeometry_t force = NormalGeometrySet) override;
     bool hasStrut() const override;
+    QSize mapToClient(const QSize &size) const override;
+    QSize mapFromClient(const QSize &size) const override;
+    QSize constrainedFrameSize(const QSize &size, Sizemode mode = SizemodeAny) const override;
+    QSize constrainedClientSize(const QSize &size, Sizemode mode = SizemodeAny) const override;
 
     quint32 windowId() const override {
         return m_windowId;
@@ -193,6 +202,8 @@ protected:
     bool isUnmapped() const {
         return m_unmapped;
     }
+
+    QRect m_bufferGeometry;
 
 private Q_SLOTS:
     void clientFullScreenChanged(bool fullScreen);

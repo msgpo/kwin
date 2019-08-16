@@ -130,7 +130,7 @@ void InternalClient::setInternalFramebufferObject(const QSharedPointer<QOpenGLFr
 
     setClientSize(fbo->size() / surface()->scale());
     markAsMapped();
-    doSetGeometry(QRect(geom.topLeft(), clientSize()));
+    doSetGeometry(QRect(pos(), clientSize()));
     Toplevel::setInternalFramebufferObject(fbo);
     Toplevel::addDamage(QRegion(0, 0, width(), height()));
 }
@@ -248,17 +248,17 @@ bool InternalClient::requestGeometry(const QRect &rect)
 
 void InternalClient::doSetGeometry(const QRect &rect)
 {
-    if (geom == rect && pendingGeometryUpdate() == PendingGeometryNone) {
+    if (m_bufferGeometry == rect && pendingGeometryUpdate() == PendingGeometryNone) {
         return;
     }
     if (!isUnmapped()) {
         addWorkspaceRepaint(visibleRect());
     }
-    geom = rect;
+    m_bufferGeometry = rect;
 
-    if (isUnmapped() && geometryRestore().isEmpty() && !geom.isEmpty()) {
+    if (isUnmapped() && geometryRestore().isEmpty() && !m_bufferGeometry.isEmpty()) {
         // use first valid geometry as restore geometry
-        setGeometryRestore(geom);
+        setGeometryRestore(m_bufferGeometry);
     }
 
     if (!isUnmapped()) {
@@ -277,24 +277,28 @@ void InternalClient::doSetGeometry(const QRect &rect)
     }
 }
 
-void InternalClient::doMove(int x, int y)
-{
-    Q_UNUSED(x)
-    Q_UNUSED(y)
-    syncGeometryToInternalWindow();
-}
-
 void InternalClient::syncGeometryToInternalWindow()
 {
     if (!m_internalWindow) {
         return;
     }
-    const QRect windowRect = QRect(geom.topLeft() + QPoint(borderLeft(), borderTop()),
-                                    geom.size() - QSize(borderLeft() + borderRight(), borderTop() + borderBottom()));
+    const QRect windowRect = QRect(m_bufferGeometry.topLeft() + QPoint(borderLeft(), borderTop()),
+                                    m_bufferGeometry.size() - QSize(borderLeft() + borderRight(), borderTop() + borderBottom()));
     if (m_internalWindow->geometry() != windowRect) {
         // delay to end of cycle to prevent freeze, see BUG 384441
         QTimer::singleShot(0, m_internalWindow, std::bind(static_cast<void (QWindow::*)(const QRect&)>(&QWindow::setGeometry), m_internalWindow, windowRect));
     }
+}
+
+void InternalClient::move(const QPoint &position, ForceGeometry_t force)
+{
+    Q_UNUSED(force)
+    if (m_bufferGeometry.topLeft() == position) {
+        return;
+    }
+    m_bufferGeometry.moveTopLeft(position);
+    syncGeometryToInternalWindow();
+    emit geometryChanged();
 }
 
 void InternalClient::resizeWithChecks(int w, int h, ForceGeometry_t force)

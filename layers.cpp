@@ -802,14 +802,16 @@ void Client::restackWindow(xcb_window_t above, int detail, NET::RequestSource sr
     }
     else if (detail == XCB_STACK_MODE_TOP_IF) {
         other = workspace()->findClient(Predicate::WindowMatch, above);
-        if (other && other->geometry().intersects(geometry()))
+        if (other && other->frameGeometry().intersects(frameGeometry())) {
             workspace()->raiseClientRequest(this, src, timestamp);
+        }
         return;
     }
     else if (detail == XCB_STACK_MODE_BOTTOM_IF) {
         other = workspace()->findClient(Predicate::WindowMatch, above);
-        if (other && other->geometry().intersects(geometry()))
+        if (other && other->frameGeometry().intersects(frameGeometry())) {
             workspace()->lowerClientRequest(this, src, timestamp);
+        }
         return;
     }
 

@@ -57,6 +57,7 @@ public:
     bool isInputMethod() const override;
     bool isOutline() const override;
     quint32 windowId() const override;
+    void move(const QPoint &position, ForceGeometry_t force = NormalGeometrySet) override;
     using AbstractClient::resizeWithChecks;
     void resizeWithChecks(int w, int h, ForceGeometry_t force = NormalGeometrySet) override;
     QWindow *internalWindow() const override;
@@ -64,7 +65,6 @@ public:
 
 protected:
     bool acceptsFocus() const override;
-    void doMove(int x, int y) override;
     void doResizeSync() override;
     bool requestGeometry(const QRect &rect) override;
     void doSetGeometry(const QRect &rect) override;

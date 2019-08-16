@@ -253,7 +253,8 @@ void SceneQPainter::Window::performPaint(int mask, QRegion region, WindowPaintDa
     painter->setClipRegion(region);
     painter->setClipping(true);
 
-    painter->translate(x(), y());
+    const QRect bufferGeometry = toplevel->bufferGeometry();
+    painter->translate(bufferGeometry.topLeft());
     if (mask & PAINT_WINDOW_TRANSFORMED) {
         painter->translate(data.xTranslation(), data.yTranslation());
         painter->scale(data.xScale(), data.yScale());
@@ -268,7 +269,7 @@ void SceneQPainter::Window::performPaint(int mask, QRegion region, WindowPaintDa
         tempImage.fill(Qt::transparent);
         tempPainter.begin(&tempImage);
         tempPainter.save();
-        tempPainter.translate(toplevel->geometry().topLeft() - toplevel->visibleRect().topLeft());
+        tempPainter.translate(toplevel->frameGeometry().topLeft() - toplevel->visibleRect().topLeft()); // FIXME: Incorrect.
         painter = &tempPainter;
     }
     renderShadow(painter);
@@ -281,7 +282,7 @@ void SceneQPainter::Window::performPaint(int mask, QRegion region, WindowPaintDa
         // special case for XWayland windows
         srcSize = toplevel->clientSize();
     }
-    const QRect src = QRect(toplevel->clientPos() + toplevel->clientContentPos(), srcSize);
+    const QRect src = QRect(toplevel->clientPos() - toplevel->bufferOrigin(), srcSize);
     painter->drawImage(target, pixmap->image(), src);
 
     // render subsurfaces
@@ -301,7 +302,7 @@ void SceneQPainter::Window::performPaint(int mask, QRegion region, WindowPaintDa
         tempPainter.fillRect(QRect(QPoint(0, 0), toplevel->visibleRect().size()), translucent);
         tempPainter.end();
         painter = scenePainter;
-        painter->drawImage(toplevel->visibleRect().topLeft() - toplevel->geometry().topLeft(), tempImage);
+        painter->drawImage(toplevel->visibleRect().topLeft() - toplevel->frameGeometry().topLeft(), tempImage); // FIXME: Incorrect.
     }
 
     painter->restore();

@@ -92,6 +92,13 @@ public:
     xcb_window_t inputId() const { return m_decoInputExtent; }
     xcb_window_t frameId() const override;
 
+    QMargins bufferMargins() const override;
+    QPoint bufferOrigin() const override;
+    QRect bufferGeometry() const override;
+    QMargins frameMargins() const override;
+    QPoint frameOrigin() const override;
+    QRect frameGeometry() const override;
+
     bool isTransient() const override;
     bool groupTransient() const override;
     bool wasOriginallyGroupTransient() const;
@@ -176,17 +183,18 @@ public:
 
     void updateShape();
 
-    using AbstractClient::setGeometry;
-    void setGeometry(int x, int y, int w, int h, ForceGeometry_t force = NormalGeometrySet) override;
-    /// plainResize() simply resizes
-    void plainResize(int w, int h, ForceGeometry_t force = NormalGeometrySet);
-    void plainResize(const QSize& s, ForceGeometry_t force = NormalGeometrySet);
+    void setFrameGeometry(const QRect &rect, ForceGeometry_t force = NormalGeometrySet) override;
+    void plainResize(const QSize& size, ForceGeometry_t force = NormalGeometrySet);
+    void move(const QPoint &position, ForceGeometry_t force = NormalGeometrySet) override;
     /// resizeWithChecks() resizes according to gravity, and checks workarea position
     using AbstractClient::resizeWithChecks;
     void resizeWithChecks(int w, int h, ForceGeometry_t force = NormalGeometrySet) override;
     void resizeWithChecks(int w, int h, xcb_gravity_t gravity, ForceGeometry_t force = NormalGeometrySet);
     void resizeWithChecks(const QSize& s, xcb_gravity_t gravity, ForceGeometry_t force = NormalGeometrySet);
-    QSize sizeForClientSize(const QSize&, Sizemode mode = SizemodeAny, bool noframe = false) const override;
+    QSize mapToClient(const QSize &size) const override;
+    QSize mapFromClient(const QSize &size) const override;
+    QSize constrainedFrameSize(const QSize &size, Sizemode mode = SizemodeAny) const override;
+    QSize constrainedClientSize(const QSize &size, Sizemode mode = SizemodeAny) const override;
 
     bool providesContextHelp() const override;
 
@@ -261,9 +269,6 @@ public:
      * an xinerama setup where the monitors are not the same resolution.
      */
     bool hasOffscreenXineramaStrut() const;
-
-    // Decorations <-> Effects
-    QRect decorationRect() const override;
 
     QRect transparentRect() const override;
 
@@ -363,7 +368,6 @@ protected:
     bool belongsToDesktop() const override;
     void setGeometryRestore(const QRect &geo) override;
     void updateTabGroupStates(TabGroup::States states) override;
-    void doMove(int x, int y) override;
     bool doStartMoveResize() override;
     void doPerformMoveResize() override;
     bool isWaitingForMoveResizeSync() const override;
@@ -439,9 +443,6 @@ private:
 
     void embedClient(xcb_window_t w, xcb_visualid_t visualid, xcb_colormap_t colormap, uint8_t depth);
     void detectNoBorder();
-    Xcb::Property fetchGtkFrameExtents() const;
-    void readGtkFrameExtents(Xcb::Property &prop);
-    void detectGtkFrameExtents();
     void destroyDecoration() override;
     void updateFrameExtents();
 
@@ -468,6 +469,12 @@ private:
      * and shows/hides the client.
      */
     void updateShowOnScreenEdge();
+
+    void setCustomFrameExtents(const NETStrut &strut);
+
+    QPoint mapToBuffer(const QPoint &point) const;
+    QSize mapToBuffer(const QSize &size) const;
+    QRect mapToBuffer(const QRect &rect) const;
 
     Xcb::Window m_client;
     Xcb::Window m_wrapper;
@@ -551,10 +558,14 @@ private:
     QTimer *m_focusOutTimer;
 
     QList<QMetaObject::Connection> m_connections;
-    bool m_clientSideDecorated;
-
     QMetaObject::Connection m_edgeRemoveConnection;
     QMetaObject::Connection m_edgeGeometryTrackingConnection;
+
+    QMargins m_customFrameExtents;
+
+    // So that decorations don't start with size being (0, 0).
+    QRect m_bufferGeometry = QRect(0, 0, 100, 100);
+    QRect m_frameGeometry = QRect(0, 0, 100, 100);
 };
 
 inline xcb_window_t Client::wrapperId() const
@@ -564,7 +575,7 @@ inline xcb_window_t Client::wrapperId() const
 
 inline bool Client::isClientSideDecorated() const
 {
-    return m_clientSideDecorated;
+    return !m_customFrameExtents.isNull();
 }
 
 inline bool Client::groupTransient() const
@@ -653,11 +664,6 @@ inline bool Client::isManaged() const
 inline QSize Client::clientSize() const
 {
     return client_size;
-}
-
-inline void Client::plainResize(const QSize& s, ForceGeometry_t force)
-{
-    plainResize(s.width(), s.height(), force);
 }
 
 inline void Client::resizeWithChecks(int w, int h, AbstractClient::ForceGeometry_t force)

@@ -118,7 +118,7 @@ void DontCrashCursorPhysicalSizeEmpty::testMoveCursorOverDeco()
     // and fake a cursor theme change, so that the theme gets recreated
     emit KWin::Cursor::self()->themeChanged();
 
-    KWin::Cursor::setPos(QPoint(c->geometry().center().x(), c->clientPos().y() / 2));
+    KWin::Cursor::setPos(QPoint(c->frameGeometry().center().x(), c->frameMargins().top() / 2));
 }
 
 WAYLANDTEST_MAIN(DontCrashCursorPhysicalSizeEmpty)

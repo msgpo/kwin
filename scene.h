@@ -295,14 +295,6 @@ public:
     virtual void performPaint(int mask, QRegion region, WindowPaintData data) = 0;
     // do any cleanup needed when the window's composite pixmap is discarded
     void pixmapDiscarded();
-    int x() const;
-    int y() const;
-    int width() const;
-    int height() const;
-    QRect geometry() const;
-    QPoint pos() const;
-    QSize size() const;
-    QRect rect() const;
     // access to the internal window class
     // TODO eventually get rid of this
     Toplevel* window() const;
@@ -344,7 +336,7 @@ public:
     void unreferencePreviousPixmap();
     void invalidateQuadsCache();
 protected:
-    WindowQuadList makeQuads(WindowQuadType type, const QRegion& reg, const QPoint &textureOffset = QPoint(0, 0), qreal textureScale = 1.0) const;
+    WindowQuadList makeContentsQuads() const;
     WindowQuadList makeDecorationQuads(const QRect *rects, const QRegion &region, qreal textureScale = 1.0) const;
     /**
      * @brief Returns the WindowPixmap for this Window.
@@ -535,54 +527,6 @@ public:
 protected:
     EffectFrameImpl* m_effectFrame;
 };
-
-inline
-int Scene::Window::x() const
-{
-    return toplevel->x();
-}
-
-inline
-int Scene::Window::y() const
-{
-    return toplevel->y();
-}
-
-inline
-int Scene::Window::width() const
-{
-    return toplevel->width();
-}
-
-inline
-int Scene::Window::height() const
-{
-    return toplevel->height();
-}
-
-inline
-QRect Scene::Window::geometry() const
-{
-    return toplevel->geometry();
-}
-
-inline
-QSize Scene::Window::size() const
-{
-    return toplevel->size();
-}
-
-inline
-QPoint Scene::Window::pos() const
-{
-    return toplevel->pos();
-}
-
-inline
-QRect Scene::Window::rect() const
-{
-    return toplevel->rect();
-}
 
 inline
 Toplevel* Scene::Window::window() const

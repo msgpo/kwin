@@ -339,6 +339,8 @@ void SceneXrender::Window::cleanup()
 // Maps window coordinates to screen coordinates
 QRect SceneXrender::Window::mapToScreen(int mask, const WindowPaintData &data, const QRect &rect) const
 {
+    const QRect bufferGeometry = toplevel->bufferGeometry();
+
     QRect r = rect;
 
     if (mask & PAINT_WINDOW_TRANSFORMED) {
@@ -350,7 +352,7 @@ QRect SceneXrender::Window::mapToScreen(int mask, const WindowPaintData &data, c
     }
 
     // Move the rectangle to the screen position
-    r.translate(x(), y());
+    r.translate(bufferGeometry.topLeft());
 
     if (mask & PAINT_SCREEN_TRANSFORMED) {
         // Apply the screen transformation
@@ -366,6 +368,8 @@ QRect SceneXrender::Window::mapToScreen(int mask, const WindowPaintData &data, c
 // Maps window coordinates to screen coordinates
 QPoint SceneXrender::Window::mapToScreen(int mask, const WindowPaintData &data, const QPoint &point) const
 {
+    const QRect bufferGeometry = toplevel->bufferGeometry();
+
     QPoint pt = point;
 
     if (mask & PAINT_WINDOW_TRANSFORMED) {
@@ -375,7 +379,7 @@ QPoint SceneXrender::Window::mapToScreen(int mask, const WindowPaintData &data, 
     }
 
     // Move the point to the screen position
-    pt += QPoint(x(), y());
+    pt += bufferGeometry.topLeft();
 
     if (mask & PAINT_SCREEN_TRANSFORMED) {
         // Apply the screen transformation
@@ -445,7 +449,8 @@ void SceneXrender::Window::performPaint(int mask, QRegion region, WindowPaintDat
     } else
         filter = ImageFilterFast;
     // do required transformations
-    const QRect wr = mapToScreen(mask, data, QRect(0, 0, width(), height()));
+    const QRect bufferGeometry = toplevel->bufferGeometry();
+    const QRect wr = mapToScreen(mask, data, QRect(0, 0, bufferGeometry.width(), bufferGeometry.height()));
     QRect cr = QRect(toplevel->clientPos(), toplevel->clientSize()); // Client rect (in the window)
     qreal xscale = 1;
     qreal yscale = 1;
@@ -722,8 +727,8 @@ xcb_render_composite(connection(), XCB_RENDER_PICT_OP_OVER, m_xrenderShadow->pic
             if (blitInTempPixmap) {
                 rect.x = -temp_visibleRect.left();
                 rect.y = -temp_visibleRect.top();
-                rect.width = width();
-                rect.height = height();
+                rect.width = wr.width();
+                rect.height = wr.height();
             } else {
                 rect.x = wr.x();
                 rect.y = wr.y();

@@ -364,10 +364,10 @@ void ShellClient::finishInit() {
     if (supportsWindowRules()) {
         setupWindowRules(false);
 
-        const QRect originalGeometry = QRect(pos(), sizeForClientSize(clientSize()));
+        const QRect originalGeometry = frameGeometry();
         const QRect ruledGeometry = rules()->checkGeometry(originalGeometry, true);
         if (originalGeometry != ruledGeometry) {
-            setGeometry(ruledGeometry);
+            setFrameGeometry(ruledGeometry);
         }
 
         maximize(rules()->checkMaximize(maximizeMode(), true));
@@ -477,15 +477,40 @@ QSize ShellClient::toWindowGeometry(const QSize &size) const
     return adjustedSize;
 }
 
+QMargins ShellClient::bufferMargins() const
+{
+    return QMargins();
+}
+
+QPoint ShellClient::bufferOrigin() const
+{
+    return QPoint(borderLeft(), borderTop());
+}
+
+QRect ShellClient::bufferGeometry() const
+{
+    return m_bufferGeometry;
+}
+
+QMargins ShellClient::frameMargins() const
+{
+    return QMargins(borderLeft(), borderTop(), borderRight(), borderBottom());
+}
+
+QPoint ShellClient::frameOrigin() const
+{
+    return QPoint(0, 0);
+}
+
+QRect ShellClient::frameGeometry() const
+{
+    return m_bufferGeometry;
+}
+
 QStringList ShellClient::activities() const
 {
     // TODO: implement
     return QStringList();
-}
-
-QPoint ShellClient::clientContentPos() const
-{
-    return -1 * clientPos();
 }
 
 QSize ShellClient::clientSize() const
@@ -607,10 +632,11 @@ void ShellClient::createDecoration(const QRect &oldGeom)
             [this]() {
                 GeometryUpdatesBlocker blocker(this);
                 RequestGeometryBlocker requestBlocker(this);
-                QRect oldgeom = geometry();
-                if (!isShade())
-                    checkWorkspacePosition(oldgeom);
-                emit geometryShapeChanged(this, oldgeom);
+                const QRect oldGeometry = frameGeometry();
+                if (!isShade()) {
+                    checkWorkspacePosition(oldGeometry);
+                }
+                emit geometryShapeChanged(this, oldGeometry);
             }
         );
     }
@@ -627,7 +653,7 @@ void ShellClient::updateDecoration(bool check_workspace_pos, bool force)
     if (!force &&
             ((!isDecorated() && noBorder()) || (isDecorated() && !noBorder())))
         return;
-    QRect oldgeom = geometry();
+    QRect oldgeom = frameGeometry();
     QRect oldClientGeom = oldgeom.adjusted(borderLeft(), borderTop(), -borderRight(), -borderBottom());
     blockGeometryUpdates(true);
     if (force)
@@ -652,14 +678,14 @@ void ShellClient::updateDecoration(bool check_workspace_pos, bool force)
     blockGeometryUpdates(false);
 }
 
-void ShellClient::setGeometry(int x, int y, int w, int h, ForceGeometry_t force)
+void ShellClient::setFrameGeometry(const QRect &rect, ForceGeometry_t force)
 {
-    const QRect newGeometry = rules()->checkGeometry(QRect(x, y, w, h));
+    const QRect newGeometry = rules()->checkGeometry(rect);
 
     if (areGeometryUpdatesBlocked()) {
         // when the GeometryUpdateBlocker exits the current geom is passed to setGeometry
         // thus we need to set it here.
-        geom = newGeometry;
+        m_bufferGeometry = newGeometry;
         if (pendingGeometryUpdate() == PendingGeometryForced)
             {} // maximum, nothing needed
         else if (force == ForceGeometrySet)
@@ -670,7 +696,7 @@ void ShellClient::setGeometry(int x, int y, int w, int h, ForceGeometry_t force)
     }
     if (pendingGeometryUpdate() != PendingGeometryNone) {
         // reset geometry to the one before blocking, so that we can compare properly
-        geom = geometryBeforeUpdateBlocking();
+        m_bufferGeometry = geometryBeforeUpdateBlocking();
     }
     const QSize requestedClientSize = newGeometry.size() - QSize(borderLeft() + borderRight(), borderTop() + borderBottom());
     const QSize requestedWindowGeometrySize = toWindowGeometry(newGeometry.size());
@@ -686,21 +712,54 @@ void ShellClient::setGeometry(int x, int y, int w, int h, ForceGeometry_t force)
     }
 }
 
+void ShellClient::move(const QPoint &position, ForceGeometry_t force)
+{
+    // Resuming geometry updates is handled only in setGeometry().
+    Q_ASSERT(pendingGeometryUpdate() == PendingGeometryNone || areGeometryUpdatesBlocked());
+    if (!areGeometryUpdatesBlocked() && position != rules()->checkPosition(position)) {
+        qCDebug(KWIN_CORE) << "forced position fail:" << position << ":" << rules()->checkPosition(position);
+    }
+    if (force == NormalGeometrySet && m_bufferGeometry.topLeft() == position) {
+        return;
+    }
+    m_bufferGeometry.moveTopLeft(position);
+    if (areGeometryUpdatesBlocked()) {
+        if (pendingGeometryUpdate() == PendingGeometryForced) {
+            // Maximum, nothing needed.
+        } else if (force == ForceGeometrySet) {
+            setPendingGeometryUpdate(PendingGeometryForced);
+        } else {
+            setPendingGeometryUpdate(PendingGeometryNormal);
+        }
+        return;
+    }
+    updateWindowRules(Rules::Position);
+    screens()->setCurrent(this);
+    workspace()->updateStackingOrder();
+    // Client itself is not damaged.
+    addRepaintDuringGeometryUpdates();
+    updateGeometryBeforeUpdateBlocking();
+
+    // Update states of all other windows in this group.
+    updateTabGroupStates(TabGroup::Geometry);
+    emit geometryChanged();
+}
+
 void ShellClient::doSetGeometry(const QRect &rect)
 {
-    if (geom == rect && pendingGeometryUpdate() == PendingGeometryNone) {
+    if (m_bufferGeometry == rect && pendingGeometryUpdate() == PendingGeometryNone) {
         return;
     }
     if (!m_unmapped) {
         addWorkspaceRepaint(visibleRect());
     }
 
-    geom = rect;
+    m_bufferGeometry = rect;
     updateWindowRules(Rules::Position | Rules::Size);
 
-    if (m_unmapped && m_geomMaximizeRestore.isEmpty() && !geom.isEmpty()) {
+    if (m_unmapped && m_geomMaximizeRestore.isEmpty() && !m_bufferGeometry.isEmpty()) {
         // use first valid geometry as restore geometry
-        m_geomMaximizeRestore = geom;
+        m_geomMaximizeRestore = m_bufferGeometry;
     }
 
     if (!m_unmapped) {
@@ -887,7 +946,7 @@ void ShellClient::changeMaximize(bool horizontal, bool vertical, bool adjust)
         workspace()->clientArea(MaximizeArea, this);
 
     const MaximizeMode oldMode = m_requestedMaximizeMode;
-    const QRect oldGeometry = geometry();
+    const QRect oldGeometry = frameGeometry();
 
     // 'adjust == true' means to update the size only, e.g. after changing workspace size
     if (!adjust) {
@@ -955,7 +1014,7 @@ void ShellClient::changeMaximize(bool horizontal, bool vertical, bool adjust)
         if (quickTileMode() != oldQuickTileMode) {
             emit quickTileModeChanged();
         }
-        setGeometry(workspace()->clientArea(MaximizeArea, this));
+        setFrameGeometry(workspace()->clientArea(MaximizeArea, this));
         workspace()->raiseClient(this);
     } else {
         if (m_requestedMaximizeMode == MaximizeRestore) {
@@ -966,9 +1025,9 @@ void ShellClient::changeMaximize(bool horizontal, bool vertical, bool adjust)
         }
 
         if (m_geomMaximizeRestore.isValid()) {
-            setGeometry(m_geomMaximizeRestore);
+            setFrameGeometry(m_geomMaximizeRestore);
         } else {
-            setGeometry(workspace()->clientArea(PlacementArea, this));
+            setFrameGeometry(workspace()->clientArea(PlacementArea, this));
         }
     }
 }
@@ -1027,7 +1086,7 @@ void ShellClient::setFullScreen(bool set, bool user)
         if (m_shellSurface && m_maximizeMode == MaximizeMode::MaximizeFull) {
             m_geomFsRestore = m_geomMaximizeRestore;
         } else {
-            m_geomFsRestore = geometry();
+            m_geomFsRestore = frameGeometry();
         }
     }
     m_fullScreen = set;
@@ -1044,17 +1103,17 @@ void ShellClient::setFullScreen(bool set, bool user)
     updateDecoration(false, false);
 
     if (set) {
-        setGeometry(workspace()->clientArea(FullScreenArea, this));
+        setFrameGeometry(workspace()->clientArea(FullScreenArea, this));
     } else {
         if (m_geomFsRestore.isValid()) {
             int currentScreen = screen();
-            setGeometry(QRect(m_geomFsRestore.topLeft(), adjustedSize(m_geomFsRestore.size())));
+            setFrameGeometry(QRect(m_geomFsRestore.topLeft(), constrainedFrameSize(m_geomFsRestore.size())));
             if( currentScreen != screen())
                 workspace()->sendClientToScreen( this, currentScreen );
         } else {
             // this can happen when the window was first shown already fullscreen,
             // so let the client set the size by itself
-            setGeometry(QRect(workspace()->clientArea(PlacementArea, this).topLeft(), QSize(0, 0)));
+            setFrameGeometry(QRect(workspace()->clientArea(PlacementArea, this).topLeft(), QSize(0, 0)));
         }
     }
 
@@ -1211,7 +1270,7 @@ bool ShellClient::requestGeometry(const QRect &rect)
     if (m_xdgShellPopup) {
         auto parent = transientFor();
         if (parent) {
-            const QPoint globalClientContentPos = parent->geometry().topLeft() + parent->clientPos();
+            const QPoint globalClientContentPos = parent->frameGeometry().topLeft() + parent->clientPos();
             const QPoint relativeOffset = rect.topLeft() - globalClientContentPos;
             serialId = m_xdgShellPopup->configure(QRect(relativeOffset, size));
         }
@@ -1240,7 +1299,7 @@ void ShellClient::updatePendingGeometry()
         }
         if (it->serialId == m_lastAckedConfigureRequest) {
             if (position != it->positionAfterResize) {
-                addLayerRepaint(geometry());
+                addLayerRepaint(frameGeometry());
             }
             position = it->positionAfterResize;
             maximizeMode = it->maximizeMode;
@@ -1389,7 +1448,7 @@ void ShellClient::updateShowOnScreenEdge()
     if ((m_plasmaShellSurface->panelBehavior() == PlasmaShellSurfaceInterface::PanelBehavior::AutoHide && m_hidden) ||
         m_plasmaShellSurface->panelBehavior() == PlasmaShellSurfaceInterface::PanelBehavior::WindowsCanCover) {
         // screen edge API requires an edge, thus we need to figure out which edge the window borders
-        const QRect clientGeometry = geometry();
+        const QRect clientGeometry = frameGeometry();
         Qt::Edges edges;
         for (int i = 0; i < screens()->count(); i++) {
             const QRect screenGeometry = screens()->geometry(i);
@@ -1584,7 +1643,7 @@ QRect ShellClient::transientPlacement(const QRect &bounds) const
     Qt::Edges gravity;
     QPoint offset;
     PositionerConstraints constraintAdjustments;
-    QSize size = geometry().size();
+    QSize size = frameGeometry().size();
 
     const QPoint parentClientPos = transientFor()->pos() + transientFor()->clientPos();
     QRect popupPosition;
@@ -1893,7 +1952,7 @@ void ShellClient::finishCompositing(ReleaseReason releaseReason)
 void ShellClient::placeIn(QRect &area)
 {
     Placement::self()->place(this, area);
-    setGeometryRestore(geometry());
+    setGeometryRestore(frameGeometry());
 }
 
 void ShellClient::showOnScreenEdge()
@@ -1954,7 +2013,7 @@ void ShellClient::updateClientOutputs()
     const auto outputs = waylandServer()->display()->outputs();
     for (OutputInterface* output: qAsConst(outputs)) {
         const QRect outputGeom(output->globalPosition(), output->pixelSize() / output->scale());
-        if (geometry().intersects(outputGeom)) {
+        if (frameGeometry().intersects(outputGeom)) {
             clientOutputs << output;
         }
     }
@@ -2014,6 +2073,32 @@ bool ShellClient::supportsWindowRules() const
         return false;
     }
     return m_xdgShellSurface;
+}
+
+QSize ShellClient::mapToClient(const QSize &size) const
+{
+    const int width = size.width() - borderLeft() - borderRight();
+    const int height = size.height() - borderTop() - borderBottom();
+    return QSize(width, height);
+}
+
+QSize ShellClient::mapFromClient(const QSize &size) const
+{
+    const int width = size.width() + borderLeft() + borderRight();
+    const int height = size.height() + borderTop() + borderBottom();
+    return QSize(width, height);
+}
+
+QSize ShellClient::constrainedFrameSize(const QSize &size, Sizemode mode) const
+{
+    Q_UNUSED(mode)
+    return size;
+}
+
+QSize ShellClient::constrainedClientSize(const QSize &size, Sizemode mode) const
+{
+    Q_UNUSED(mode)
+    return size;
 }
 
 }

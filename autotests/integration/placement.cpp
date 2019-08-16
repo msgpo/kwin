@@ -135,7 +135,7 @@ PlaceWindowResult TestPlacement::createAndPlaceWindow(const QSize &defaultSize, 
 
     auto c = Test::renderAndWaitForShown(surface, size, Qt::red);
 
-    rc.finalGeometry = c->geometry();
+    rc.finalGeometry = c->frameGeometry();
     return rc;
 }
 

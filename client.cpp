@@ -31,6 +31,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "deleted.h"
 #include "focuschain.h"
 #include "group.h"
+#include "screens.h"
 #include "shadow.h"
 #ifdef KWIN_BUILD_TABBOX
 #include "tabbox.h"
@@ -126,7 +127,6 @@ Client::Client()
     , needsXWindowMove(false)
     , m_decoInputExtent()
     , m_focusOutTimer(nullptr)
-    , m_clientSideDecorated(false)
 {
     // TODO: Do all as initialization
     syncRequest.counter = syncRequest.alarm = XCB_NONE;
@@ -153,7 +153,6 @@ Client::Client()
     //Client to workspace connections require that each
     //client constructed be connected to the workspace wrapper
 
-    geom = QRect(0, 0, 100, 100);   // So that decorations don't start with size being (0,0)
     client_size = QSize(100, 100);
     ready_for_painting = false; // wait for first damage or sync reply
 
@@ -364,7 +363,7 @@ void Client::updateInputWindow()
     input_offset = bounds.topLeft();
 
     // Move the bounding rect to screen coordinates
-    bounds.translate(geometry().topLeft());
+    bounds.translate(pos());
 
     // Move the region to input window coordinates
     region.translate(-input_offset);
@@ -395,7 +394,7 @@ void Client::updateDecoration(bool check_workspace_pos, bool force)
     if (!force &&
             ((!isDecorated() && noBorder()) || (isDecorated() && !noBorder())))
         return;
-    QRect oldgeom = geometry();
+    QRect oldgeom = frameGeometry();
     QRect oldClientGeom = oldgeom.adjusted(borderLeft(), borderTop(), -borderRight(), -borderBottom());
     blockGeometryUpdates(true);
     if (force)
@@ -427,11 +426,12 @@ void Client::createDecoration(const QRect& oldgeom)
                 // calculateGravitation(true) would have to operate on the old border sizes
 //                 move(calculateGravitation(true));
 //                 move(calculateGravitation(false));
-                QRect oldgeom = geometry();
-                plainResize(sizeForClientSize(clientSize()), ForceGeometrySet);
-                if (!isShade())
-                    checkWorkspacePosition(oldgeom);
-                emit geometryShapeChanged(this, oldgeom);
+                const QRect oldGeometry = frameGeometry();
+                plainResize(constrainedFrameSize(size()), ForceGeometrySet);
+                if (!isShade()) {
+                    checkWorkspacePosition(oldGeometry);
+                }
+                emit geometryShapeChanged(this, oldGeometry);
             }
         );
         connect(decoratedClient()->decoratedClient(), &KDecoration2::DecoratedClient::widthChanged, this, &Client::updateInputWindow);
@@ -440,7 +440,7 @@ void Client::createDecoration(const QRect& oldgeom)
     setDecoration(decoration);
 
     move(calculateGravitation(false));
-    plainResize(sizeForClientSize(clientSize()), ForceGeometrySet);
+    plainResize(constrainedFrameSize(mapFromClient(clientSize())), ForceGeometrySet);
     if (Compositor::compositing()) {
         discardWindowPixmap();
     }
@@ -449,11 +449,11 @@ void Client::createDecoration(const QRect& oldgeom)
 
 void Client::destroyDecoration()
 {
-    QRect oldgeom = geometry();
+    QRect oldgeom = frameGeometry();
     if (isDecorated()) {
         QPoint grav = calculateGravitation(true);
         AbstractClient::destroyDecoration();
-        plainResize(sizeForClientSize(clientSize()), ForceGeometrySet);
+        plainResize(constrainedFrameSize(clientSize()), ForceGeometrySet);
         move(grav);
         if (compositing())
             discardWindowPixmap();
@@ -561,23 +561,6 @@ void Client::updateFrameExtents()
     info->setFrameExtents(strut);
 }
 
-Xcb::Property Client::fetchGtkFrameExtents() const
-{
-    return Xcb::Property(false, m_client, atoms->gtk_frame_extents, XCB_ATOM_CARDINAL, 0, 4);
-}
-
-void Client::readGtkFrameExtents(Xcb::Property &prop)
-{
-    m_clientSideDecorated = !prop.isNull() && prop->type != 0;
-    emit clientSideDecoratedChanged();
-}
-
-void Client::detectGtkFrameExtents()
-{
-    Xcb::Property prop = fetchGtkFrameExtents();
-    readGtkFrameExtents(prop);
-}
-
 /**
  * Resizes the decoration, and makes sure the decoration widget gets resize event
  * even if the size hasn't changed. This is needed to make sure the decoration
@@ -603,8 +586,10 @@ bool Client::isFullScreenable() const
     }
     if (rules()->checkStrictGeometry(true)) {
         // check geometry constraints (rule to obey is set)
-        const QRect fsarea = workspace()->clientArea(FullScreenArea, this);
-        if (sizeForClientSize(fsarea.size(), SizemodeAny, true) != fsarea.size()) {
+        const QRect fullScreenArea = workspace()->clientArea(FullScreenArea, this);
+        const QSize constrainedSize = constrainedClientSize(fullScreenArea.size());
+        const QSize ruledSize = rules()->checkSize(constrainedSize);
+        if (ruledSize != fullScreenArea.size()) {
             return false; // the app wouldn't fit exactly fullscreen geometry due to its strict geometry requirements
         }
     }
@@ -619,6 +604,11 @@ bool Client::noBorder() const
 
 bool Client::userCanSetNoBorder() const
 {
+    // Client-side decorations and server-side decorations are mutually exclusive.
+    if (!m_customFrameExtents.isNull()) {
+        return false;
+    }
+
     return !isFullScreen() && !isShade() && !tabGroup();
 }
 
@@ -656,7 +646,7 @@ void Client::updateShape()
         }
         if (noBorder()) {
             xcb_shape_combine(connection(), XCB_SHAPE_SO_SET, XCB_SHAPE_SK_BOUNDING, XCB_SHAPE_SK_BOUNDING,
-                              frameId(), clientPos().x(), clientPos().y(), window());
+                              frameId(), frameMargins().left(), frameMargins().top(), window());
         }
     } else if (app_noborder) {
         xcb_shape_mask(connection(), XCB_SHAPE_SO_SET, XCB_SHAPE_SK_BOUNDING, frameId(), 0, 0, XCB_PIXMAP_NONE);
@@ -673,7 +663,7 @@ void Client::updateShape()
         addRepaintFull();
         addWorkspaceRepaint(visibleRect());   // In case shape change removes part of this window
     }
-    emit geometryShapeChanged(this, geometry());
+    emit geometryShapeChanged(this, frameGeometry());
 }
 
 static Xcb::Window shape_helper_window(XCB_WINDOW_NONE);
@@ -700,14 +690,14 @@ void Client::updateInputShape()
         // TODO: It seems there is, after all - XShapeGetRectangles() - but maybe this is better
         if (!shape_helper_window.isValid())
             shape_helper_window.create(QRect(0, 0, 1, 1));
-        shape_helper_window.resize(width(), height());
+        shape_helper_window.resize(bufferGeometry().size());
         xcb_connection_t *c = connection();
         xcb_shape_combine(c, XCB_SHAPE_SO_SET, XCB_SHAPE_SK_INPUT, XCB_SHAPE_SK_BOUNDING,
                           shape_helper_window, 0, 0, frameId());
         xcb_shape_combine(c, XCB_SHAPE_SO_SUBTRACT, XCB_SHAPE_SK_INPUT, XCB_SHAPE_SK_BOUNDING,
-                          shape_helper_window, clientPos().x(), clientPos().y(), window());
+                          shape_helper_window, frameMargins().left(), frameMargins().top(), window());
         xcb_shape_combine(c, XCB_SHAPE_SO_UNION, XCB_SHAPE_SK_INPUT, XCB_SHAPE_SK_INPUT,
-                          shape_helper_window, clientPos().x(), clientPos().y(), window());
+                          shape_helper_window, frameMargins().left(), frameMargins().top(), window());
         xcb_shape_combine(c, XCB_SHAPE_SO_SET, XCB_SHAPE_SK_INPUT, XCB_SHAPE_SK_INPUT,
                           frameId(), 0, 0, shape_helper_window);
     }
@@ -850,7 +840,7 @@ void Client::setShade(ShadeMode mode)
         addWorkspaceRepaint(visibleRect());
         // Shade
         shade_geometry_change = true;
-        QSize s(sizeForClientSize(QSize(clientSize())));
+        QSize s(constrainedFrameSize(mapFromClient(clientSize())));
         s.setHeight(borderTop() + borderBottom());
         m_wrapper.selectInput(ClientWinMask);   // Avoid getting UnmapNotify
         m_wrapper.unmap();
@@ -871,10 +861,10 @@ void Client::setShade(ShadeMode mode)
         shade_geometry_change = true;
         if (decoratedClient())
             decoratedClient()->signalShadeChange();
-        QSize s(sizeForClientSize(clientSize()));
+        QSize s(constrainedFrameSize(mapFromClient(clientSize())));
         shade_geometry_change = false;
         plainResize(s);
-        geom_restore = geometry();
+        setGeometryRestore(frameGeometry());
         if ((shade_mode == ShadeHover || shade_mode == ShadeActivated) && rules()->checkAcceptFocus(info->input()))
             setActive(true);
         if (shade_mode == ShadeHover) {
@@ -1927,11 +1917,6 @@ void Client::setSessionActivityOverride(bool needed)
     updateActivities(false);
 }
 
-QRect Client::decorationRect() const
-{
-    return QRect(0, 0, width(), height());
-}
-
 Xcb::Property Client::fetchFirstInTabBox() const
 {
     return Xcb::Property(false, m_client, atoms->kde_first_in_window_list,
@@ -2168,6 +2153,334 @@ void Client::handleSync()
         performMoveResize();
     } else // setReadyForPainting does as well, but there's a small chance for resize syncs after the resize ended
         addRepaintFull();
+}
+
+QMargins Client::bufferMargins() const
+{
+    return frameMargins();
+}
+
+QPoint Client::bufferOrigin() const
+{
+    return QPoint(0, 0);
+}
+
+QRect Client::bufferGeometry() const
+{
+    return m_bufferGeometry;
+}
+
+QMargins Client::frameMargins() const
+{
+    return QMargins(borderLeft(), borderTop(), borderRight(), borderBottom());
+}
+
+QPoint Client::frameOrigin() const
+{
+    return QPoint(m_customFrameExtents.left(), m_customFrameExtents.top());
+}
+
+QRect Client::frameGeometry() const
+{
+    return m_frameGeometry;
+}
+
+/**
+ * Reimplemented to inform the client about the new window position.
+ */
+void Client::move(const QPoint &position, ForceGeometry_t force)
+{
+    // Resuming geometry updates is handled only in setGeometry().
+    Q_ASSERT(pendingGeometryUpdate() == PendingGeometryNone || areGeometryUpdatesBlocked());
+    if (!areGeometryUpdatesBlocked() && position != rules()->checkPosition(position)) {
+        qCDebug(KWIN_CORE) << "forced position fail:" << position << ":" << rules()->checkPosition(position);
+    }
+    const QPoint bufferPosition = mapToBuffer(position);
+    if (force == NormalGeometrySet && m_bufferGeometry.topLeft() == bufferPosition) {
+        return;
+    }
+    m_bufferGeometry.moveTopLeft(bufferPosition);
+    m_frameGeometry.moveTopLeft(position);
+    if (areGeometryUpdatesBlocked()) {
+        if (pendingGeometryUpdate() == PendingGeometryForced) {
+            // Maximum, nothing needed.
+        } else if (force == ForceGeometrySet) {
+            setPendingGeometryUpdate(PendingGeometryForced);
+        } else {
+            setPendingGeometryUpdate(PendingGeometryNormal);
+        }
+        return;
+    }
+    m_frame.move(bufferPosition);
+    sendSyntheticConfigureNotify();
+    updateWindowRules(Rules::Position);
+    screens()->setCurrent(this);
+    workspace()->updateStackingOrder();
+    // Client itself is not damaged.
+    addRepaintDuringGeometryUpdates();
+    updateGeometryBeforeUpdateBlocking();
+
+    // Update states of all other windows in this group.
+    updateTabGroupStates(TabGroup::Geometry);
+    emit geometryChanged();
+}
+
+QSize Client::mapToClient(const QSize &size) const
+{
+    const int width = size.width() - borderLeft() - borderRight() + m_customFrameExtents.left() + m_customFrameExtents.right();
+    const int height = size.height() - borderTop() - borderBottom() + m_customFrameExtents.top() + m_customFrameExtents.bottom();
+    return QSize(width, height);
+}
+
+QSize Client::mapFromClient(const QSize &size) const
+{
+    const int width = size.width() + borderLeft() + borderRight() - m_customFrameExtents.left() - m_customFrameExtents.right();
+    const int height = size.height() + borderTop() + borderBottom() - m_customFrameExtents.top() - m_customFrameExtents.bottom();
+    return QSize(width, height);
+}
+
+QSize Client::constrainedFrameSize(const QSize &size, Sizemode mode) const
+{
+    const QSize unconstrainedClientSize = mapToClient(size);
+    const QSize constrainedClientSize_ = constrainedClientSize(unconstrainedClientSize, mode);
+    const QSize constrainedFrameSize = mapFromClient(constrainedClientSize_);
+    return rules()->checkSize(constrainedFrameSize);
+}
+
+QSize Client::constrainedClientSize(const QSize &size, Sizemode mode) const
+{
+    int w = size.width();
+    int h = size.height();
+
+    if (w < 1 || h < 1) {
+        qCWarning(KWIN_CORE) << "constrainedClientSize() with empty size!" ;
+    }
+    if (w < 1) {
+        w = 1;
+    }
+    if (h < 1) {
+        h = 1;
+    }
+
+    // basesize, minsize, maxsize, paspect and resizeinc have all values defined,
+    // even if they're not set in flags - see getWmNormalHints()
+    QSize minimumSize = tabGroup() ? tabGroup()->minSize() : minSize();
+    QSize maximumSize = tabGroup() ? tabGroup()->maxSize() : maxSize();
+    if (isDecorated()) {
+        QSize minDecorationSize(0, 0);
+        QSize borderSize(borderLeft() + borderRight(), borderTop() + borderBottom());
+        if (borderSize.width() > minDecorationSize.width()) { // just in case
+            minDecorationSize.setWidth(borderSize.width());
+        }
+        if (borderSize.height() > minDecorationSize.height()) {
+            minDecorationSize.setHeight(borderSize.height());
+        }
+        if (minDecorationSize.width() > minimumSize.width()) {
+            minimumSize.setWidth(minDecorationSize.width());
+        }
+        if (minDecorationSize.height() > minimumSize.height()) {
+            minimumSize.setHeight(minDecorationSize.height());
+        }
+    }
+
+    w = qMin(maximumSize.width(), w);
+    h = qMin(maximumSize.height(), h);
+    w = qMax(minimumSize.width(), w);
+    h = qMax(minimumSize.height(), h);
+
+    int w1 = w;
+    int h1 = h;
+    int width_inc = m_geometryHints.resizeIncrements().width();
+    int height_inc = m_geometryHints.resizeIncrements().height();
+    int basew_inc = m_geometryHints.baseSize().width();
+    int baseh_inc = m_geometryHints.baseSize().height();
+    if (!m_geometryHints.hasBaseSize()) {
+        basew_inc = m_geometryHints.minSize().width();
+        baseh_inc = m_geometryHints.minSize().height();
+    }
+    w = int((w - basew_inc) / width_inc) * width_inc + basew_inc;
+    h = int((h - baseh_inc) / height_inc) * height_inc + baseh_inc;
+// code for aspect ratios based on code from FVWM
+    /*
+     * The math looks like this:
+     *
+     * minAspectX    dwidth     maxAspectX
+     * ---------- <= ------- <= ----------
+     * minAspectY    dheight    maxAspectY
+     *
+     * If that is multiplied out, then the width and height are
+     * invalid in the following situations:
+     *
+     * minAspectX * dheight > minAspectY * dwidth
+     * maxAspectX * dheight < maxAspectY * dwidth
+     *
+     */
+    if (m_geometryHints.hasAspect()) {
+        double min_aspect_w = m_geometryHints.minAspect().width(); // use doubles, because the values can be MAX_INT
+        double min_aspect_h = m_geometryHints.minAspect().height(); // and multiplying would go wrong otherwise
+        double max_aspect_w = m_geometryHints.maxAspect().width();
+        double max_aspect_h = m_geometryHints.maxAspect().height();
+        // According to ICCCM 4.1.2.3 PMinSize should be a fallback for PBaseSize for size increments,
+        // but not for aspect ratio. Since this code comes from FVWM, handles both at the same time,
+        // and I have no idea how it works, let's hope nobody relies on that.
+        const QSize baseSize = m_geometryHints.baseSize();
+        w -= baseSize.width();
+        h -= baseSize.height();
+        int max_width = maximumSize.width() - baseSize.width();
+        int min_width = minimumSize.width() - baseSize.width();
+        int max_height = maximumSize.height() - baseSize.height();
+        int min_height = minimumSize.height() - baseSize.height();
+#define ASPECT_CHECK_GROW_W \
+    if ( min_aspect_w * h > min_aspect_h * w ) \
+    { \
+        int delta = int( min_aspect_w * h / min_aspect_h - w ) / width_inc * width_inc; \
+        if ( w + delta <= max_width ) \
+            w += delta; \
+    }
+#define ASPECT_CHECK_SHRINK_H_GROW_W \
+    if ( min_aspect_w * h > min_aspect_h * w ) \
+    { \
+        int delta = int( h - w * min_aspect_h / min_aspect_w ) / height_inc * height_inc; \
+        if ( h - delta >= min_height ) \
+            h -= delta; \
+        else \
+        { \
+            int delta = int( min_aspect_w * h / min_aspect_h - w ) / width_inc * width_inc; \
+            if ( w + delta <= max_width ) \
+                w += delta; \
+        } \
+    }
+#define ASPECT_CHECK_GROW_H \
+    if ( max_aspect_w * h < max_aspect_h * w ) \
+    { \
+        int delta = int( w * max_aspect_h / max_aspect_w - h ) / height_inc * height_inc; \
+        if ( h + delta <= max_height ) \
+            h += delta; \
+    }
+#define ASPECT_CHECK_SHRINK_W_GROW_H \
+    if ( max_aspect_w * h < max_aspect_h * w ) \
+    { \
+        int delta = int( w - max_aspect_w * h / max_aspect_h ) / width_inc * width_inc; \
+        if ( w - delta >= min_width ) \
+            w -= delta; \
+        else \
+        { \
+            int delta = int( w * max_aspect_h / max_aspect_w - h ) / height_inc * height_inc; \
+            if ( h + delta <= max_height ) \
+                h += delta; \
+        } \
+    }
+        switch(mode) {
+        case SizemodeAny:
+#if 0 // make SizemodeAny equal to SizemodeFixedW - prefer keeping fixed width,
+            // so that changing aspect ratio to a different value and back keeps the same size (#87298)
+            {
+                ASPECT_CHECK_SHRINK_H_GROW_W
+                ASPECT_CHECK_SHRINK_W_GROW_H
+                ASPECT_CHECK_GROW_H
+                ASPECT_CHECK_GROW_W
+                break;
+            }
+#endif
+        case SizemodeFixedW: {
+            // the checks are order so that attempts to modify height are first
+            ASPECT_CHECK_GROW_H
+            ASPECT_CHECK_SHRINK_H_GROW_W
+            ASPECT_CHECK_SHRINK_W_GROW_H
+            ASPECT_CHECK_GROW_W
+            break;
+        }
+        case SizemodeFixedH: {
+            ASPECT_CHECK_GROW_W
+            ASPECT_CHECK_SHRINK_W_GROW_H
+            ASPECT_CHECK_SHRINK_H_GROW_W
+            ASPECT_CHECK_GROW_H
+            break;
+        }
+        case SizemodeMax: {
+            // first checks that try to shrink
+            ASPECT_CHECK_SHRINK_H_GROW_W
+            ASPECT_CHECK_SHRINK_W_GROW_H
+            ASPECT_CHECK_GROW_W
+            ASPECT_CHECK_GROW_H
+            break;
+        }
+        }
+#undef ASPECT_CHECK_SHRINK_H_GROW_W
+#undef ASPECT_CHECK_SHRINK_W_GROW_H
+#undef ASPECT_CHECK_GROW_W
+#undef ASPECT_CHECK_GROW_H
+        w += baseSize.width();
+        h += baseSize.height();
+    }
+
+    if (!rules()->checkStrictGeometry(!isFullScreen())) {
+        // Disobey increments and aspect by explicit rule.
+        w = w1;
+        h = h1;
+    }
+
+    return QSize(w, h);
+}
+
+void Client::setCustomFrameExtents(const NETStrut &strut)
+{
+    QMargins customFrameExtents;
+    customFrameExtents.setLeft(strut.left);
+    customFrameExtents.setTop(strut.top);
+    customFrameExtents.setRight(strut.right);
+    customFrameExtents.setBottom(strut.bottom);
+
+    if (m_customFrameExtents == customFrameExtents) {
+        return;
+    }
+
+    m_customFrameExtents = customFrameExtents;
+
+    // This will adjust the buffer geometry.
+    setFrameGeometry(frameGeometry());
+}
+
+QPoint Client::mapToBuffer(const QPoint &point) const
+{
+    if (maximizeMode() == MaximizeFull) {
+        return point;
+    }
+
+    if (fullScreenMode() == FullScreenNormal) {
+        return point;
+    }
+
+    QPoint frameOffset;
+    frameOffset.setX(m_customFrameExtents.left());
+    frameOffset.setY(m_customFrameExtents.top());
+
+    return point - frameOffset;
+}
+
+QSize Client::mapToBuffer(const QSize &size) const
+{
+    if (maximizeMode() == MaximizeFull) {
+        return size;
+    }
+
+    if (fullScreenMode() == FullScreenNormal) {
+        return size;
+    }
+
+    QSize framePadding;
+    framePadding.setWidth(m_customFrameExtents.left() + m_customFrameExtents.right());
+    framePadding.setHeight(m_customFrameExtents.top() + m_customFrameExtents.bottom());
+
+    return size + framePadding;
+}
+
+QRect Client::mapToBuffer(const QRect &rect) const
+{
+    const QPoint position = mapToBuffer(rect.topLeft());
+    const QSize size = mapToBuffer(rect.size());
+
+    return QRect(position, size);
 }
 
 } // namespace

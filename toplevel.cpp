@@ -3,6 +3,7 @@
  This file is part of the KDE project.
 
 Copyright (C) 2006 Lubos Lunak <l.lunak@kde.org>
+Copyright (C) 2019 Vlad Zagorodniy <vladzzag@gmail.com>
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -110,7 +111,6 @@ void Toplevel::detectShape(Window id)
 void Toplevel::copyToDeleted(Toplevel* c)
 {
     m_internalId = c->internalId();
-    geom = c->geom;
     m_visual = c->m_visual;
     bit_depth = c->bit_depth;
     info = c->info;
@@ -144,11 +144,11 @@ void Toplevel::disownDataPassedToDeleted()
 
 QRect Toplevel::visibleRect() const
 {
-    QRect r = decorationRect();
+    QRect r = bufferGeometry() | frameGeometry();
     if (hasShadow() && !shadow()->shadowRegion().isEmpty()) {
-        r |= shadow()->shadowRegion().boundingRect();
+        r |= shadow()->shadowRegion().boundingRect().translated(frameGeometry().topLeft());
     }
-    return r.translated(geometry().topLeft());
+    return r;
 }
 
 Xcb::Property Toplevel::fetchWmClientLeader() const
@@ -270,7 +270,9 @@ bool Toplevel::setupCompositing()
         xcb_damage_create(connection(), damage_handle, frameId(), XCB_DAMAGE_REPORT_LEVEL_NON_EMPTY);
     }
 
-    damage_region = QRegion(0, 0, width(), height());
+    const QRect boundingRect = bufferGeometry() | frameGeometry();
+
+    damage_region = QRegion(0, 0, boundingRect.width(), boundingRect.height());
     effect_window = new EffectWindowImpl(this);
 
     Compositor::self()->scene()->addToplevel(this);
@@ -412,10 +414,13 @@ void Toplevel::addDamageFull()
     if (!compositing())
         return;
 
-    damage_region = rect();
-    repaints_region |= rect();
+    const QRect fullRect = frameGeometry() | bufferGeometry();
+    const QRect damagedRect = QRect(0, 0, fullRect.width(), fullRect.height());
 
-    emit damaged(this, rect());
+    damage_region = damagedRect;
+    repaints_region |= damagedRect;
+
+    emit damaged(this, damagedRect);
 }
 
 void Toplevel::resetDamage()
@@ -472,7 +477,8 @@ void Toplevel::addLayerRepaint(const QRegion& r)
 
 void Toplevel::addRepaintFull()
 {
-    repaints_region = visibleRect().translated(-pos());
+    const QRect rect = frameGeometry() | bufferGeometry();
+    repaints_region = visibleRect().translated(-rect.topLeft());
     emit needsRepaint();
 }
 
@@ -523,7 +529,7 @@ void Toplevel::checkScreen()
             emit screenChanged();
         }
     } else {
-        const int s = screens()->number(geometry().center());
+        const int s = screens()->number(frameGeometry().center());
         if (s != m_screen) {
             m_screen = s;
             emit screenChanged();
@@ -540,7 +546,6 @@ void Toplevel::setupCheckScreenConnection()
 {
     connect(this, SIGNAL(geometryShapeChanged(KWin::Toplevel*,QRect)), SLOT(checkScreen()));
     connect(this, SIGNAL(geometryChanged()), SLOT(checkScreen()));
-    checkScreen();
 }
 
 void Toplevel::removeCheckScreenConnection()
@@ -561,7 +566,7 @@ qreal Toplevel::screenScale() const
 
 bool Toplevel::isOnScreen(int screen) const
 {
-    return screens()->geometry(screen).intersects(geometry());
+    return screens()->geometry(screen).intersects(frameGeometry());
 }
 
 bool Toplevel::isOnActiveScreen() const
@@ -794,7 +799,7 @@ quint32 Toplevel::windowId() const
 
 QRect Toplevel::inputGeometry() const
 {
-    return geometry();
+    return bufferGeometry();
 }
 
 bool Toplevel::isLocalhost() const
@@ -803,6 +808,41 @@ bool Toplevel::isLocalhost() const
         return true;
     }
     return m_clientMachine->isLocal();
+}
+
+QSize Toplevel::size() const
+{
+    return frameGeometry().size();
+}
+
+QPoint Toplevel::pos() const
+{
+    return frameGeometry().topLeft();
+}
+
+int Toplevel::x() const
+{
+    return frameGeometry().x();
+}
+
+int Toplevel::y() const
+{
+    return frameGeometry().y();
+}
+
+int Toplevel::width() const
+{
+    return frameGeometry().width();
+}
+
+int Toplevel::height() const
+{
+    return frameGeometry().height();
+}
+
+QRect Toplevel::rect() const
+{
+    return QRect(0, 0, width(), height());
 }
 
 } // namespace

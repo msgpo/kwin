@@ -63,7 +63,7 @@ bool Unmanaged::track(Window w)
     }
     setWindowHandles(w);   // the window is also the frame
     Xcb::selectInput(w, attr->your_event_mask | XCB_EVENT_MASK_STRUCTURE_NOTIFY | XCB_EVENT_MASK_PROPERTY_CHANGE);
-    geom = geo.rect();
+    m_bufferGeometry = geo.rect();
     checkScreen();
     m_visual = attr->visual;
     bit_depth = geo->depth;
@@ -115,6 +115,36 @@ void Unmanaged::release(ReleaseReason releaseReason)
 void Unmanaged::deleteUnmanaged(Unmanaged* c)
 {
     delete c;
+}
+
+QMargins Unmanaged::bufferMargins() const
+{
+    return QMargins();
+}
+
+QPoint Unmanaged::bufferOrigin() const
+{
+    return QPoint(0, 0);
+}
+
+QRect Unmanaged::bufferGeometry() const
+{
+    return m_bufferGeometry;
+}
+
+QMargins Unmanaged::frameMargins() const
+{
+    return QMargins();
+}
+
+QPoint Unmanaged::frameOrigin() const
+{
+    return QPoint(0, 0);
+}
+
+QRect Unmanaged::frameGeometry() const
+{
+    return m_bufferGeometry;
 }
 
 int Unmanaged::desktop() const
@@ -198,6 +228,28 @@ bool Unmanaged::setupCompositing()
     addDamageFull();
 
     return true;
+}
+
+void Unmanaged::configureNotifyEvent(xcb_configure_notify_event_t *event)
+{
+    if (effects) {
+        // Keep input windows and electric border windows on top.
+        static_cast<EffectsHandlerImpl *>(effects)->checkInputWindowStacking();
+    }
+    const QRect newGeometry(event->x, event->y, event->width, event->height);
+    if (m_bufferGeometry != newGeometry) {
+        const QRect oldGeometry = m_bufferGeometry;
+        addWorkspaceRepaint(visibleRect());  // damage old area
+        m_bufferGeometry = newGeometry;
+        emit geometryChanged(); // update shadow region
+        addRepaintFull();
+        if (oldGeometry.size() != newGeometry.size()) {
+            discardWindowPixmap();
+        }
+        emit geometryShapeChanged(this, oldGeometry);
+        emit bufferGeometryChanged();
+        emit frameGeometryChanged();
+    }
 }
 
 } // namespace

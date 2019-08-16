@@ -95,11 +95,11 @@ bool Client::manage(xcb_window_t w, bool isMapped)
         NET::WM2InitialMappingState |
         NET::WM2IconPixmap |
         NET::WM2OpaqueRegion |
-        NET::WM2DesktopFileName;
+        NET::WM2DesktopFileName |
+        NET::WM2GTKFrameExtents;
 
     auto wmClientLeaderCookie = fetchWmClientLeader();
     auto skipCloseAnimationCookie = fetchSkipCloseAnimation();
-    auto gtkFrameExtentsCookie = fetchGtkFrameExtents();
     auto showOnScreenEdgeCookie = fetchShowOnScreenEdge();
     auto colorSchemeCookie = fetchColorScheme();
     auto firstInTabBoxCookie = fetchFirstInTabBox();
@@ -138,7 +138,6 @@ bool Client::manage(xcb_window_t w, bool isMapped)
     if (Xcb::Extensions::self()->isShapeAvailable())
         xcb_shape_select_input(connection(), window(), true);
     detectShape(window());
-    readGtkFrameExtents(gtkFrameExtentsCookie);
     detectNoBorder();
     fetchIconicName();
 
@@ -336,7 +335,7 @@ bool Client::manage(xcb_window_t w, bool isMapped)
         placementDone = false; // Weird, do not trust.
 
     if (placementDone)
-        move(geom.x(), geom.y());   // Before gravitating
+        move(geom.topLeft());   // Before gravitating
 
     // Create client group if the window will have a decoration
     bool dontKeepInArea = false;
@@ -390,9 +389,11 @@ bool Client::manage(xcb_window_t w, bool isMapped)
     readApplicationMenuServiceName(applicationMenuServiceNameCookie);
     readApplicationMenuObjectPath(applicationMenuObjectPathCookie);
 
+    setCustomFrameExtents(info->gtkFrameExtents());
+
     updateDecoration(false);   // Also gravitates
     // TODO: Is CentralGravity right here, when resizing is done after gravitating?
-    plainResize(rules()->checkSize(sizeForClientSize(geom.size()), !isMapped));
+    plainResize(rules()->checkSize(constrainedFrameSize(mapFromClient(geom.size())), !isMapped));
 
     QPoint forced_pos = rules()->checkPosition(invalidPoint, !isMapped);
     if (forced_pos != invalidPoint) {
@@ -419,7 +420,7 @@ bool Client::manage(xcb_window_t w, bool isMapped)
     // TODO: get KMainWindow a correct state storage what will allow to store the restore size as well.
 
     if (!session) { // has a better handling of this
-        geom_restore = geometry(); // Remember restore geometry
+        setGeometryRestore(frameGeometry()); // Remember restore geometry
         if (isMaximizable() && (width() >= area.width() || height() >= area.height())) {
             // Window is too large for the screen, maximize in the
             // directions necessary
@@ -455,15 +456,17 @@ bool Client::manage(xcb_window_t w, bool isMapped)
                 maximize((MaximizeMode)pseudo_max);
                 // from now on, care about maxmode, since the maximization call will override mode for fix aspects
                 dontKeepInArea |= (max_mode == MaximizeFull);
-                geom_restore = QRect(); // Use placement when unmaximizing ...
+                // Use placement when unmaximizing ...
+                QRect maximizeRestoreGeometry;
                 if (!(max_mode & MaximizeVertical)) {
-                    geom_restore.setY(y());   // ...but only for horizontal direction
-                    geom_restore.setHeight(height());
+                    maximizeRestoreGeometry.setY(y());   // ...but only for horizontal direction
+                    maximizeRestoreGeometry.setHeight(height());
                 }
                 if (!(max_mode & MaximizeHorizontal)) {
-                    geom_restore.setX(x());   // ...but only for vertical direction
-                    geom_restore.setWidth(width());
+                    maximizeRestoreGeometry.setX(x());   // ...but only for vertical direction
+                    maximizeRestoreGeometry.setWidth(width());
                 }
+                setGeometryRestore(maximizeRestoreGeometry);
             }
             if (keepInFsArea)
                 keepInArea(fsa, partial_keep_in_area);
@@ -517,7 +520,7 @@ bool Client::manage(xcb_window_t w, bool isMapped)
         setSkipSwitcher(session->skipSwitcher);
         setShade(session->shaded ? ShadeNormal : ShadeNone);
         setOpacity(session->opacity);
-        geom_restore = session->restore;
+        setGeometryRestore(session->restore);
         if (session->maximized != MaximizeRestore) {
             maximize(MaximizeMode(session->maximized));
         }

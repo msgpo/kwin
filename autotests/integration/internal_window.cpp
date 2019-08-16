@@ -231,7 +231,7 @@ void InternalWindowTest::testEnterLeave()
     QCOMPARE(c->icon().name(), QStringLiteral("wayland"));
     QVERIFY(!c->isDecorated());
     QCOMPARE(workspace()->findToplevel(&win), c);
-    QCOMPARE(c->geometry(), QRect(0, 0, 100, 100));
+    QCOMPARE(c->frameGeometry(), QRect(0, 0, 100, 100));
     QVERIFY(c->isShown(false));
     QVERIFY(workspace()->xStackingOrder().contains(c));
 
@@ -544,21 +544,21 @@ void InternalWindowTest::testMove()
     QTRY_COMPARE(clientAddedSpy.count(), 1);
     auto internalClient = clientAddedSpy.first().first().value<ShellClient*>();
     QVERIFY(internalClient);
-    QCOMPARE(internalClient->geometry(), QRect(0, 0, 100, 100));
+    QCOMPARE(internalClient->frameGeometry(), QRect(0, 0, 100, 100));
 
     // normal move should be synced
-    internalClient->move(5, 10);
-    QCOMPARE(internalClient->geometry(), QRect(5, 10, 100, 100));
+    internalClient->move(QPoint(5, 10));
+    QCOMPARE(internalClient->frameGeometry(), QRect(5, 10, 100, 100));
     QTRY_COMPARE(win.geometry(), QRect(5, 10, 100, 100));
     // another move should also be synced
-    internalClient->move(10, 20);
-    QCOMPARE(internalClient->geometry(), QRect(10, 20, 100, 100));
+    internalClient->move(QPoint(10, 20));
+    QCOMPARE(internalClient->frameGeometry(), QRect(10, 20, 100, 100));
     QTRY_COMPARE(win.geometry(), QRect(10, 20, 100, 100));
 
     // now move with a Geometry update blocker
     {
         GeometryUpdatesBlocker blocker(internalClient);
-        internalClient->move(5, 10);
+        internalClient->move(QPoint(5, 10));
         // not synced!
         QCOMPARE(win.geometry(), QRect(10, 20, 100, 100));
     }
@@ -624,7 +624,7 @@ void InternalWindowTest::testModifierClickUnrestrictedMove()
     QCOMPARE(options->commandAll3(), Options::MouseUnrestrictedMove);
 
     // move cursor on window
-    Cursor::setPos(internalClient->geometry().center());
+    Cursor::setPos(internalClient->frameGeometry().center());
 
     // simulate modifier+click
     quint32 timestamp = 1;
@@ -660,7 +660,7 @@ void InternalWindowTest::testModifierScroll()
     workspace()->slotReconfigure();
 
     // move cursor on window
-    Cursor::setPos(internalClient->geometry().center());
+    Cursor::setPos(internalClient->frameGeometry().center());
 
     // set the opacity to 0.5
     internalClient->setOpacity(0.5);

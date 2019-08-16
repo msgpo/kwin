@@ -95,11 +95,16 @@ void Deleted::copyToDeleted(Toplevel* c)
 {
     assert(dynamic_cast< Deleted* >(c) == NULL);
     Toplevel::copyToDeleted(c);
+    m_bufferMargins = c->bufferMargins();
+    m_frameMargins = c->frameMargins();
+    m_bufferGeometry = c->bufferGeometry();
+    m_frameGeometry = c->frameGeometry();
+    m_bufferOrigin = c->bufferOrigin();
+    m_frameOrigin = c->frameOrigin();
     desk = c->desktop();
     m_desktops = c->desktops();
     activityList = c->activities();
     contentsRect = QRect(c->clientPos(), c->clientSize());
-    m_contentPos = c->clientContentPos();
     transparent_rect = c->transparentRect();
     m_layer = c->layer();
     m_frame = c->frameId();
@@ -273,6 +278,36 @@ QVector<uint> Deleted::x11DesktopIds() const
         }
     );
     return x11Ids;
+}
+
+QMargins Deleted::bufferMargins() const
+{
+    return m_bufferMargins;
+}
+
+QPoint Deleted::bufferOrigin() const
+{
+    return m_bufferOrigin;
+}
+
+QRect Deleted::bufferGeometry() const
+{
+    return m_bufferGeometry;
+}
+
+QMargins Deleted::frameMargins() const
+{
+    return m_frameMargins;
+}
+
+QPoint Deleted::frameOrigin() const
+{
+    return m_frameOrigin;
+}
+
+QRect Deleted::frameGeometry() const
+{
+    return m_frameGeometry;
 }
 
 void Deleted::addTransient(Deleted *transient)

@@ -473,6 +473,9 @@ bool Client::windowEvent(xcb_generic_event_t *e)
         if (dirtyProperties2 & NET::WM2DesktopFileName) {
             setDesktopFileName(QByteArray(info->desktopFileName()));
         }
+        if (dirtyProperties2 & NET::WM2GTKFrameExtents) {
+            setCustomFrameExtents(info->gtkFrameExtents());
+        }
     }
 
     const uint8_t eventType = e->response_type & ~0x80;
@@ -745,8 +748,6 @@ void Client::propertyNotifyEvent(xcb_property_notify_event_t *e)
             updateColorScheme();
         else if (e->atom == atoms->kde_screen_edge_show)
             updateShowOnScreenEdge();
-        else if (e->atom == atoms->gtk_frame_extents)
-            detectGtkFrameExtents();
         else if (e->atom == atoms->kde_net_wm_appmenu_service_name)
             checkApplicationMenuServiceName();
         else if (e->atom == atoms->kde_net_wm_appmenu_object_path)
@@ -972,8 +973,8 @@ bool Client::buttonPressEvent(xcb_window_t w, int button, int state, int x, int 
         return true;
     }
     if (w == inputId()) {
-        x = x_root - geometry().x();
-        y = y_root - geometry().y();
+        x = x_root - frameGeometry().x();
+        y = y_root - frameGeometry().y();
         // New API processes core events FIRST and only passes unused ones to the decoration
         QMouseEvent ev(QMouseEvent::MouseButtonPress, QPoint(x, y), QPoint(x_root, y_root),
                        x11ToQtMouseButton(button), x11ToQtMouseButtons(state), Qt::KeyboardModifiers());
@@ -1075,8 +1076,8 @@ bool Client::motionNotifyEvent(xcb_window_t w, int state, int x, int y, int x_ro
         return true; // care only about the whole frame
     if (!isMoveResizePointerButtonDown()) {
         if (w == inputId()) {
-            int x = x_root - geometry().x();// + padding_left;
-            int y = y_root - geometry().y();// + padding_top;
+            const int x = x_root - frameGeometry().x();// + padding_left;
+            const int y = y_root - frameGeometry().y();// + padding_top;
 
             if (isDecorated()) {
                 QHoverEvent event(QEvent::HoverMove, QPointF(x, y), QPointF(x, y));
@@ -1202,12 +1203,12 @@ void Client::NETMoveResize(int x_root, int y_root, NET::Direction direction)
         updateCursor();
     } else if (direction == NET::KeyboardMove) {
         // ignore mouse coordinates given in the message, mouse position is used by the moving algorithm
-        Cursor::setPos(geometry().center());
-        performMouseCommand(Options::MouseUnrestrictedMove, geometry().center());
+        Cursor::setPos(frameGeometry().center());
+        performMouseCommand(Options::MouseUnrestrictedMove, frameGeometry().center());
     } else if (direction == NET::KeyboardSize) {
         // ignore mouse coordinates given in the message, mouse position is used by the resizing algorithm
-        Cursor::setPos(geometry().bottomRight());
-        performMouseCommand(Options::MouseUnrestrictedResize, geometry().bottomRight());
+        Cursor::setPos(frameGeometry().bottomRight());
+        performMouseCommand(Options::MouseUnrestrictedResize, frameGeometry().bottomRight());
     }
 }
 
@@ -1281,8 +1282,8 @@ bool Unmanaged::windowEvent(xcb_generic_event_t *e)
         if (eventType == Xcb::Extensions::self()->shapeNotifyEvent()) {
             detectShape(window());
             addRepaintFull();
-            addWorkspaceRepaint(geometry());  // in case shape change removes part of this window
-            emit geometryShapeChanged(this, geometry());
+            addWorkspaceRepaint(bufferGeometry());  // in case shape change removes part of this window
+            emit geometryShapeChanged(this, frameGeometry());
         }
         if (eventType == Xcb::Extensions::self()->damageNotifyEvent())
             damageNotifyEvent();
@@ -1290,23 +1291,6 @@ bool Unmanaged::windowEvent(xcb_generic_event_t *e)
     }
     }
     return false; // don't eat events, even our own unmanaged widgets are tracked
-}
-
-void Unmanaged::configureNotifyEvent(xcb_configure_notify_event_t *e)
-{
-    if (effects)
-        static_cast<EffectsHandlerImpl*>(effects)->checkInputWindowStacking(); // keep them on top
-    QRect newgeom(e->x, e->y, e->width, e->height);
-    if (newgeom != geom) {
-        addWorkspaceRepaint(visibleRect());  // damage old area
-        QRect old = geom;
-        geom = newgeom;
-        emit geometryChanged(); // update shadow region
-        addRepaintFull();
-        if (old.size() != geom.size())
-            discardWindowPixmap();
-        emit geometryShapeChanged(this, old);
-    }
 }
 
 // ****************************************

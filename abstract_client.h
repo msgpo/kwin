@@ -228,7 +228,7 @@ class KWIN_EXPORT AbstractClient : public Toplevel
      * The geometry of this Client. Be aware that depending on resize mode the geometryChanged signal
      * might be emitted at each resize step or only at the end of the resize operation.
      */
-    Q_PROPERTY(QRect geometry READ geometry WRITE setGeometry)
+    Q_PROPERTY(QRect geometry READ frameGeometry WRITE setFrameGeometry)
 
     /**
      * Whether the Client is currently being moved by the user.
@@ -661,15 +661,24 @@ public:
     void updateLayer();
 
     enum ForceGeometry_t { NormalGeometrySet, ForceGeometrySet };
-    void move(int x, int y, ForceGeometry_t force = NormalGeometrySet);
-    void move(const QPoint &p, ForceGeometry_t force = NormalGeometrySet);
+
+    /**
+     * Moves the top-left corner of the client to the given position.
+     *
+     * This method operates on the frame geometry.
+     */
+    virtual void move(const QPoint &position, ForceGeometry_t force = NormalGeometrySet) = 0;
+
+    /**
+     *
+     */
+    virtual void setFrameGeometry(const QRect &rect, ForceGeometry_t force = NormalGeometrySet) = 0;
+
     virtual void resizeWithChecks(int w, int h, ForceGeometry_t force = NormalGeometrySet) = 0;
     void resizeWithChecks(const QSize& s, ForceGeometry_t force = NormalGeometrySet);
     void keepInArea(QRect area, bool partial = false);
     virtual QSize minSize() const;
     virtual QSize maxSize() const;
-    virtual void setGeometry(int x, int y, int w, int h, ForceGeometry_t force = NormalGeometrySet) = 0;
-    void setGeometry(const QRect& r, ForceGeometry_t force = NormalGeometrySet);
     /// How to resize the window in order to obey constains (mainly aspect ratios)
     enum Sizemode {
         SizemodeAny,
@@ -677,20 +686,26 @@ public:
         SizemodeFixedH, ///< Try not to affect height
         SizemodeMax ///< Try not to make it larger in either direction
     };
-    /**
-     * Calculates the appropriate frame size for the given client size @p wsize.
-     *
-     * @p wsize is adapted according to the window's size hints (minimum, maximum and incremental size changes).
-     *
-     * Default implementation returns the passed in @p wsize.
-     */
-    virtual QSize sizeForClientSize(const QSize &wsize, Sizemode mode = SizemodeAny, bool noframe = false) const;
 
     /**
-     * Adjust the frame size @p frame according to the window's size hints.
+     *
      */
-    QSize adjustedSize(const QSize&, Sizemode mode = SizemodeAny) const;
-    QSize adjustedSize() const;
+    virtual QSize mapToClient(const QSize &size) const = 0;
+
+    /**
+     *
+     */
+    virtual QSize mapFromClient(const QSize &size) const = 0;
+
+    /**
+     *
+     */
+    virtual QSize constrainedFrameSize(const QSize &size, Sizemode mode = SizemodeAny) const = 0;
+
+    /**
+     *
+     */
+    virtual QSize constrainedClientSize(const QSize &size, Sizemode mode = SizemodeAny) const = 0;
 
     bool isMove() const {
         return isMoveResize() && moveResizePointerMode() == PositionCenter;
@@ -1026,11 +1041,6 @@ protected:
     virtual void changeMaximize(bool horizontal, bool vertical, bool adjust) = 0;
     virtual void setGeometryRestore(const QRect &geo) = 0;
 
-    /**
-     * Called from move after updating the geometry. Can be reimplemented to perform specific tasks.
-     * The base implementation does nothing.
-     */
-    virtual void doMove(int x, int y);
     void blockGeometryUpdates(bool block);
     void blockGeometryUpdates();
     void unblockGeometryUpdates();
@@ -1326,19 +1336,9 @@ private:
     AbstractClient* cl;
 };
 
-inline void AbstractClient::move(const QPoint& p, ForceGeometry_t force)
-{
-    move(p.x(), p.y(), force);
-}
-
 inline void AbstractClient::resizeWithChecks(const QSize& s, AbstractClient::ForceGeometry_t force)
 {
     resizeWithChecks(s.width(), s.height(), force);
-}
-
-inline void AbstractClient::setGeometry(const QRect& r, ForceGeometry_t force)
-{
-    setGeometry(r.x(), r.y(), r.width(), r.height(), force);
 }
 
 inline const QList<AbstractClient*>& AbstractClient::transients() const

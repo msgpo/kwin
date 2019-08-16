@@ -188,7 +188,7 @@ void TestMaximized::testInitiallyMaximized()
     // now let's render in an incorrect size
     auto client = Test::renderAndWaitForShown(surface.data(), QSize(100, 50), Qt::blue);
     QVERIFY(client);
-    QCOMPARE(client->geometry(), QRect(0, 0, 100, 50));
+    QCOMPARE(client->frameGeometry(), QRect(0, 0, 100, 50));
     QEXPECT_FAIL("", "Should go out of maximzied", Continue);
     QCOMPARE(client->maximizeMode(), MaximizeMode::MaximizeRestore);
 }
@@ -210,7 +210,7 @@ void TestMaximized::testBorderlessMaximizedWindow()
 
     auto client = Test::renderAndWaitForShown(surface.data(), QSize(100, 50), Qt::blue);
     QVERIFY(client->isDecorated());
-    const QRect origGeo = client->geometry();
+    const QRect origGeo = client->frameGeometry();
 
     QSignalSpy sizeChangedSpy(shellSurface.data(), &ShellSurface::sizeChanged);
     QVERIFY(sizeChangedSpy.isValid());
@@ -224,7 +224,7 @@ void TestMaximized::testBorderlessMaximizedWindow()
     Test::render(surface.data(), shellSurface->size(), Qt::red);
     QVERIFY(geometryChangedSpy.wait());
     QCOMPARE(client->maximizeMode(), MaximizeMode::MaximizeFull);
-    QCOMPARE(client->geometry(), QRect(0, 0, 1280, 1024));
+    QCOMPARE(client->frameGeometry(), QRect(0, 0, 1280, 1024));
     QCOMPARE(client->geometryRestore(), origGeo);
     QCOMPARE(client->isDecorated(), false);
 
@@ -235,7 +235,7 @@ void TestMaximized::testBorderlessMaximizedWindow()
     Test::render(surface.data(), QSize(100, 50), Qt::red);
     QVERIFY(geometryChangedSpy.wait());
     QCOMPARE(client->maximizeMode(), MaximizeMode::MaximizeRestore);
-    QCOMPARE(client->geometry(), origGeo);
+    QCOMPARE(client->frameGeometry(), origGeo);
     QCOMPARE(client->geometryRestore(), origGeo);
     QCOMPARE(client->isDecorated(), true);
 }

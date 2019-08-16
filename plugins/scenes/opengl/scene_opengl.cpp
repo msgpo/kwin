@@ -1105,7 +1105,7 @@ bool SceneOpenGL::Window::bindTexture()
 QMatrix4x4 SceneOpenGL::Window::transformation(int mask, const WindowPaintData &data) const
 {
     QMatrix4x4 matrix;
-    matrix.translate(x(), y());
+    matrix.translate(toplevel->x(), toplevel->y());
 
     if (!(mask & PAINT_WINDOW_TRANSFORMED))
         return matrix;
@@ -1136,7 +1136,7 @@ bool SceneOpenGL::Window::beginRenderWindow(int mask, const QRegion &region, Win
         WindowQuadList quads;
         quads.reserve(data.quads.count());
 
-        const QRegion filterRegion = region.translated(-x(), -y());
+        const QRegion filterRegion = region.translated(-toplevel->x(), -toplevel->y());
         // split all quads in bounding rect with the actual rects in the region
         foreach (const WindowQuad &quad, data.quads) {
             for (const QRect &r : filterRegion) {
@@ -2491,7 +2491,7 @@ void SceneOpenGLDecorationRenderer::render()
     QRect left, top, right, bottom;
     client()->client()->layoutDecorationRects(left, top, right, bottom);
 
-    const QRect geometry = dirty ? QRect(QPoint(0, 0), client()->client()->geometry().size()) : scheduled.boundingRect();
+    const QRect geometry = dirty ? QRect(QPoint(0, 0), client()->client()->frameGeometry().size()) : scheduled.boundingRect();
 
     auto renderPart = [this](const QRect &geo, const QRect &partRect, const QPoint &offset, bool rotated = false) {
         if (!geo.isValid()) {

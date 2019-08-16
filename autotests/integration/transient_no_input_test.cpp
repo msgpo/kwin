@@ -101,7 +101,7 @@ void TransientNoInputTest::testTransientNoFocus()
     // get the latest ShellClient
     auto transientClient = clientAddedSpy.last().first().value<ShellClient*>();
     QVERIFY(transientClient != c);
-    QCOMPARE(transientClient->geometry(), QRect(c->x() + 10, c->y() + 20, 200, 20));
+    QCOMPARE(transientClient->frameGeometry(), QRect(c->x() + 10, c->y() + 20, 200, 20));
     QVERIFY(transientClient->isTransient());
     QVERIFY(!transientClient->wantsInput());
 
