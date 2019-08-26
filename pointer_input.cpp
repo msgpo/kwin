@@ -474,7 +474,6 @@ void PointerInputRedirection::cleanupInternalWindow(QWindow *old, QWindow *now)
 
     if (old) {
         // leave internal window
-        // TODO: do this instead via Wayland protocol as below
         QEvent leaveEvent(QEvent::Leave);
         QCoreApplication::sendEvent(old, &leaveEvent);
     }
@@ -548,20 +547,19 @@ void PointerInputRedirection::focusUpdate(Toplevel *focusOld, Toplevel *focusNow
         workspace()->updateFocusMousePosition(m_pos.toPoint());
     }
 
-    auto seat = waylandServer()->seat();
-    if (!focusNow || !focusNow->surface() || decoration()) {
-        // no new surface or internal window or on decoration -> cleanup
-        warpXcbOnSurfaceLeft(nullptr);
-        seat->setFocusedPointerSurface(nullptr);
-        return;
-    }
-
     if (internalWindow()) {
         // enter internal window
-        // TODO: do this instead via Wayland protocol as below
         const auto pos = at()->pos();
         QEnterEvent enterEvent(pos, pos, m_pos);
         QCoreApplication::sendEvent(internalWindow().data(), &enterEvent);
+    }
+
+    auto seat = waylandServer()->seat();
+    if (!focusNow || !focusNow->surface() || decoration()) {
+        // no new surface or on internal window or on decoration -> cleanup
+        warpXcbOnSurfaceLeft(nullptr);
+        seat->setFocusedPointerSurface(nullptr);
+        return;
     }
 
     // TODO: add convenient API to update global pos together with updating focused surface
