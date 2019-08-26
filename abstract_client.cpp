@@ -3,6 +3,7 @@
  This file is part of the KDE project.
 
 Copyright (C) 2015 Martin Gräßlin <mgraesslin@kde.org>
+Copyright (C) 2019 Vlad Zagorodniy <vladzzag@gmail.com>
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -2090,6 +2091,11 @@ bool AbstractClient::isInternal() const
 bool AbstractClient::supportsWindowRules() const
 {
     return true;
+}
+
+QMargins AbstractClient::frameMargins() const
+{
+    return QMargins(borderLeft(), borderTop(), borderRight(), borderBottom());
 }
 
 }

@@ -24,6 +24,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "decorations/decoratedclient.h"
 #include "deleted.h"
 #include "effects.h"
+#include "internal_client.h"
 #include "overlaywindow.h"
 #include "platform.h"
 #include "scene.h"
@@ -362,15 +363,14 @@ void Compositor::startupWithWorkspace()
         c->setupCompositing();
         c->getShadow();
     }
+    for (InternalClient *client : workspace()->internalClients()) {
+        client->setupCompositing();
+        client->getShadow();
+    }
 
     if (auto *server = waylandServer()) {
         const auto clients = server->clients();
         for (ShellClient *c : clients) {
-            c->setupCompositing();
-            c->getShadow();
-        }
-        const auto internalClients = server->internalClients();
-        for (ShellClient *c : internalClients) {
             c->setupCompositing();
             c->getShadow();
         }
@@ -419,6 +419,9 @@ void Compositor::stop()
         for (Unmanaged *c : Workspace::self()->unmanagedList()) {
             m_scene->removeToplevel(c);
         }
+        for (InternalClient *client : workspace()->internalClients()) {
+            m_scene->removeToplevel(client);
+        }
         for (Client *c : Workspace::self()->clientList()) {
             c->finishCompositing();
         }
@@ -427,6 +430,9 @@ void Compositor::stop()
         }
         for (Unmanaged *c : Workspace::self()->unmanagedList()) {
             c->finishCompositing();
+        }
+        for (InternalClient *client : workspace()->internalClients()) {
+            client->finishCompositing();
         }
         if (auto *con = kwinApp()->x11Connection()) {
             xcb_composite_unredirect_subwindows(con, kwinApp()->x11RootWindow(),
@@ -441,13 +447,7 @@ void Compositor::stop()
         for (ShellClient *c : waylandServer()->clients()) {
             m_scene->removeToplevel(c);
         }
-        for (ShellClient *c : waylandServer()->internalClients()) {
-            m_scene->removeToplevel(c);
-        }
         for (ShellClient *c : waylandServer()->clients()) {
-            c->finishCompositing();
-        }
-        for (ShellClient *c : waylandServer()->internalClients()) {
             c->finishCompositing();
         }
     }
@@ -757,13 +757,13 @@ bool Compositor::windowRepaintsPending() const
         if (std::any_of(clients.begin(), clients.end(), test)) {
             return true;
         }
-        const auto &internalClients = server->internalClients();
-        auto internalTest = [](ShellClient *c) {
-            return c->isShown(true) && !c->repaints().isEmpty();
-        };
-        if (std::any_of(internalClients.begin(), internalClients.end(), internalTest)) {
-            return true;
-        }
+    }
+    const auto &internalClients = workspace()->internalClients();
+    auto internalTest = [] (InternalClient *client) {
+        return client->isShown(true) && !client->repaints().isEmpty();
+    };
+    if (std::any_of(internalClients.begin(), internalClients.end(), internalTest)) {
+        return true;
     }
     return false;
 }

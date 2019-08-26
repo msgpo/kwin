@@ -5,6 +5,7 @@
 Copyright (C) 1999, 2000 Matthias Ettrich <ettrich@kde.org>
 Copyright (C) 2003 Lubos Lunak <l.lunak@kde.org>
 Copyright (C) 2009 Lucas Murray <lmurray@undefinedfire.com>
+Copyright (C) 2019 Vlad Zagorodniy <vladzzag@gmail.com>
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -53,6 +54,7 @@ class Window;
 class AbstractClient;
 class Client;
 class Compositor;
+class InternalClient;
 class KillWindow;
 class ShortcutDialog;
 class UserActionsMenu;
@@ -127,11 +129,6 @@ public:
     Unmanaged *findUnmanaged(xcb_window_t w) const;
     void forEachUnmanaged(std::function<void (Unmanaged*)> func);
     Toplevel *findToplevel(std::function<bool (const Toplevel*)> func) const;
-    /**
-     * Finds the Toplevel for the KWin internal window @p w.
-     * On Wayland this is normally a ShellClient. For X11 an Unmanaged.
-     */
-    Toplevel *findToplevel(QWindow *w) const;
     /**
      * @brief Finds a Toplevel for the internal window @p w.
      *
@@ -236,6 +233,13 @@ public:
      */
     const QList<AbstractClient*> allClientList() const {
         return m_allClients;
+    }
+
+    /**
+     * @returns List of all internal clients currently managed by Workspace
+     */
+    const QList<InternalClient *> &internalClients() const {
+        return m_internalClients;
     }
 
     void stackScreenEdgesUnderOverrideRedirect();
@@ -501,6 +505,16 @@ Q_SIGNALS:
      */
     void stackingOrderChanged();
 
+    /**
+     * This signal is emitted whenever an internal client is created.
+     */
+    void internalClientAdded(KWin::InternalClient *client);
+
+    /**
+     * This signal is emitted whenever an internal client gets removed.
+     */
+    void internalClientRemoved(KWin::InternalClient *client);
+
 private:
     void init();
     void initWithX11();
@@ -531,6 +545,9 @@ private:
     void addClient(Client* c);
     Unmanaged* createUnmanaged(xcb_window_t w);
     void addUnmanaged(Unmanaged* c);
+
+    void addInternalClient(InternalClient *client);
+    void removeInternalClient(InternalClient *client);
 
     //---------------------------------------------------------------------
 
@@ -568,6 +585,7 @@ private:
     ClientList desktops;
     UnmanagedList unmanaged;
     DeletedList deleted;
+    QList<InternalClient *> m_internalClients;
 
     ToplevelList unconstrained_stacking_order; // Topmost last
     ToplevelList stacking_order; // Topmost last
@@ -634,6 +652,8 @@ private:
     QList<X11EventFilter *> m_eventFilters;
     QList<X11EventFilter *> m_genericEventFilters;
     QScopedPointer<X11EventFilter> m_movingClientFilter;
+
+    friend class InternalClient;
 
 private:
     friend bool performTransiencyCheck();

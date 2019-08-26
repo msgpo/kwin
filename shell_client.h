@@ -4,6 +4,7 @@
 
 Copyright (C) 2015 Martin Gräßlin <mgraesslin@kde.org>
 Copyright (C) 2018 David Edmundson <davidedmundson@kde.org>
+Copyright (C) 2019 Vlad Zagorodniy <vladzzag@gmail.com>
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -125,7 +126,6 @@ public:
 
     bool isLockScreen() const override;
     bool isInputMethod() const override;
-    virtual QWindow *internalWindow() const;
 
     void installPlasmaShellSurface(KWayland::Server::PlasmaShellSurfaceInterface *surface);
     void installServerSideDecoration(KWayland::Server::ServerSideDecorationInterface *decoration);
@@ -181,11 +181,6 @@ protected:
     void doMinimize() override;
     void updateCaption() override;
 
-    virtual bool requestGeometry(const QRect &rect);
-    virtual void doSetGeometry(const QRect &rect);
-    void unmap();
-    void markAsMapped();
-
     void setClientSize(const QSize &size) {
         m_clientSize = size;
     }
@@ -223,6 +218,10 @@ private:
     // called on surface commit and processes all m_pendingConfigureRequests up to m_lastAckedConfigureReqest
     void updatePendingGeometry();
     QPoint popupOffset(const QRect &anchorRect, const Qt::Edges anchorEdge, const Qt::Edges gravity, const QSize popupSize) const;
+    void requestGeometry(const QRect &rect);
+    void doSetGeometry(const QRect &rect);
+    void unmap();
+    void markAsMapped();
     static void deleteClient(ShellClient *c);
 
     QSize toWindowGeometry(const QSize &geometry) const;
@@ -268,7 +267,6 @@ private:
     bool m_fullScreen = false;
     bool m_transient = false;
     bool m_hidden = false;
-    bool m_internal;
     bool m_hasPopupGrab = false;
     qreal m_opacity = 1.0;
 
