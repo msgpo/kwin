@@ -463,7 +463,7 @@ set(kwin_KDEINIT_SRCS
     platform.cpp
     abstract_output.cpp
     abstract_wayland_output.cpp
-    shell_client.cpp
+    xdgshellclient.cpp
     wayland_server.cpp
     wayland_cursor_theme.cpp
     virtualkeyboard.cpp
