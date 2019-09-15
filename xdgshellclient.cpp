@@ -72,9 +72,7 @@ XdgShellClient::XdgShellClient(XdgShellSurfaceInterface *surface)
     , m_xdgShellPopup(nullptr)
 {
     setSurface(surface->surface());
-    m_configureBlockCounter++;
     init();
-    connect(surface->surface(), &SurfaceInterface::committed, this, &XdgShellClient::finishInit);
 }
 
 XdgShellClient::XdgShellClient(XdgShellPopupInterface *surface)
@@ -83,15 +81,15 @@ XdgShellClient::XdgShellClient(XdgShellPopupInterface *surface)
     , m_xdgShellPopup(surface)
 {
     setSurface(surface->surface());
-    m_configureBlockCounter++;
     init();
-    connect(surface->surface(), &SurfaceInterface::committed, this, &XdgShellClient::finishInit);
 }
 
 XdgShellClient::~XdgShellClient() = default;
 
 void XdgShellClient::init()
 {
+    m_configureBlockCounter++;
+
     connect(this, &XdgShellClient::desktopFileNameChanged, this, &XdgShellClient::updateIcon);
     createWindowId();
     setupCompositing();
@@ -177,6 +175,8 @@ void XdgShellClient::init()
     handleTransientForChanged();
 
     AbstractClient::updateColorScheme(QString());
+
+    connect(surface(), &SurfaceInterface::committed, this, &XdgShellClient::finishInit);
 }
 
 void XdgShellClient::finishInit()
