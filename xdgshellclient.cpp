@@ -93,7 +93,6 @@ void XdgShellClient::init()
     createWindowId();
     setupCompositing();
     updateIcon();
-    ready_for_painting = false;
     doSetGeometry(QRect(QPoint(0, 0), m_clientSize));
 
     if (waylandServer()->inputMethodConnection() == surface()->client()) {

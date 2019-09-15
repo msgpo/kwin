@@ -630,7 +630,7 @@ protected:
     xcb_visualid_t m_visual;
     int bit_depth;
     NETWinInfo* info;
-    bool ready_for_painting;
+    bool ready_for_painting = false;
     QRegion repaints_region; // updating, repaint just requires repaint of that area
     QRegion layer_repaints_region;
     /**

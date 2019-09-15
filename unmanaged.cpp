@@ -38,7 +38,6 @@ namespace KWin
 Unmanaged::Unmanaged()
     : Toplevel()
 {
-    ready_for_painting = false;
     connect(this, SIGNAL(geometryShapeChanged(KWin::Toplevel*,QRect)), SIGNAL(geometryChanged()));
     QTimer::singleShot(50, this, SLOT(setReadyForPainting()));
 }
