@@ -96,18 +96,17 @@ void XdgShellClient::init()
     createWindowId();
     setupCompositing();
     updateIcon();
-    SurfaceInterface *s = surface();
-    Q_ASSERT(s);
     ready_for_painting = false;
     doSetGeometry(QRect(QPoint(0, 0), m_clientSize));
-    if (waylandServer()->inputMethodConnection() == s->client()) {
+
+    if (waylandServer()->inputMethodConnection() == surface()->client()) {
         m_windowType = NET::OnScreenDisplay;
     }
 
     connect(surface(), &SurfaceInterface::sizeChanged, this, &XdgShellClient::handleSurfaceSizeChanged);
-    connect(s, &SurfaceInterface::unmapped, this, &XdgShellClient::unmap);
-    connect(s, &SurfaceInterface::unbound, this, &XdgShellClient::destroyClient);
-    connect(s, &SurfaceInterface::destroyed, this, &XdgShellClient::destroyClient);
+    connect(surface(), &SurfaceInterface::unmapped, this, &XdgShellClient::unmap);
+    connect(surface(), &SurfaceInterface::unbound, this, &XdgShellClient::destroyClient);
+    connect(surface(), &SurfaceInterface::destroyed, this, &XdgShellClient::destroyClient);
 
     if (m_xdgShellSurface) {
         connect(m_xdgShellSurface, &XdgShellSurfaceInterface::destroyed, this, &XdgShellClient::destroyClient);
@@ -168,7 +167,7 @@ void XdgShellClient::init()
 
     // setup shadow integration
     getShadow();
-    connect(s, &SurfaceInterface::shadowChanged, this, &Toplevel::getShadow);
+    connect(surface(), &SurfaceInterface::shadowChanged, this, &Toplevel::getShadow);
 
     connect(waylandServer(), &WaylandServer::foreignTransientChanged, this, [this](KWayland::Server::SurfaceInterface *child) {
         if (child == surface()) {
@@ -180,9 +179,9 @@ void XdgShellClient::init()
     AbstractClient::updateColorScheme(QString());
 }
 
-void XdgShellClient::finishInit() {
-    SurfaceInterface *s = surface();
-    disconnect(s, &SurfaceInterface::committed, this, &XdgShellClient::finishInit);
+void XdgShellClient::finishInit()
+{
+    disconnect(surface(), &SurfaceInterface::committed, this, &XdgShellClient::finishInit);
 
     bool needsPlacement = !isInitialPositionSet();
 
