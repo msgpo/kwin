@@ -216,36 +216,36 @@ private:
     bool m_hidden = false;
     bool m_hasPopupGrab = false;
     qreal m_opacity = 1.0;
-
-    class RequestGeometryBlocker { //TODO rename ConfigureBlocker when this class is Xdg only
-    public:
-        RequestGeometryBlocker(XdgShellClient *client)
-            : m_client(client)
-        {
-            m_client->m_requestGeometryBlockCounter++;
-        }
-        ~RequestGeometryBlocker()
-        {
-            m_client->m_requestGeometryBlockCounter--;
-            if (m_client->m_requestGeometryBlockCounter == 0) {
-                m_client->requestGeometry(m_client->m_blockedRequestGeometry);
-            }
-        }
-    private:
-        XdgShellClient *m_client;
-    };
-    friend class RequestGeometryBlocker;
-    int m_requestGeometryBlockCounter = 0;
     QRect m_blockedRequestGeometry;
     QString m_caption;
     QString m_captionSuffix;
     QHash<qint32, PingReason> m_pingSerials;
-
+    int m_configureBlockCounter = 0;
     QMargins m_windowMargins;
-
     bool m_isInitialized = false;
 
+    friend class ConfigureBlocker;
     friend class Workspace;
+};
+
+class ConfigureBlocker
+{
+public:
+    ConfigureBlocker(XdgShellClient *client)
+        : m_client(client)
+    {
+        m_client->m_configureBlockCounter++;
+    }
+    ~ConfigureBlocker()
+    {
+        m_client->m_configureBlockCounter--;
+        if (m_client->m_configureBlockCounter == 0) {
+            m_client->requestGeometry(m_client->m_blockedRequestGeometry);
+        }
+    }
+
+private:
+    XdgShellClient *m_client;
 };
 
 }

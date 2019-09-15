@@ -72,7 +72,7 @@ XdgShellClient::XdgShellClient(XdgShellSurfaceInterface *surface)
     , m_xdgShellPopup(nullptr)
 {
     setSurface(surface->surface());
-    m_requestGeometryBlockCounter++;
+    m_configureBlockCounter++;
     init();
     connect(surface->surface(), &SurfaceInterface::committed, this, &XdgShellClient::finishInit);
 }
@@ -83,7 +83,7 @@ XdgShellClient::XdgShellClient(XdgShellPopupInterface *surface)
     , m_xdgShellPopup(surface)
 {
     setSurface(surface->surface());
-    m_requestGeometryBlockCounter++;
+    m_configureBlockCounter++;
     init();
     connect(surface->surface(), &SurfaceInterface::committed, this, &XdgShellClient::finishInit);
 }
@@ -200,7 +200,7 @@ void XdgShellClient::init()
                 // If the maximized state of the client hasn't been changed due to a window
                 // rule or because the requested state is the same as the current, then the
                 // compositor still has to send a configure event.
-                RequestGeometryBlocker blocker(this);
+                ConfigureBlocker blocker(this);
 
                 maximize(maximized ? MaximizeFull : MaximizeRestore);
             }
@@ -271,7 +271,7 @@ void XdgShellClient::init()
             if (m_closing) {
                 return;
             }
-            if (m_requestGeometryBlockCounter != 0 || areGeometryUpdatesBlocked()) {
+            if (m_configureBlockCounter != 0 || areGeometryUpdatesBlocked()) {
                 return;
             }
             m_xdgShellSurface->configure(xdgSurfaceStates(), m_requestedClientSize);
@@ -361,8 +361,8 @@ void XdgShellClient::finishInit() {
         placeIn(area);
     }
 
-    m_requestGeometryBlockCounter--;
-    if (m_requestGeometryBlockCounter == 0) {
+    m_configureBlockCounter--;
+    if (m_configureBlockCounter == 0) {
         requestGeometry(m_blockedRequestGeometry);
     }
 
@@ -557,8 +557,8 @@ void XdgShellClient::createDecoration(const QRect &oldGeom)
         connect(decoration, &KDecoration2::Decoration::shadowChanged, this, &Toplevel::getShadow);
         connect(decoration, &KDecoration2::Decoration::bordersChanged, this,
             [this]() {
-                GeometryUpdatesBlocker blocker(this);
-                RequestGeometryBlocker requestBlocker(this);
+                GeometryUpdatesBlocker blocker1(this);
+                ConfigureBlocker blocker2(this);
                 QRect oldgeom = geometry();
                 if (!isShade())
                     checkWorkspacePosition(oldgeom);
@@ -594,7 +594,7 @@ void XdgShellClient::updateDecoration(bool check_workspace_pos, bool force)
     if (m_xdgDecoration) {
         auto mode = isDecorated() || m_userNoBorder ? XdgDecorationInterface::Mode::ServerSide: XdgDecorationInterface::Mode::ClientSide;
         m_xdgDecoration->configure(mode);
-        if (m_requestGeometryBlockCounter == 0) {
+        if (m_configureBlockCounter == 0) {
             m_xdgShellSurface->configure(xdgSurfaceStates(), m_requestedClientSize);
         }
     }
@@ -869,8 +869,8 @@ void XdgShellClient::changeMaximize(bool horizontal, bool vertical, bool adjust)
         return;
     }
 
-    StackingUpdatesBlocker blocker(workspace());
-    RequestGeometryBlocker geometryBlocker(this);
+    StackingUpdatesBlocker blocker1(workspace());
+    ConfigureBlocker blocker2(this);
 
     // call into decoration update borders
     if (isDecorated() && decoration()->client() && !(options->borderlessMaximizedWindows() && m_requestedMaximizeMode == KWin::MaximizeFull)) {
@@ -1006,9 +1006,9 @@ void XdgShellClient::setFullScreen(bool set, bool user)
     if (set) {
         workspace()->raiseClient(this);
     }
-    RequestGeometryBlocker requestBlocker(this);
-    StackingUpdatesBlocker blocker1(workspace());
-    GeometryUpdatesBlocker blocker2(this);
+    ConfigureBlocker blocker1(this);
+    StackingUpdatesBlocker blocker2(workspace());
+    GeometryUpdatesBlocker blocker3(this);
 
     workspace()->updateClientLayer(this);   // active fullscreens get different layer
     updateDecoration(false, false);
@@ -1149,7 +1149,7 @@ bool XdgShellClient::isInputMethod() const
 
 void XdgShellClient::requestGeometry(const QRect &rect)
 {
-    if (m_requestGeometryBlockCounter != 0) {
+    if (m_configureBlockCounter != 0) {
         m_blockedRequestGeometry = rect;
         return;
     }
