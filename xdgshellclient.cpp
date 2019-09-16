@@ -93,7 +93,6 @@ void XdgShellClient::init()
     createWindowId();
     setupCompositing();
     updateIcon();
-    doSetGeometry(QRect(QPoint(0, 0), m_clientSize));
 
     if (waylandServer()->inputMethodConnection() == surface()->client()) {
         m_windowType = NET::OnScreenDisplay;
