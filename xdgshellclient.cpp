@@ -1284,9 +1284,8 @@ void XdgShellClient::unmap()
 void XdgShellClient::installPlasmaShellSurface(PlasmaShellSurfaceInterface *surface)
 {
     m_plasmaShellSurface = surface;
-    auto updatePosition = [this, surface] {
-        QRect rect = QRect(surface->position(), m_clientSize + QSize(borderLeft() + borderRight(), borderTop() + borderBottom()));
-        doSetGeometry(rect);
+    auto updatePosition = [this] {
+        move(m_plasmaShellSurface->position());
     };
     auto updateRole = [this, surface] {
         NET::WindowType type = NET::Unknown;
