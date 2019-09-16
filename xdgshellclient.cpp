@@ -99,7 +99,6 @@ void XdgShellClient::init()
         m_windowType = NET::OnScreenDisplay;
     }
 
-    connect(surface(), &SurfaceInterface::sizeChanged, this, &XdgShellClient::handleSurfaceSizeChanged);
     connect(surface(), &SurfaceInterface::unmapped, this, &XdgShellClient::unmap);
     connect(surface(), &SurfaceInterface::unbound, this, &XdgShellClient::destroyClient);
     connect(surface(), &SurfaceInterface::destroyed, this, &XdgShellClient::destroyClient);
@@ -181,6 +180,7 @@ void XdgShellClient::finishInit()
 {
     disconnect(surface(), &SurfaceInterface::committed, this, &XdgShellClient::finishInit);
 
+    connect(surface(), &SurfaceInterface::sizeChanged, this, &XdgShellClient::handleSurfaceSizeChanged);
     connect(surface(), &SurfaceInterface::committed, this, &XdgShellClient::handleCommitted);
 
     bool needsPlacement = !isInitialPositionSet();
