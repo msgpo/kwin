@@ -420,8 +420,7 @@ void XdgShellClient::createDecoration(const QRect &oldGeom)
     }
     setDecoration(decoration);
     // TODO: ensure the new geometry still fits into the client area (e.g. maximized windows)
-    doSetGeometry(QRect(oldGeom.topLeft(), m_clientSize + (decoration ? QSize(decoration->borderLeft() + decoration->borderRight(),
-                                                               decoration->borderBottom() + decoration->borderTop()) : QSize())));
+    setGeometry(QRect(oldGeom.topLeft(), m_clientSize + QSize(borderLeft() + borderRight(), borderBottom() + borderTop())));
 
     emit geometryShapeChanged(this, oldGeom);
 }
