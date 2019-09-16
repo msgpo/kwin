@@ -37,6 +37,7 @@ public:
     bool windowEvent(xcb_generic_event_t *e);
     bool track(xcb_window_t w);
     static void deleteUnmanaged(Unmanaged* c);
+    QRect geometry() const override;
     int desktop() const override;
     QStringList activities() const override;
     QVector<VirtualDesktop *> desktops() const override;
@@ -61,6 +62,7 @@ private:
     // handlers for X11 events
     void configureNotifyEvent(xcb_configure_notify_event_t *e);
     QWindow *findInternalWindow() const;
+    QRect m_geometry;
     bool m_outline = false;
 };
 

@@ -151,7 +151,7 @@ Client::Client()
     //Client to workspace connections require that each
     //client constructed be connected to the workspace wrapper
 
-    geom = QRect(0, 0, 100, 100);   // So that decorations don't start with size being (0,0)
+    m_frameGeometry = QRect(0, 0, 100, 100);   // So that decorations don't start with size being (0,0)
     client_size = QSize(100, 100);
 
     connect(clientMachine(), &ClientMachine::localhostChanged, this, &Client::updateCaption);
@@ -1963,6 +1963,11 @@ void Client::cancelFocusOutTimer()
 xcb_window_t Client::frameId() const
 {
     return m_frame;
+}
+
+QRect Client::geometry() const
+{
+    return m_frameGeometry;
 }
 
 Xcb::Property Client::fetchShowOnScreenEdge() const

@@ -44,6 +44,7 @@ public:
     void refWindow();
     void unrefWindow();
     void discard();
+    QRect geometry() const override;
     qreal bufferScale() const override;
     int desktop() const override;
     QStringList activities() const override;
@@ -198,6 +199,8 @@ private:
     void removeTransient(Deleted *transient);
     void addTransientFor(AbstractClient *parent);
     void removeTransientFor(Deleted *parent);
+
+    QRect m_frameGeometry;
 
     int delete_refcount;
     int desk;

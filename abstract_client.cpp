@@ -1311,10 +1311,6 @@ void AbstractClient::updateGeometryBeforeUpdateBlocking()
     m_geometryBeforeUpdateBlocking = geometry();
 }
 
-void AbstractClient::doMove(int, int)
-{
-}
-
 void AbstractClient::updateInitialMoveResizeGeometry()
 {
     m_moveResize.initialGeometry = geometry();

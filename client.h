@@ -91,6 +91,8 @@ public:
     xcb_window_t inputId() const { return m_decoInputExtent; }
     xcb_window_t frameId() const override;
 
+    QRect geometry() const override;
+
     bool isTransient() const override;
     bool groupTransient() const override;
     bool wasOriginallyGroupTransient() const;
@@ -177,6 +179,8 @@ public:
 
     using AbstractClient::setGeometry;
     void setGeometry(int x, int y, int w, int h, ForceGeometry_t force = NormalGeometrySet) override;
+    using AbstractClient::move;
+    void move(int x, int y, ForceGeometry_t force = NormalGeometrySet) override;
     /// plainResize() simply resizes
     void plainResize(int w, int h, ForceGeometry_t force = NormalGeometrySet);
     void plainResize(const QSize& s, ForceGeometry_t force = NormalGeometrySet);
@@ -359,7 +363,6 @@ protected:
     void doSetSkipSwitcher() override;
     bool belongsToDesktop() const override;
     void setGeometryRestore(const QRect &geo) override;
-    void doMove(int x, int y) override;
     bool doStartMoveResize() override;
     void doPerformMoveResize() override;
     bool isWaitingForMoveResizeSync() const override;
@@ -513,6 +516,7 @@ private:
     } m_fullscreenMode;
 
     MaximizeMode max_mode;
+    QRect m_frameGeometry;
     QRect geom_restore;
     QRect geom_fs_restore;
     QTimer* shadeHoverTimer;

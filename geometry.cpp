@@ -1952,9 +1952,10 @@ void Client::setGeometry(int x, int y, int w, int h, ForceGeometry_t force)
     if (!areGeometryUpdatesBlocked() && g != rules()->checkGeometry(g)) {
         qCDebug(KWIN_CORE) << "forced geometry fail:" << g << ":" << rules()->checkGeometry(g);
     }
-    if (force == NormalGeometrySet && geom == g && pendingGeometryUpdate() == PendingGeometryNone)
+    if (force == NormalGeometrySet && m_frameGeometry == g && pendingGeometryUpdate() == PendingGeometryNone) {
         return;
-    geom = g;
+    }
+    m_frameGeometry = g;
     if (areGeometryUpdatesBlocked()) {
         if (pendingGeometryUpdate() == PendingGeometryForced)
             {} // maximum, nothing needed
@@ -1965,7 +1966,7 @@ void Client::setGeometry(int x, int y, int w, int h, ForceGeometry_t force)
         return;
     }
     QSize oldClientSize = m_frame.geometry().size();
-    bool resized = (geometryBeforeUpdateBlocking().size() != geom.size() || pendingGeometryUpdate() == PendingGeometryForced);
+    const bool resized = (geometryBeforeUpdateBlocking().size() != m_frameGeometry.size() || pendingGeometryUpdate() == PendingGeometryForced);
     if (resized) {
         resizeDecoration();
         m_frame.setGeometry(x, y, w, h);
@@ -2034,9 +2035,10 @@ void Client::plainResize(int w, int h, ForceGeometry_t force)
     }
     // resuming geometry updates is handled only in setGeometry()
     Q_ASSERT(pendingGeometryUpdate() == PendingGeometryNone || areGeometryUpdatesBlocked());
-    if (force == NormalGeometrySet && geom.size() == s)
+    if (force == NormalGeometrySet && m_frameGeometry.size() == s) {
         return;
-    geom.setSize(s);
+    }
+    m_frameGeometry.setSize(s);
     if (areGeometryUpdatesBlocked()) {
         if (pendingGeometryUpdate() == PendingGeometryForced)
             {} // maximum, nothing needed
@@ -2073,7 +2075,7 @@ void Client::plainResize(int w, int h, ForceGeometry_t force)
 /**
  * Reimplemented to inform the client about the new window position.
  */
-void AbstractClient::move(int x, int y, ForceGeometry_t force)
+void Client::move(int x, int y, ForceGeometry_t force)
 {
     // resuming geometry updates is handled only in setGeometry()
     Q_ASSERT(pendingGeometryUpdate() == PendingGeometryNone || areGeometryUpdatesBlocked());
@@ -2081,9 +2083,10 @@ void AbstractClient::move(int x, int y, ForceGeometry_t force)
     if (!areGeometryUpdatesBlocked() && p != rules()->checkPosition(p)) {
         qCDebug(KWIN_CORE) << "forced position fail:" << p << ":" << rules()->checkPosition(p);
     }
-    if (force == NormalGeometrySet && geom.topLeft() == p)
+    if (force == NormalGeometrySet && m_frameGeometry.topLeft() == p) {
         return;
-    geom.moveTopLeft(p);
+    }
+    m_frameGeometry.moveTopLeft(p);
     if (areGeometryUpdatesBlocked()) {
         if (pendingGeometryUpdate() == PendingGeometryForced)
             {} // maximum, nothing needed
@@ -2093,7 +2096,8 @@ void AbstractClient::move(int x, int y, ForceGeometry_t force)
             setPendingGeometryUpdate(PendingGeometryNormal);
         return;
     }
-    doMove(x, y);
+    m_frame.move(x, y);
+    sendSyntheticConfigureNotify();
     updateWindowRules(Rules::Position);
     screens()->setCurrent(this);
     workspace()->updateStackingOrder();
@@ -2101,12 +2105,6 @@ void AbstractClient::move(int x, int y, ForceGeometry_t force)
     addRepaintDuringGeometryUpdates();
     updateGeometryBeforeUpdateBlocking();
     emit geometryChanged();
-}
-
-void Client::doMove(int x, int y)
-{
-    m_frame.move(x, y);
-    sendSyntheticConfigureNotify();
 }
 
 void AbstractClient::blockGeometryUpdates(bool block)
@@ -2655,7 +2653,7 @@ void Client::leaveMoveResize()
 {
     if (needsXWindowMove) {
         // Do the deferred move
-        m_frame.move(geom.topLeft());
+        m_frame.move(m_frameGeometry.topLeft());
         needsXWindowMove = false;
     }
     if (!isResize())

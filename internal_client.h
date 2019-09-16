@@ -35,6 +35,7 @@ public:
 
     bool eventFilter(QObject *watched, QEvent *event) override;
 
+    QRect geometry() const override;
     QStringList activities() const override;
     void blockActivityUpdates(bool b = true) override;
     qreal bufferScale() const override;
@@ -76,6 +77,8 @@ public:
     void resizeWithChecks(int w, int h, ForceGeometry_t force = NormalGeometrySet) override;
     using AbstractClient::setGeometry;
     void setGeometry(int x, int y, int w, int h, ForceGeometry_t force = NormalGeometrySet) override;
+    using AbstractClient::move;
+    void move(int x, int y, ForceGeometry_t force = NormalGeometrySet) override;
     void setGeometryRestore(const QRect &rect) override;
     bool supportsWindowRules() const override;
     AbstractClient *findModal(bool allow_itself = false) override;
@@ -98,7 +101,6 @@ protected:
     bool belongsToSameApplication(const AbstractClient *other, SameApplicationChecks checks) const override;
     void changeMaximize(bool horizontal, bool vertical, bool adjust) override;
     void destroyDecoration() override;
-    void doMove(int x, int y) override;
     void doResizeSync() override;
     void updateCaption() override;
 
@@ -114,6 +116,7 @@ private:
     void updateInternalWindowGeometry();
 
     QWindow *m_internalWindow = nullptr;
+    QRect m_frameGeometry;
     QRect m_maximizeRestoreGeometry;
     QSize m_clientSize = QSize(0, 0);
     QString m_captionNormal;

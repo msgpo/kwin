@@ -58,7 +58,6 @@ Toplevel::Toplevel()
     connect(this, SIGNAL(damaged(KWin::Toplevel*,QRect)), SIGNAL(needsRepaint()));
     connect(screens(), SIGNAL(changed()), SLOT(checkScreen()));
     connect(screens(), SIGNAL(countChanged(int,int)), SLOT(checkScreen()));
-    setupCheckScreenConnection();
 }
 
 Toplevel::~Toplevel()
@@ -109,7 +108,6 @@ void Toplevel::detectShape(xcb_window_t id)
 void Toplevel::copyToDeleted(Toplevel* c)
 {
     m_internalId = c->internalId();
-    geom = c->geom;
     m_visual = c->m_visual;
     bit_depth = c->bit_depth;
     info = c->info;
@@ -797,6 +795,41 @@ bool Toplevel::isLocalhost() const
         return true;
     }
     return m_clientMachine->isLocal();
+}
+
+QSize Toplevel::size() const
+{
+    return geometry().size();
+}
+
+QPoint Toplevel::pos() const
+{
+    return geometry().topLeft();
+}
+
+int Toplevel::x() const
+{
+    return geometry().x();
+}
+
+int Toplevel::y() const
+{
+    return geometry().y();
+}
+
+int Toplevel::width() const
+{
+    return geometry().width();
+}
+
+int Toplevel::height() const
+{
+    return geometry().height();
+}
+
+QRect Toplevel::rect() const
+{
+    return QRect(0, 0, width(), height());
 }
 
 } // namespace

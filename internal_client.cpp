@@ -94,6 +94,11 @@ bool InternalClient::eventFilter(QObject *watched, QEvent *event)
     return false;
 }
 
+QRect InternalClient::geometry() const
+{
+    return m_frameGeometry;
+}
+
 QStringList InternalClient::activities() const
 {
     return QStringList();
@@ -331,7 +336,7 @@ void InternalClient::setGeometry(int x, int y, int w, int h, ForceGeometry_t for
     const QRect rect(x, y, w, h);
 
     if (areGeometryUpdatesBlocked()) {
-        geom = rect;
+        m_frameGeometry = rect;
         if (pendingGeometryUpdate() == PendingGeometryForced) {
             // Maximum, nothing needed.
         } else if (force == ForceGeometrySet) {
@@ -344,10 +349,10 @@ void InternalClient::setGeometry(int x, int y, int w, int h, ForceGeometry_t for
 
     if (pendingGeometryUpdate() != PendingGeometryNone) {
         // Reset geometry to the one before blocking, so that we can compare properly.
-        geom = geometryBeforeUpdateBlocking();
+        m_frameGeometry = geometryBeforeUpdateBlocking();
     }
 
-    if (geom == rect) {
+    if (m_frameGeometry == rect) {
         return;
     }
 
@@ -358,6 +363,11 @@ void InternalClient::setGeometry(int x, int y, int w, int h, ForceGeometry_t for
     } else {
         requestGeometry(rect);
     }
+}
+
+void InternalClient::move(int x, int y, ForceGeometry_t force)
+{
+    setGeometry(x, y, width(), height(), force);
 }
 
 void InternalClient::setGeometryRestore(const QRect &rect)
@@ -542,14 +552,6 @@ void InternalClient::destroyDecoration()
     setGeometry(clientGeometry);
 }
 
-void InternalClient::doMove(int x, int y)
-{
-    Q_UNUSED(x)
-    Q_UNUSED(y)
-
-    syncGeometryToInternalWindow();
-}
-
 void InternalClient::doResizeSync()
 {
     requestGeometry(moveResizeGeometry());
@@ -617,11 +619,11 @@ void InternalClient::requestGeometry(const QRect &rect)
 
 void InternalClient::commitGeometry(const QRect &rect)
 {
-    if (geom == rect && pendingGeometryUpdate() == PendingGeometryNone) {
+    if (m_frameGeometry == rect && pendingGeometryUpdate() == PendingGeometryNone) {
         return;
     }
 
-    geom = rect;
+    m_frameGeometry = rect;
 
     m_clientSize = mapToClient(geometry()).size();
 

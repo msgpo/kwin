@@ -261,7 +261,7 @@ public:
      * @return a unique identifier for the Toplevel. On X11 same as @ref window
      */
     virtual quint32 windowId() const;
-    QRect geometry() const;
+    virtual QRect geometry() const = 0;
     /**
      * The geometry of the Toplevel which accepts input events. This might be larger
      * than the actual geometry, e.g. to support resizing outside the window.
@@ -626,7 +626,6 @@ protected:
     friend QDebug& operator<<(QDebug& stream, const Toplevel*);
     void deleteEffectWindow();
     void setDepth(int depth);
-    QRect geom;
     xcb_visualid_t m_visual;
     int bit_depth;
     NETWinInfo* info;
@@ -674,46 +673,6 @@ inline void Toplevel::setWindowHandles(xcb_window_t w)
 {
     Q_ASSERT(!m_client.isValid() && w != XCB_WINDOW_NONE);
     m_client.reset(w, false);
-}
-
-inline QRect Toplevel::geometry() const
-{
-    return geom;
-}
-
-inline QSize Toplevel::size() const
-{
-    return geom.size();
-}
-
-inline QPoint Toplevel::pos() const
-{
-    return geom.topLeft();
-}
-
-inline int Toplevel::x() const
-{
-    return geom.x();
-}
-
-inline int Toplevel::y() const
-{
-    return geom.y();
-}
-
-inline int Toplevel::width() const
-{
-    return geom.width();
-}
-
-inline int Toplevel::height() const
-{
-    return geom.height();
-}
-
-inline QRect Toplevel::rect() const
-{
-    return QRect(0, 0, width(), height());
 }
 
 inline bool Toplevel::readyForPainting() const

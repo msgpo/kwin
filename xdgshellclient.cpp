@@ -286,6 +286,11 @@ void XdgShellClient::deleteClient(XdgShellClient *c)
     delete c;
 }
 
+QRect XdgShellClient::geometry() const
+{
+    return m_frameGeometry;
+}
+
 QStringList XdgShellClient::activities() const
 {
     // TODO: implement
@@ -461,7 +466,7 @@ void XdgShellClient::setGeometry(int x, int y, int w, int h, ForceGeometry_t for
     if (areGeometryUpdatesBlocked()) {
         // when the GeometryUpdateBlocker exits the current geom is passed to setGeometry
         // thus we need to set it here.
-        geom = newGeometry;
+        m_frameGeometry = newGeometry;
         if (pendingGeometryUpdate() == PendingGeometryForced)
             {} // maximum, nothing needed
         else if (force == ForceGeometrySet)
@@ -473,7 +478,7 @@ void XdgShellClient::setGeometry(int x, int y, int w, int h, ForceGeometry_t for
 
     if (pendingGeometryUpdate() != PendingGeometryNone) {
         // reset geometry to the one before blocking, so that we can compare properly
-        geom = geometryBeforeUpdateBlocking();
+        m_frameGeometry = geometryBeforeUpdateBlocking();
     }
 
     const QSize requestedClientSize = newGeometry.size() - QSize(borderLeft() + borderRight(), borderTop() + borderBottom());
@@ -488,21 +493,26 @@ void XdgShellClient::setGeometry(int x, int y, int w, int h, ForceGeometry_t for
     }
 }
 
+void XdgShellClient::move(int x, int y, ForceGeometry_t force)
+{
+    setGeometry(x, y, width(), height(), force);
+}
+
 void XdgShellClient::doSetGeometry(const QRect &rect)
 {
-    if (geom == rect && pendingGeometryUpdate() == PendingGeometryNone) {
+    if (m_frameGeometry == rect && pendingGeometryUpdate() == PendingGeometryNone) {
         return;
     }
     if (!m_unmapped) {
         addWorkspaceRepaint(visibleRect());
     }
 
-    geom = rect;
+    m_frameGeometry = rect;
     updateWindowRules(Rules::Position | Rules::Size);
 
-    if (m_unmapped && m_geomMaximizeRestore.isEmpty() && !geom.isEmpty()) {
+    if (m_unmapped && m_geomMaximizeRestore.isEmpty() && !m_frameGeometry.isEmpty()) {
         // use first valid geometry as restore geometry
-        m_geomMaximizeRestore = geom;
+        m_geomMaximizeRestore = m_frameGeometry;
     }
 
     if (!m_unmapped) {
