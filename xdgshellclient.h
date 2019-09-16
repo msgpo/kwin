@@ -172,7 +172,6 @@ private:
     void updateIcon();
     bool shouldExposeToWindowManagement();
     void updateClientOutputs();
-    void updateWindowMargins();
     KWayland::Server::XdgShellSurfaceInterface::States xdgSurfaceStates() const;
     void updateShowOnScreenEdge();
     void updateMaximizeMode(MaximizeMode maximizeMode);
@@ -184,8 +183,6 @@ private:
     void unmap();
     void markAsMapped();
     static void deleteClient(XdgShellClient *c);
-
-    QSize toWindowGeometry(const QSize &geometry) const;
 
     KWayland::Server::XdgShellSurfaceInterface *m_xdgShellSurface;
     KWayland::Server::XdgShellPopupInterface *m_xdgShellPopup;
@@ -234,7 +231,6 @@ private:
     QString m_captionSuffix;
     QHash<qint32, PingReason> m_pingSerials;
     int m_configureBlockCounter = 0;
-    QMargins m_windowMargins;
     bool m_isInitialized = false;
 
     friend class ConfigureBlocker;

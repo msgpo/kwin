@@ -285,16 +285,6 @@ void XdgShellClient::deleteClient(XdgShellClient *c)
     delete c;
 }
 
-QSize XdgShellClient::toWindowGeometry(const QSize &size) const
-{
-    QSize adjustedSize = size - QSize(borderLeft() + borderRight(), borderTop() + borderBottom());
-    // a client going fullscreen should have the window the contents size of the screen
-    if (!isFullScreen() && requestedMaximizeMode() != MaximizeFull) {
-        adjustedSize -= QSize(m_windowMargins.left() + m_windowMargins.right(), m_windowMargins.top() + m_windowMargins.bottom());
-    }
-    return adjustedSize;
-}
-
 QStringList XdgShellClient::activities() const
 {
     // TODO: implement
@@ -386,8 +376,6 @@ void XdgShellClient::addDamage(const QRegion &damage)
 {
     auto s = surface();
     if (s->size().isValid()) {
-        m_clientSize = s->size();
-        updateWindowMargins();
         updatePendingGeometry();
     }
     markAsMapped();
@@ -486,15 +474,15 @@ void XdgShellClient::setGeometry(int x, int y, int w, int h, ForceGeometry_t for
             setPendingGeometryUpdate(PendingGeometryNormal);
         return;
     }
+
     if (pendingGeometryUpdate() != PendingGeometryNone) {
         // reset geometry to the one before blocking, so that we can compare properly
         geom = geometryBeforeUpdateBlocking();
     }
-    const QSize requestedClientSize = newGeometry.size() - QSize(borderLeft() + borderRight(), borderTop() + borderBottom());
-    const QSize requestedWindowGeometrySize = toWindowGeometry(newGeometry.size());
 
-    if (requestedClientSize == m_clientSize &&
-        (m_requestedClientSize.isEmpty() || requestedWindowGeometrySize == m_requestedClientSize)) {
+    const QSize requestedClientSize = newGeometry.size() - QSize(borderLeft() + borderRight(), borderTop() + borderBottom());
+
+    if (requestedClientSize == m_clientSize) { // FIXME: Incorrect.
         // size didn't change, and we don't need to explicitly request a new size
         doSetGeometry(newGeometry);
         updateMaximizeMode(m_requestedMaximizeMode);
@@ -1022,7 +1010,7 @@ void XdgShellClient::requestGeometry(const QRect &rect)
 
     QSize size;
     if (rect.isValid()) {
-        size = toWindowGeometry(rect.size());
+        size = rect.size() - QSize(borderLeft() + borderRight(), borderTop() + borderBottom());
     } else {
         size = QSize(0, 0);
     }
@@ -1885,32 +1873,6 @@ void XdgShellClient::updateClientOutputs()
         }
     }
     surface()->setOutputs(clientOutputs);
-}
-
-void XdgShellClient::updateWindowMargins()
-{
-    QRect windowGeometry;
-    QSize clientSize = m_clientSize;
-
-    if (m_xdgShellSurface) {
-        windowGeometry = m_xdgShellSurface->windowGeometry();
-    } else {
-        windowGeometry = m_xdgShellPopup->windowGeometry();
-        if (!clientSize.isValid()) {
-            clientSize = m_xdgShellPopup->initialSize();
-        }
-    }
-
-    if (windowGeometry.isEmpty() ||
-        windowGeometry.width() > clientSize.width() ||
-        windowGeometry.height() > clientSize.height()) {
-        m_windowMargins = QMargins();
-    } else {
-        m_windowMargins = QMargins(windowGeometry.left(),
-                                    windowGeometry.top(),
-                                    clientSize.width() - (windowGeometry.right() + 1),
-                                    clientSize.height() - (windowGeometry.bottom() + 1));
-    }
 }
 
 bool XdgShellClient::isPopupWindow() const
