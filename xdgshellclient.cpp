@@ -1258,8 +1258,7 @@ void XdgShellClient::handlePongReceived(quint32 serial)
 
 void XdgShellClient::resizeWithChecks(int w, int h, ForceGeometry_t force)
 {
-    Q_UNUSED(force)
-    QRect area = workspace()->clientArea(WorkArea, this);
+    const QRect area = workspace()->clientArea(WorkArea, this);
     // don't allow growing larger than workarea
     if (w > area.width()) {
         w = area.width();
@@ -1267,9 +1266,7 @@ void XdgShellClient::resizeWithChecks(int w, int h, ForceGeometry_t force)
     if (h > area.height()) {
         h = area.height();
     }
-    if (m_xdgShellSurface) {
-        m_xdgShellSurface->configure(xdgSurfaceStates(), QSize(w, h));
-    }
+    setGeometry(x(), y(), w, h, force);
 }
 
 void XdgShellClient::unmap()
