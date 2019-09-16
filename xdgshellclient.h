@@ -141,6 +141,7 @@ protected:
 
 private Q_SLOTS:
     void handleConfigureAcknowledged(quint32 serial);
+    void handleCommitted();
     void handleSurfaceSizeChanged();
     void handleTransientForChanged();
     void handleWindowClassChanged(const QByteArray &windowClass);

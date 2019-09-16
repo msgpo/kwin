@@ -181,6 +181,8 @@ void XdgShellClient::finishInit()
 {
     disconnect(surface(), &SurfaceInterface::committed, this, &XdgShellClient::finishInit);
 
+    connect(surface(), &SurfaceInterface::committed, this, &XdgShellClient::handleCommitted);
+
     bool needsPlacement = !isInitialPositionSet();
 
     if (supportsWindowRules()) {
@@ -374,13 +376,9 @@ void XdgShellClient::setOpacity(double opacity)
 
 void XdgShellClient::addDamage(const QRegion &damage)
 {
-    auto s = surface();
-    if (s->size().isValid()) {
-        updatePendingGeometry();
-    }
-    markAsMapped();
-    setDepth((s->buffer()->hasAlphaChannel() && !isDesktop()) ? 32 : 24);
-    repaints_region += damage.translated(clientPos());
+    const QRegion dirty = damage.translated(borderLeft(), borderTop());
+    addRepaint(dirty);
+
     Toplevel::addDamage(damage);
 }
 
@@ -1069,6 +1067,18 @@ void XdgShellClient::updatePendingGeometry()
 void XdgShellClient::handleConfigureAcknowledged(quint32 serial)
 {
     m_lastAckedConfigureRequest = serial;
+}
+
+void XdgShellClient::handleCommitted()
+{
+    if (surface()->size().isValid()) {
+        updatePendingGeometry();
+    }
+
+    if (surface()->buffer()) {
+        setDepth((surface()->buffer()->hasAlphaChannel() && !isDesktop()) ? 32 : 24);
+        markAsMapped();
+    }
 }
 
 void XdgShellClient::handleSurfaceSizeChanged()
