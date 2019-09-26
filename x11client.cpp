@@ -31,6 +31,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "deleted.h"
 #include "focuschain.h"
 #include "group.h"
+#include "screens.h"
 #include "shadow.h"
 #ifdef KWIN_BUILD_TABBOX
 #include "tabbox.h"
@@ -157,7 +158,7 @@ X11Client::X11Client()
     //Client to workspace connections require that each
     //client constructed be connected to the workspace wrapper
 
-    geom = QRect(0, 0, 100, 100);   // So that decorations don't start with size being (0,0)
+    m_frameGeometry = QRect(0, 0, 100, 100);   // So that decorations don't start with size being (0,0)
     client_size = QSize(100, 100);
 
     connect(clientMachine(), &ClientMachine::localhostChanged, this, &X11Client::updateCaption);
@@ -1971,6 +1972,11 @@ xcb_window_t X11Client::frameId() const
     return m_frame;
 }
 
+QRect X11Client::frameGeometry() const
+{
+    return m_frameGeometry;
+}
+
 Xcb::Property X11Client::fetchShowOnScreenEdge() const
 {
     return Xcb::Property(false, window(), atoms->kde_screen_edge_show, XCB_ATOM_CARDINAL, 0, 1);
@@ -2128,6 +2134,39 @@ void X11Client::handleSync()
         performMoveResize();
     } else // setReadyForPainting does as well, but there's a small chance for resize syncs after the resize ended
         addRepaintFull();
+}
+
+void X11Client::move(int x, int y, ForceGeometry_t force)
+{
+    // Resuming geometry updates is handled only in setGeometry()
+    Q_ASSERT(pendingGeometryUpdate() == PendingGeometryNone || areGeometryUpdatesBlocked());
+    const QPoint position(x, y);
+    if (!areGeometryUpdatesBlocked() && position != rules()->checkPosition(position)) {
+        qCDebug(KWIN_CORE) << "forced position fail:" << position << ":" << rules()->checkPosition(position);
+    }
+    if (force == NormalGeometrySet && m_frameGeometry.topLeft() == position) {
+        return;
+    }
+    m_frameGeometry.moveTopLeft(position);
+    if (areGeometryUpdatesBlocked()) {
+        if (pendingGeometryUpdate() == PendingGeometryForced) {
+            // Maximum, nothing needed.
+        } else if (force == ForceGeometrySet) {
+            setPendingGeometryUpdate(PendingGeometryForced);
+        } else {
+            setPendingGeometryUpdate(PendingGeometryNormal);
+        }
+        return;
+    }
+    m_frame.move(x, y);
+    sendSyntheticConfigureNotify();
+    updateWindowRules(Rules::Position);
+    screens()->setCurrent(this);
+    workspace()->updateStackingOrder();
+    // Client itself is not damaged.
+    addRepaintDuringGeometryUpdates();
+    updateGeometryBeforeUpdateBlocking();
+    emit geometryChanged();
 }
 
 } // namespace

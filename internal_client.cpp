@@ -94,6 +94,11 @@ bool InternalClient::eventFilter(QObject *watched, QEvent *event)
     return false;
 }
 
+QRect InternalClient::frameGeometry() const
+{
+    return m_frameGeometry;
+}
+
 QStringList InternalClient::activities() const
 {
     return QStringList();
@@ -326,12 +331,17 @@ void InternalClient::resizeWithChecks(int w, int h, ForceGeometry_t force)
     setFrameGeometry(QRect(x(), y(), w, h));
 }
 
+void InternalClient::move(int x, int y, ForceGeometry_t force)
+{
+    setFrameGeometry(x, y, width(), height(), force);
+}
+
 void InternalClient::setFrameGeometry(int x, int y, int w, int h, ForceGeometry_t force)
 {
     const QRect rect(x, y, w, h);
 
     if (areGeometryUpdatesBlocked()) {
-        geom = rect;
+        m_frameGeometry = rect;
         if (pendingGeometryUpdate() == PendingGeometryForced) {
             // Maximum, nothing needed.
         } else if (force == ForceGeometrySet) {
@@ -344,10 +354,10 @@ void InternalClient::setFrameGeometry(int x, int y, int w, int h, ForceGeometry_
 
     if (pendingGeometryUpdate() != PendingGeometryNone) {
         // Reset geometry to the one before blocking, so that we can compare properly.
-        geom = geometryBeforeUpdateBlocking();
+        m_frameGeometry = geometryBeforeUpdateBlocking();
     }
 
-    if (geom == rect) {
+    if (m_frameGeometry == rect) {
         return;
     }
 
@@ -542,14 +552,6 @@ void InternalClient::destroyDecoration()
     setFrameGeometry(clientGeometry);
 }
 
-void InternalClient::doMove(int x, int y)
-{
-    Q_UNUSED(x)
-    Q_UNUSED(y)
-
-    syncGeometryToInternalWindow();
-}
-
 void InternalClient::doResizeSync()
 {
     requestGeometry(moveResizeGeometry());
@@ -617,11 +619,11 @@ void InternalClient::requestGeometry(const QRect &rect)
 
 void InternalClient::commitGeometry(const QRect &rect)
 {
-    if (geom == rect && pendingGeometryUpdate() == PendingGeometryNone) {
+    if (m_frameGeometry == rect && pendingGeometryUpdate() == PendingGeometryNone) {
         return;
     }
 
-    geom = rect;
+    m_frameGeometry = rect;
 
     m_clientSize = mapToClient(frameGeometry()).size();
 

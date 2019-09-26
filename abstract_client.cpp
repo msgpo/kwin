@@ -67,6 +67,7 @@ AbstractClient::AbstractClient()
     connect(this, &AbstractClient::clientFinishUserMovedResized, this, &AbstractClient::moveResizedChanged);
     connect(this, &AbstractClient::clientStartUserMovedResized,  this, &AbstractClient::removeCheckScreenConnection);
     connect(this, &AbstractClient::clientFinishUserMovedResized, this, &AbstractClient::setupCheckScreenConnection);
+    connect(this, &AbstractClient::clientFinishUserMovedResized, this, &AbstractClient::checkScreen);
 
     connect(this, &AbstractClient::paletteChanged, this, &AbstractClient::triggerDecorationRepaint);
 
@@ -1309,10 +1310,6 @@ void AbstractClient::addRepaintDuringGeometryUpdates()
 void AbstractClient::updateGeometryBeforeUpdateBlocking()
 {
     m_geometryBeforeUpdateBlocking = frameGeometry();
-}
-
-void AbstractClient::doMove(int, int)
-{
 }
 
 void AbstractClient::updateInitialMoveResizeGeometry()

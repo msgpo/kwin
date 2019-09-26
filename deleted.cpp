@@ -94,6 +94,7 @@ void Deleted::copyToDeleted(Toplevel* c)
 {
     Q_ASSERT(dynamic_cast< Deleted* >(c) == nullptr);
     Toplevel::copyToDeleted(c);
+    m_frameGeometry = c->frameGeometry();
     m_bufferScale = c->bufferScale();
     desk = c->desktop();
     m_desktops = c->desktops();
@@ -161,6 +162,11 @@ void Deleted::unrefWindow()
     // window going away during a painting pass
     // b) to prevent dangeling pointers in the stacking order, see bug #317765
     deleteLater();
+}
+
+QRect Deleted::frameGeometry() const
+{
+    return m_frameGeometry;
 }
 
 qreal Deleted::bufferScale() const

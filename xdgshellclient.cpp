@@ -295,6 +295,11 @@ QSize XdgShellClient::toWindowGeometry(const QSize &size) const
     return adjustedSize;
 }
 
+QRect XdgShellClient::frameGeometry() const
+{
+    return m_frameGeometry;
+}
+
 QStringList XdgShellClient::activities() const
 {
     // TODO: implement
@@ -463,6 +468,11 @@ void XdgShellClient::updateDecoration(bool check_workspace_pos, bool force)
     blockGeometryUpdates(false);
 }
 
+void XdgShellClient::move(int x, int y, ForceGeometry_t force)
+{
+    setFrameGeometry(x, y, width(), height(), force);
+}
+
 void XdgShellClient::setFrameGeometry(int x, int y, int w, int h, ForceGeometry_t force)
 {
     const QRect newGeometry = rules()->checkGeometry(QRect(x, y, w, h));
@@ -470,7 +480,7 @@ void XdgShellClient::setFrameGeometry(int x, int y, int w, int h, ForceGeometry_
     if (areGeometryUpdatesBlocked()) {
         // when the GeometryUpdateBlocker exits the current geom is passed to setGeometry
         // thus we need to set it here.
-        geom = newGeometry;
+        m_frameGeometry = newGeometry;
         if (pendingGeometryUpdate() == PendingGeometryForced) {
             // maximum, nothing needed
         } else if (force == ForceGeometrySet) {
@@ -483,7 +493,7 @@ void XdgShellClient::setFrameGeometry(int x, int y, int w, int h, ForceGeometry_
 
     if (pendingGeometryUpdate() != PendingGeometryNone) {
         // reset geometry to the one before blocking, so that we can compare properly
-        geom = geometryBeforeUpdateBlocking();
+        m_frameGeometry = geometryBeforeUpdateBlocking();
     }
 
     const QSize requestedClientSize = newGeometry.size() - QSize(borderLeft() + borderRight(), borderTop() + borderBottom());
@@ -502,19 +512,19 @@ void XdgShellClient::setFrameGeometry(int x, int y, int w, int h, ForceGeometry_
 
 void XdgShellClient::doSetGeometry(const QRect &rect)
 {
-    if (geom == rect && pendingGeometryUpdate() == PendingGeometryNone) {
+    if (m_frameGeometry == rect && pendingGeometryUpdate() == PendingGeometryNone) {
         return;
     }
     if (!m_unmapped) {
         addWorkspaceRepaint(visibleRect());
     }
 
-    geom = rect;
+    m_frameGeometry = rect;
     updateWindowRules(Rules::Position | Rules::Size);
 
-    if (m_unmapped && m_geomMaximizeRestore.isEmpty() && !geom.isEmpty()) {
+    if (m_unmapped && m_geomMaximizeRestore.isEmpty() && !m_frameGeometry.isEmpty()) {
         // use first valid geometry as restore geometry
-        m_geomMaximizeRestore = geom;
+        m_geomMaximizeRestore = m_frameGeometry;
     }
 
     if (!m_unmapped) {

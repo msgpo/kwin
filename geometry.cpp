@@ -1954,9 +1954,9 @@ void X11Client::setFrameGeometry(int x, int y, int w, int h, ForceGeometry_t for
     if (!areGeometryUpdatesBlocked() && g != rules()->checkGeometry(g)) {
         qCDebug(KWIN_CORE) << "forced geometry fail:" << g << ":" << rules()->checkGeometry(g);
     }
-    if (force == NormalGeometrySet && geom == g && pendingGeometryUpdate() == PendingGeometryNone)
+    if (force == NormalGeometrySet && m_frameGeometry == g && pendingGeometryUpdate() == PendingGeometryNone)
         return;
-    geom = g;
+    m_frameGeometry = g;
     if (areGeometryUpdatesBlocked()) {
         if (pendingGeometryUpdate() == PendingGeometryForced)
             {} // maximum, nothing needed
@@ -1967,7 +1967,7 @@ void X11Client::setFrameGeometry(int x, int y, int w, int h, ForceGeometry_t for
         return;
     }
     QSize oldClientSize = m_frame.geometry().size();
-    bool resized = (geometryBeforeUpdateBlocking().size() != geom.size() || pendingGeometryUpdate() == PendingGeometryForced);
+    bool resized = (geometryBeforeUpdateBlocking().size() != m_frameGeometry.size() || pendingGeometryUpdate() == PendingGeometryForced);
     if (resized) {
         resizeDecoration();
         m_frame.setGeometry(x, y, w, h);
@@ -2036,9 +2036,9 @@ void X11Client::plainResize(int w, int h, ForceGeometry_t force)
     }
     // resuming geometry updates is handled only in setGeometry()
     Q_ASSERT(pendingGeometryUpdate() == PendingGeometryNone || areGeometryUpdatesBlocked());
-    if (force == NormalGeometrySet && geom.size() == s)
+    if (force == NormalGeometrySet && m_frameGeometry.size() == s)
         return;
-    geom.setSize(s);
+    m_frameGeometry.setSize(s);
     if (areGeometryUpdatesBlocked()) {
         if (pendingGeometryUpdate() == PendingGeometryForced)
             {} // maximum, nothing needed
@@ -2070,45 +2070,6 @@ void X11Client::plainResize(int w, int h, ForceGeometry_t force)
     updateGeometryBeforeUpdateBlocking();
     // TODO: this signal is emitted too often
     emit geometryChanged();
-}
-
-/**
- * Reimplemented to inform the client about the new window position.
- */
-void AbstractClient::move(int x, int y, ForceGeometry_t force)
-{
-    // resuming geometry updates is handled only in setGeometry()
-    Q_ASSERT(pendingGeometryUpdate() == PendingGeometryNone || areGeometryUpdatesBlocked());
-    QPoint p(x, y);
-    if (!areGeometryUpdatesBlocked() && p != rules()->checkPosition(p)) {
-        qCDebug(KWIN_CORE) << "forced position fail:" << p << ":" << rules()->checkPosition(p);
-    }
-    if (force == NormalGeometrySet && geom.topLeft() == p)
-        return;
-    geom.moveTopLeft(p);
-    if (areGeometryUpdatesBlocked()) {
-        if (pendingGeometryUpdate() == PendingGeometryForced)
-            {} // maximum, nothing needed
-        else if (force == ForceGeometrySet)
-            setPendingGeometryUpdate(PendingGeometryForced);
-        else
-            setPendingGeometryUpdate(PendingGeometryNormal);
-        return;
-    }
-    doMove(x, y);
-    updateWindowRules(Rules::Position);
-    screens()->setCurrent(this);
-    workspace()->updateStackingOrder();
-    // client itself is not damaged
-    addRepaintDuringGeometryUpdates();
-    updateGeometryBeforeUpdateBlocking();
-    emit geometryChanged();
-}
-
-void X11Client::doMove(int x, int y)
-{
-    m_frame.move(x, y);
-    sendSyntheticConfigureNotify();
 }
 
 void AbstractClient::blockGeometryUpdates(bool block)
@@ -2657,7 +2618,7 @@ void X11Client::leaveMoveResize()
 {
     if (needsXWindowMove) {
         // Do the deferred move
-        m_frame.move(geom.topLeft());
+        m_frame.move(pos());
         needsXWindowMove = false;
     }
     if (!isResize())

@@ -58,6 +58,7 @@ public:
     XdgShellClient(KWayland::Server::XdgShellPopupInterface *surface);
     ~XdgShellClient() override;
 
+    QRect frameGeometry() const override;
     QStringList activities() const override;
     QPoint clientContentPos() const override;
     QSize clientSize() const override;
@@ -100,6 +101,8 @@ public:
     void resizeWithChecks(int w, int h, ForceGeometry_t force = NormalGeometrySet) override;
     using AbstractClient::setFrameGeometry;
     void setFrameGeometry(int x, int y, int w, int h, ForceGeometry_t force = NormalGeometrySet) override;
+    using AbstractClient::move;
+    void move(int x, int y, ForceGeometry_t force = NormalGeometrySet) override;
     bool hasStrut() const override;
     quint32 windowId() const override;
     pid_t pid() const override;
@@ -190,6 +193,8 @@ private:
 
     KWayland::Server::XdgShellSurfaceInterface *m_xdgShellSurface;
     KWayland::Server::XdgShellPopupInterface *m_xdgShellPopup;
+
+    QRect m_frameGeometry;
 
     // size of the last buffer
     QSize m_clientSize;

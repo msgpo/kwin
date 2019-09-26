@@ -623,7 +623,7 @@ public:
     void updateLayer();
 
     enum ForceGeometry_t { NormalGeometrySet, ForceGeometrySet };
-    void move(int x, int y, ForceGeometry_t force = NormalGeometrySet);
+    virtual void move(int x, int y, ForceGeometry_t force = NormalGeometrySet) = 0;
     void move(const QPoint &p, ForceGeometry_t force = NormalGeometrySet);
     virtual void resizeWithChecks(int w, int h, ForceGeometry_t force = NormalGeometrySet) = 0;
     void resizeWithChecks(const QSize& s, ForceGeometry_t force = NormalGeometrySet);
@@ -991,11 +991,6 @@ protected:
     virtual void changeMaximize(bool horizontal, bool vertical, bool adjust) = 0;
     virtual void setGeometryRestore(const QRect &geo) = 0;
 
-    /**
-     * Called from move after updating the geometry. Can be reimplemented to perform specific tasks.
-     * The base implementation does nothing.
-     */
-    virtual void doMove(int x, int y);
     void blockGeometryUpdates(bool block);
     void blockGeometryUpdates();
     void unblockGeometryUpdates();
