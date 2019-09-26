@@ -1293,8 +1293,7 @@ void XdgShellClient::installPlasmaShellSurface(PlasmaShellSurfaceInterface *surf
 {
     m_plasmaShellSurface = surface;
     auto updatePosition = [this, surface] {
-        QRect rect = QRect(surface->position(), m_clientSize + QSize(borderLeft() + borderRight(), borderTop() + borderBottom()));
-        doSetGeometry(rect);
+        move(surface->position());
     };
     auto updateRole = [this, surface] {
         NET::WindowType type = NET::Unknown;
