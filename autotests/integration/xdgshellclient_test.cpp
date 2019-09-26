@@ -113,7 +113,9 @@ private Q_SLOTS:
     void testXdgInitialState();
     void testXdgInitiallyMaximised();
     void testXdgInitiallyMinimized();
+#if 0
     void testXdgWindowGeometry();
+#endif
 };
 
 void TestXdgShellClient::initTestCase()
@@ -1270,6 +1272,7 @@ void TestXdgShellClient::testXdgInitiallyMinimized()
     QVERIFY(c->isMinimized());
 }
 
+#if 0
 void TestXdgShellClient::testXdgWindowGeometry()
 {
     QScopedPointer<Surface> surface(Test::createSurface());
@@ -1305,6 +1308,7 @@ void TestXdgShellClient::testXdgWindowGeometry()
     const QSize requestedFullScreenSize = configureRequestedSpy.last()[0].value<QSize>();
     QCOMPARE(requestedFullScreenSize, QSize(1280, 1024));
 }
+#endif
 
 WAYLANDTEST_MAIN(TestXdgShellClient)
 #include "xdgshellclient_test.moc"

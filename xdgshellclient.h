@@ -147,6 +147,7 @@ private Q_SLOTS:
     void handleConfigureAcknowledged(quint32 serial);
     void handleTransientForChanged();
     void handleWindowClassChanged(const QByteArray &windowClass);
+    void handleWindowGeometryChanged(const QRect &windowGeometry);
     void handleWindowTitleChanged(const QString &title);
     void handleMoveRequested(KWayland::Server::SeatInterface *seat, quint32 serial);
     void handleResizeRequested(KWayland::Server::SeatInterface *seat, quint32 serial, Qt::Edges edges);
@@ -176,42 +177,41 @@ private:
     void updateIcon();
     bool shouldExposeToWindowManagement();
     void updateClientOutputs();
-    void updateWindowMargins();
     KWayland::Server::XdgShellSurfaceInterface::States xdgSurfaceStates() const;
     void updateShowOnScreenEdge();
     void updateMaximizeMode(MaximizeMode maximizeMode);
-    // called on surface commit and processes all m_pendingConfigureRequests up to m_lastAckedConfigureReqest
-    void updatePendingGeometry();
     QPoint popupOffset(const QRect &anchorRect, const Qt::Edges anchorEdge, const Qt::Edges gravity, const QSize popupSize) const;
+    bool canUpdateGeometry(const QRect &rect) const;
+    void updateGeometry(const QRect &rect);
     void requestGeometry(const QRect &rect);
-    void doSetGeometry(const QRect &rect);
     void unmap();
     void markAsMapped();
+    quint32 sendToplevelConfigure(const QRect &rect);
+    quint32 sendPopupConfigure(const QRect &rect);
+    QRect determineBufferGeometry() const;
+    QRect determineFrameGeometry() const;
     static void deleteClient(XdgShellClient *c);
-
-    QSize toWindowGeometry(const QSize &geometry) const;
 
     KWayland::Server::XdgShellSurfaceInterface *m_xdgShellSurface;
     KWayland::Server::XdgShellPopupInterface *m_xdgShellPopup;
 
     QRect m_frameGeometry;
+    QRect m_bufferGeometry;
+    QRect m_xdgWindowGeometry;
 
-    // size of the last buffer
-    QSize m_clientSize;
+    struct ConfigureEvent
+    {
+        QPoint position;
+        MaximizeMode maximizeMode;
+        quint32 serial;
+    };
+    QVector<ConfigureEvent> m_configureEvents;
+    ConfigureEvent m_lastAckedConfigureEvent;
+    bool m_lastAckedConfigureEventIsSet = false;
+
     // last size we requested or empty if we haven't sent an explicit request to the client
     // if empty the client should choose their own default size
     QSize m_requestedClientSize = QSize(0, 0);
-
-    struct PendingConfigureRequest {
-        //note for wl_shell we have no serial, so serialId and m_lastAckedConfigureRequest will always be 0
-        //meaning we treat a surface commit as having processed all requests
-        quint32 serialId = 0;
-        // position to apply after a resize operation has been completed
-        QPoint positionAfterResize;
-        MaximizeMode maximizeMode;
-    };
-    QVector<PendingConfigureRequest> m_pendingConfigureRequests;
-    quint32 m_lastAckedConfigureRequest = 0;
 
     //mode in use by the current buffer
     MaximizeMode m_maximizeMode = MaximizeRestore;
@@ -234,6 +234,7 @@ private:
     bool m_transient = false;
     bool m_hidden = false;
     bool m_hasPopupGrab = false;
+    bool m_hasXdgWindowGeometry = false;
     qreal m_opacity = 1.0;
 
     class RequestGeometryBlocker { //TODO rename ConfigureBlocker when this class is Xdg only
@@ -259,8 +260,6 @@ private:
     QString m_caption;
     QString m_captionSuffix;
     QHash<qint32, PingReason> m_pingSerials;
-
-    QMargins m_windowMargins;
 
     bool m_isInitialized = false;
 
