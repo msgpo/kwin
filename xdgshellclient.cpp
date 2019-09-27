@@ -287,6 +287,11 @@ void XdgShellClient::deleteClient(XdgShellClient *c)
     delete c;
 }
 
+QRect XdgShellClient::bufferGeometry() const
+{
+    return m_bufferGeometry;
+}
+
 QRect XdgShellClient::frameGeometry() const
 {
     return m_frameGeometry;
@@ -296,11 +301,6 @@ QStringList XdgShellClient::activities() const
 {
     // TODO: implement
     return QStringList();
-}
-
-QPoint XdgShellClient::clientContentPos() const
-{
-    return -1 * clientPos();
 }
 
 QSize XdgShellClient::clientSize() const

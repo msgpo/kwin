@@ -293,7 +293,7 @@ void SceneQPainter::Window::performPaint(int mask, QRegion region, WindowPaintDa
         // special case for XWayland windows
         srcSize = toplevel->clientSize();
     }
-    const QRect src = QRect(toplevel->clientPos() + toplevel->clientContentPos(), srcSize);
+    const QRect src = QRect(0, 0, srcSize.width(), srcSize.height());
     painter->drawImage(target, pixmap->image(), src);
 
     // render subsurfaces

@@ -94,13 +94,15 @@ void Deleted::copyToDeleted(Toplevel* c)
 {
     Q_ASSERT(dynamic_cast< Deleted* >(c) == nullptr);
     Toplevel::copyToDeleted(c);
+    m_bufferGeometry = c->bufferGeometry();
+    m_bufferMargins = c->bufferMargins();
     m_frameGeometry = c->frameGeometry();
+    m_frameMargins = c->frameMargins();
     m_bufferScale = c->bufferScale();
     desk = c->desktop();
     m_desktops = c->desktops();
     activityList = c->activities();
     contentsRect = QRect(c->clientPos(), c->clientSize());
-    m_contentPos = c->clientContentPos();
     transparent_rect = c->transparentRect();
     m_layer = c->layer();
     m_frame = c->frameId();
@@ -164,9 +166,24 @@ void Deleted::unrefWindow()
     deleteLater();
 }
 
+QRect Deleted::bufferGeometry() const
+{
+    return m_bufferGeometry;
+}
+
+QMargins Deleted::bufferMargins() const
+{
+    return m_bufferMargins;
+}
+
 QRect Deleted::frameGeometry() const
 {
     return m_frameGeometry;
+}
+
+QMargins Deleted::frameMargins() const
+{
+    return m_frameMargins;
 }
 
 qreal Deleted::bufferScale() const

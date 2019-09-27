@@ -35,13 +35,13 @@ public:
 
     bool eventFilter(QObject *watched, QEvent *event) override;
 
+    QRect bufferGeometry() const override;
     QRect frameGeometry() const override;
     QStringList activities() const override;
     void blockActivityUpdates(bool b = true) override;
     qreal bufferScale() const override;
     QString captionNormal() const override;
     QString captionSuffix() const override;
-    QPoint clientContentPos() const override;
     QSize clientSize() const override;
     void debug(QDebug &stream) const override;
     QRect transparentRect() const override;

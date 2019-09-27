@@ -94,6 +94,11 @@ bool InternalClient::eventFilter(QObject *watched, QEvent *event)
     return false;
 }
 
+QRect InternalClient::bufferGeometry() const
+{
+    return mapToClient(frameGeometry());
+}
+
 QRect InternalClient::frameGeometry() const
 {
     return m_frameGeometry;
@@ -127,11 +132,6 @@ QString InternalClient::captionNormal() const
 QString InternalClient::captionSuffix() const
 {
     return m_captionSuffix;
-}
-
-QPoint InternalClient::clientContentPos() const
-{
-    return -1 * clientPos();
 }
 
 QSize InternalClient::clientSize() const

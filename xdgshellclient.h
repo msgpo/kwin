@@ -58,9 +58,9 @@ public:
     XdgShellClient(KWayland::Server::XdgShellPopupInterface *surface);
     ~XdgShellClient() override;
 
+    QRect bufferGeometry() const override;
     QRect frameGeometry() const override;
     QStringList activities() const override;
-    QPoint clientContentPos() const override;
     QSize clientSize() const override;
     QRect transparentRect() const override;
     NET::WindowType windowType(bool direct = false, int supported_types = 0) const override;

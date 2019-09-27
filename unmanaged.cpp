@@ -123,6 +123,11 @@ void Unmanaged::deleteUnmanaged(Unmanaged* c)
     delete c;
 }
 
+QRect Unmanaged::bufferGeometry() const
+{
+    return m_frameGeometry;
+}
+
 QRect Unmanaged::frameGeometry() const
 {
     return m_frameGeometry;

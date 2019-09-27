@@ -838,6 +838,15 @@ QRect Toplevel::rect() const
     return QRect(0, 0, width(), height());
 }
 
+QMargins Toplevel::bufferMargins() const
+{
+    return QMargins();
+}
+
+QMargins Toplevel::frameMargins() const
+{
+    return QMargins();
+}
 
 } // namespace
 

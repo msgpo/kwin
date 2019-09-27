@@ -80,6 +80,13 @@ class KWIN_EXPORT Toplevel : public QObject
     Q_PROPERTY(QRect geometry READ frameGeometry NOTIFY geometryChanged)
 
     /**
+     * This property holds rectangle that the pixmap or buffer of this Toplevel
+     * occupies on the screen. This rectangle includes invisible portions of the
+     * client, e.g. client-side drop shadows, etc.
+     */
+    Q_PROPERTY(QRect bufferGeometry READ bufferGeometry NOTIFY geometryChanged)
+
+    /**
      * This property holds the geometry of the Toplevel, excluding invisible
      * portions, e.g. server-side and client-side drop-shadows, etc.
      */
@@ -299,10 +306,39 @@ public:
      */
     virtual quint32 windowId() const;
     /**
+     * Returns the geometry of the pixmap or buffer of the client.
+     *
+     * For X11 clients, this method returns server-side geometry of the client, i.e.
+     * with server-side decoration included.
+     *
+     * For Wayland clients, this method returns geometry of the buffer, excluding
+     * server-side decoration if the client is decorated.
+     */
+    virtual QRect bufferGeometry() const = 0;
+    /**
+     * Returns the extents of invisible portions in the pixmap.
+     *
+     * An X11 pixmap may contain invisible space around the actual contents of the
+     * client. That space is reserved for server-side decoration, which we usually
+     * want to skip when building scene nodes.
+     *
+     * Default implementation returns a margins object with all margins set to 0.
+     */
+    virtual QMargins bufferMargins() const;
+    /**
      * Returns the geometry of the Toplevel, excluding invisible portions, e.g.
      * server-side and client-side drop shadows, etc.
      */
     virtual QRect frameGeometry() const = 0;
+    /**
+     * Returns the extents of the server-side decoration.
+     *
+     * Note that the returned margins object will have all margins set to 0 if
+     * the client doesn't have a server-side decoration.
+     *
+     * Default implementation returns a margins object with all margins set to 0.
+     */
+    virtual QMargins frameMargins() const;
     /**
      * The geometry of the Toplevel which accepts input events. This might be larger
      * than the actual geometry, e.g. to support resizing outside the window.
@@ -334,11 +370,6 @@ public:
      */
     virtual qreal bufferScale() const;
     virtual QPoint clientPos() const = 0; // inside of geometry()
-    /**
-     * Describes how the client's content maps to the window geometry including the frame.
-     * The default implementation is a 1:1 mapping meaning the frame is part of the content.
-     */
-    virtual QPoint clientContentPos() const;
     virtual QSize clientSize() const = 0;
     virtual QRect visibleRect() const; // the area the window occupies on the screen
     virtual QRect decorationRect() const; // rect including the decoration shadows
@@ -923,11 +954,6 @@ inline const QSharedPointer<QOpenGLFramebufferObject> &Toplevel::internalFramebu
 inline QImage Toplevel::internalImageObject() const
 {
     return m_internalImage;
-}
-
-inline QPoint Toplevel::clientContentPos() const
-{
-    return QPoint(0, 0);
 }
 
 template <class T, class U>

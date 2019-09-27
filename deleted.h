@@ -43,16 +43,16 @@ public:
     void refWindow();
     void unrefWindow();
     void discard();
+    QRect bufferGeometry() const override;
+    QMargins bufferMargins() const override;
     QRect frameGeometry() const override;
+    QMargins frameMargins() const override;
     qreal bufferScale() const override;
     int desktop() const override;
     QStringList activities() const override;
     QVector<VirtualDesktop *> desktops() const override;
     QPoint clientPos() const override;
     QSize clientSize() const override;
-    QPoint clientContentPos() const override {
-        return m_contentPos;
-    }
     QRect transparentRect() const override;
     bool isDeleted() const override;
     xcb_window_t frameId() const override;
@@ -199,13 +199,15 @@ private:
     void addTransientFor(AbstractClient *parent);
     void removeTransientFor(Deleted *parent);
 
+    QRect m_bufferGeometry;
     QRect m_frameGeometry;
+    QMargins m_bufferMargins;
+    QMargins m_frameMargins;
 
     int delete_refcount;
     int desk;
     QStringList activityList;
     QRect contentsRect; // for clientPos()/clientSize()
-    QPoint m_contentPos;
     QRect transparent_rect;
     xcb_window_t m_frame;
     QVector <VirtualDesktop *> m_desktops;

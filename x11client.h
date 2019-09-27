@@ -89,6 +89,8 @@ public:
     xcb_window_t inputId() const { return m_decoInputExtent; }
     xcb_window_t frameId() const override;
 
+    QRect bufferGeometry() const override;
+    QMargins bufferMargins() const override;
     QRect frameGeometry() const override;
 
     bool isTransient() const override;

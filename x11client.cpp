@@ -1972,6 +1972,16 @@ xcb_window_t X11Client::frameId() const
     return m_frame;
 }
 
+QRect X11Client::bufferGeometry() const
+{
+    return m_frameGeometry;
+}
+
+QMargins X11Client::bufferMargins() const
+{
+    return QMargins(borderLeft(), borderTop(), borderRight(), borderBottom());
+}
+
 QRect X11Client::frameGeometry() const
 {
     return m_frameGeometry;
