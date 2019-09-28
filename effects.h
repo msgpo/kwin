@@ -404,6 +404,8 @@ public:
 
     QSize basicUnit() const override;
     QRect geometry() const override;
+    QRect frameGeometry() const override;
+    QRect bufferGeometry() const override;
 
     QString caption() const override;
 
