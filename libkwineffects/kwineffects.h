@@ -2174,7 +2174,29 @@ public:
      * MAY BE DISOBEYED BY THE WM! It's only for information, do NOT rely on it at all.
      */
     virtual QSize basicUnit() const = 0;
+    /**
+     * @deprecated Use frameGeometry() instead.
+     */
     virtual QRect geometry() const = 0;
+    /**
+     * Returns the geometry of the toplevel, excluding invisible its portions, e.g.
+     * server-side or client-side drop shadow, etc.
+     *
+     * @since 5.18
+     */
+    virtual QRect frameGeometry() const = 0;
+    /**
+     * Returns the geometry of the pixmap or buffer of the client.
+     *
+     * For X11 clients, this method returns server-side geometry of the client, i.e.
+     * with server-side decoration included.
+     *
+     * For Wayland clients, this method returns geometry of the buffer, excluding
+     * server-side decoration if the client is decorated.
+     *
+     * @since 5.18
+     */
+    virtual QRect bufferGeometry() const = 0;
     /**
      * Geometry of the window including decoration and potentially shadows.
      * May be different from geometry() if the window has a shadow.
