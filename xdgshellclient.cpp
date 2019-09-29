@@ -381,7 +381,10 @@ void XdgShellClient::setOpacity(double opacity)
 
 void XdgShellClient::addDamage(const QRegion &damage)
 {
-    repaints_region += damage.translated(clientPos());
+    const int offsetX = m_bufferGeometry.x() - m_frameGeometry.x();
+    const int offsetY = m_bufferGeometry.y() - m_frameGeometry.y();
+    repaints_region += damage.translated(offsetX, offsetY);
+
     Toplevel::addDamage(damage);
 }
 
