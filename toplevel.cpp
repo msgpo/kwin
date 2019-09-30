@@ -415,8 +415,9 @@ void Toplevel::getDamageRegionReply()
 
 void Toplevel::addDamageFull()
 {
-    if (!compositing())
+    if (!compositing()) {
         return;
+    }
 
     damage_region = rect();
     repaints_region |= rect();
