@@ -2097,7 +2097,9 @@ static bool acceptsInput(Toplevel *t, const QPoint &pos)
     if (input.isEmpty()) {
         return true;
     }
-    return input.translated(t->pos()).contains(pos);
+    // FIXME: This is wrong in some sense because sub-surfaces that stick outside
+    // the main surface may not receive pointer events even though they should.
+    return input.translated(t->bufferGeometry().topLeft()).contains(pos);
 }
 
 Toplevel *InputRedirection::findToplevel(const QPoint &pos)

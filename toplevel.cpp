@@ -792,7 +792,8 @@ quint32 Toplevel::windowId() const
 
 QRect Toplevel::inputGeometry() const
 {
-    return frameGeometry();
+    // FIXME: Proper input geometry.
+    return frameGeometry() | bufferGeometry();
 }
 
 bool Toplevel::isLocalhost() const

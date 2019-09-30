@@ -642,6 +642,7 @@ void PointerInputRedirection::disconnectPointerConstraintsConnection()
 template <typename T>
 static QRegion getConstraintRegion(Toplevel *t, T *constraint)
 {
+    // FIXME: This code won't work for client-side decorated clients.
     const QRegion windowShape = t->inputShape();
     const QRegion windowRegion = windowShape.isEmpty() ? QRegion(0, 0, t->clientSize().width(), t->clientSize().height()) : windowShape;
     const QRegion intersected = constraint->region().isEmpty() ? windowRegion : windowRegion.intersected(constraint->region());
