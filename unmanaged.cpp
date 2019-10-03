@@ -123,6 +123,11 @@ void Unmanaged::deleteUnmanaged(Unmanaged* c)
     delete c;
 }
 
+QRect Unmanaged::bufferGeometry() const
+{
+    return geom;
+}
+
 int Unmanaged::desktop() const
 {
     return NET::OnAllDesktops; // TODO for some window types should be the current desktop?

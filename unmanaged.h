@@ -37,6 +37,7 @@ public:
     bool windowEvent(xcb_generic_event_t *e);
     bool track(xcb_window_t w);
     static void deleteUnmanaged(Unmanaged* c);
+    QRect bufferGeometry() const override;
     int desktop() const override;
     QStringList activities() const override;
     QVector<VirtualDesktop *> desktops() const override;
