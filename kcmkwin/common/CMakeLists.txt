@@ -5,6 +5,7 @@ include_directories(${KWIN_SOURCE_DIR}/effects)
 
 set(kcmkwincommon_SRC
     effectsmodel.cpp
+    scriptsmodel.cpp
 )
 
 qt5_add_dbus_interface(kcmkwincommon_SRC

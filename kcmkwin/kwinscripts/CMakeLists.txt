@@ -1,28 +1,35 @@
-# KI18N Translation Domain for this library
-add_definitions(-DTRANSLATION_DOMAIN=\"kcm-kwin-scripts\")
+include(ECMQMLModules)
+ecm_find_qmlmodule(org.kde.plasma.core 2.0)
 
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/version.h.cmake ${CMAKE_CURRENT_BINARY_DIR}/version.h)
-include_directories(${CMAKE_CURRENT_BINARY_DIR})
+# KI18N Translation Domain for this library.
+add_definitions(-DTRANSLATION_DOMAIN=\"kcm_kwin_scripts\")
 
-set(kcm_SRCS
-    main.cpp
-    module.cpp
+########### next target ###############
+
+set(kcm_kwin_scripts_PART_SRCS
+    kcm.cpp
+    scriptsfilterproxymodel.cpp
 )
 
-ki18n_wrap_ui(kcm_SRCS module.ui)
-
-add_library(kcm_kwin_scripts MODULE ${kcm_SRCS})
+add_library(kcm_kwin_scripts MODULE ${kcm_kwin_scripts_PART_SRCS})
 
 target_link_libraries(kcm_kwin_scripts
     Qt5::DBus
 
     KF5::I18n
     KF5::KCMUtils
-    KF5::KIOCore
     KF5::NewStuff
-    KF5::Package
+    KF5::QuickAddons
+    KF5::XmlGui
+
+    kcmkwincommon
 )
 
-install(TARGETS kcm_kwin_scripts DESTINATION ${PLUGIN_INSTALL_DIR})
-install(FILES kwinscripts.desktop DESTINATION ${SERVICES_INSTALL_DIR})
+kcoreaddons_desktop_to_json(kcm_kwin_scripts "kcm_kwin_scripts.desktop")
+
+########### install files ###############
+
+install(TARGETS kcm_kwin_scripts DESTINATION ${KDE_INSTALL_PLUGINDIR}/kcms)
+install(FILES kcm_kwin_scripts.desktop DESTINATION ${KDE_INSTALL_KSERVICES5DIR})
 install(FILES kwinscripts.knsrc DESTINATION ${KDE_INSTALL_KNSRCDIR})
+kpackage_install_package(package kcm_kwin_scripts kcms)
