@@ -97,6 +97,7 @@ void GlideEffect::prePaintScreen(ScreenPrePaintData &data, int time)
 void GlideEffect::prePaintWindow(EffectWindow *w, WindowPrePaintData &data, int time)
 {
     if (m_animations.contains(w)) {
+        data.setOffscreen();
         data.setTransformed();
         w->enablePainting(EffectWindow::PAINT_DISABLED_BY_DELETE);
     }

@@ -28,6 +28,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 *********************************************************************/
 #include "scene_opengl.h"
 
+#include "offscreenrenderer.h"
 #include "platform.h"
 #include "wayland_server.h"
 #include "platformsupport/scenes/opengl/texture.h"
@@ -946,6 +947,7 @@ bool SceneOpenGL2::supported(OpenGLBackend *backend)
 SceneOpenGL2::SceneOpenGL2(OpenGLBackend *backend, QObject *parent)
     : SceneOpenGL(backend, parent)
     , m_lanczosFilter(nullptr)
+    , m_offscreenRenderer(OffscreenRenderer::create(this))
 {
     if (!init_ok) {
         // base ctor already failed
@@ -1091,8 +1093,15 @@ void SceneOpenGL2::performPaintWindow(EffectWindowImpl* w, int mask, QRegion reg
             });
         }
         m_lanczosFilter->performPaint(w, mask, region, data);
-    } else
+    } else if (mask & PAINT_WINDOW_OFFSCREEN) {
+        if (m_offscreenRenderer) {
+            m_offscreenRenderer->performPaint(w, mask, region, data);
+        } else {
+            w->sceneWindow()->performPaint(mask, region, data);
+        }
+    } else {
         w->sceneWindow()->performPaint(mask, region, data);
+    }
 }
 
 //****************************************
@@ -1160,28 +1169,7 @@ bool SceneOpenGL::Window::beginRenderWindow(int mask, const QRegion &region, Win
 
     m_hardwareClipping = region != infiniteRegion() && (mask & PAINT_WINDOW_TRANSFORMED) && !(mask & PAINT_SCREEN_TRANSFORMED);
     if (region != infiniteRegion() && !m_hardwareClipping) {
-        WindowQuadList quads;
-        quads.reserve(data.quads.count());
-
-        const QRegion filterRegion = region.translated(-x(), -y());
-        // split all quads in bounding rect with the actual rects in the region
-        foreach (const WindowQuad &quad, data.quads) {
-            for (const QRect &r : filterRegion) {
-                const QRectF rf(r);
-                const QRectF quadRect(QPointF(quad.left(), quad.top()), QPointF(quad.right(), quad.bottom()));
-                const QRectF &intersected = rf.intersected(quadRect);
-                if (intersected.isValid()) {
-                    if (quadRect == intersected) {
-                        // case 1: completely contains, include and do not check other rects
-                        quads << quad;
-                        break;
-                    }
-                    // case 2: intersection
-                    quads << quad.makeSubQuad(intersected.left(), intersected.top(), intersected.right(), intersected.bottom());
-                }
-            }
-        }
-        data.quads = quads;
+        data.quads = data.quads.intersected(region.translated(-x(), -y()));
     }
 
     if (data.quads.isEmpty())
@@ -1259,6 +1247,16 @@ WindowPixmap* SceneOpenGL::Window::createWindowPixmap()
     return new OpenGLWindowPixmap(this, m_scene);
 }
 
+SceneOpenGL *SceneOpenGL::Window::scene() const
+{
+    return m_scene;
+}
+
+void SceneOpenGL::Window::setScene(SceneOpenGL *scene)
+{
+    m_scene = scene;
+}
+
 //***************************************
 // SceneOpenGL2Window
 //***************************************
@@ -1270,6 +1268,29 @@ SceneOpenGL2Window::SceneOpenGL2Window(Toplevel *c)
 
 SceneOpenGL2Window::~SceneOpenGL2Window()
 {
+    scene()->makeOpenGLContextCurrent();
+    delete m_offscreenTarget;
+    delete m_offscreenTexture;
+}
+
+GLTexture *SceneOpenGL2Window::offscreenTexture() const
+{
+    return m_offscreenTexture;
+}
+
+void SceneOpenGL2Window::setOffscreenTexture(GLTexture *texture)
+{
+    m_offscreenTexture = texture;
+}
+
+GLRenderTarget *SceneOpenGL2Window::offscreenTarget() const
+{
+    return m_offscreenTarget;
+}
+
+void SceneOpenGL2Window::setOffscreenTarget(GLRenderTarget *target)
+{
+    m_offscreenTarget = target;
 }
 
 QVector4D SceneOpenGL2Window::modulate(float opacity, float brightness) const

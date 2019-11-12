@@ -244,6 +244,7 @@ const qreal maxTime = 10.0;
 void WobblyWindowsEffect::prePaintWindow(EffectWindow* w, WindowPrePaintData& data, int time)
 {
     if (windows.contains(w)) {
+        data.setOffscreen();
         data.setTransformed();
         data.quads = data.quads.makeRegularGrid(m_xTesselation, m_yTesselation);
         bool stop = false;

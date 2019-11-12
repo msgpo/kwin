@@ -1010,6 +1010,7 @@ void CubeEffect::postPaintScreen()
 void CubeEffect::prePaintWindow(EffectWindow* w, WindowPrePaintData& data, int time)
 {
     if (activated) {
+        data.setOffscreen();
         if (cube_painting) {
             if (mode == Cylinder || mode == Sphere) {
                 int leftDesktop = frontDesktop - 1;

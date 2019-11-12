@@ -595,6 +595,25 @@ void AnimationEffect::prePaintWindow( EffectWindow* w, WindowPrePaintData& data,
                         clipWindow(w, *anim, data.quads);
                 }
 
+                switch (anim->attribute) {
+                case Scale:
+                case Rotation:
+                case Size:
+                case Generic:
+                    if (w->hasDecoration()) {
+                        data.setOffscreen();
+                    }
+                    break;
+                case Opacity:
+                case Brightness:
+                case Saturation:
+                case Position:
+                case Translation:
+                case CrossFadePrevious:
+                case Clip:
+                    break;
+                }
+
                 paintDeleted |= anim->keepAlive;
             }
             if ( isUsed ) {

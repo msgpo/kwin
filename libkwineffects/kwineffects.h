@@ -354,8 +354,16 @@ public:
         /**
          * Window will be painted with a lanczos filter.
          */
-        PAINT_WINDOW_LANCZOS = 1 << 8
+        PAINT_WINDOW_LANCZOS = 1 << 8,
         // PAINT_SCREEN_WITH_TRANSFORMED_WINDOWS_WITHOUT_FULL_REPAINTS = 1 << 9 has been removed
+        /**
+         * The window will be painted to an offscreen texture and right after that
+         * the offscreen texture will be mapped on the screen.
+         *
+         * The reason why an effect would want to render a window into an offscreen
+         * texture is to avoid texture bleeding caused by the GL_LINEAR filter.
+         */
+        PAINT_WINDOW_OFFSCREEN = 1 << 10,
     };
 
     enum Feature {
@@ -2531,6 +2539,7 @@ class KWINEFFECTS_EXPORT WindowQuad
 public:
     explicit WindowQuad(WindowQuadType type, int id = -1);
     WindowQuad makeSubQuad(double x1, double y1, double x2, double y2) const;
+    WindowQuad makeSubQuad(const QRectF &rect) const;
     WindowVertex& operator[](int index);
     const WindowVertex& operator[](int index) const;
     WindowQuadType type() const;
@@ -2567,6 +2576,7 @@ public:
     WindowQuadList makeRegularGrid(int xSubdivisions, int ySubdivisions) const;
     WindowQuadList select(WindowQuadType type) const;
     WindowQuadList filterOut(WindowQuadType type) const;
+    WindowQuadList intersected(const QRegion &region) const;
     bool smoothNeeded() const;
     void makeInterleavedArrays(unsigned int type, GLVertex2D *vertices, const QMatrix4x4 &matrix) const;
     void makeArrays(float** vertices, float** texcoords, const QSizeF &size, bool yInverted) const;
@@ -2596,6 +2606,10 @@ public:
      * Helper to mark that this window will be transformed
      */
     void setTransformed();
+    /**
+     * Helper to say the window will be painted through the offscreen texture path.
+     */
+    void setOffscreen();
 };
 
 class KWINEFFECTS_EXPORT PaintData
@@ -3811,6 +3825,12 @@ WindowQuad::WindowQuad(WindowQuadType t, int id)
     , uvSwapped(false)
     , quadID(id)
 {
+}
+
+inline
+WindowQuad WindowQuad::makeSubQuad(const QRectF &rect) const
+{
+    return makeSubQuad(rect.left(), rect.top(), rect.right(), rect.bottom());
 }
 
 inline

@@ -77,6 +77,7 @@ void MagicLampEffect::prePaintWindow(EffectWindow* w, WindowPrePaintData& data, 
     if (m_animations.contains(w)) {
         // We'll transform this window
         data.setTransformed();
+        data.setOffscreen();
         data.quads = data.quads.makeGrid(40);
         w->enablePainting(EffectWindow::PAINT_DISABLED_BY_MINIMIZE);
     }

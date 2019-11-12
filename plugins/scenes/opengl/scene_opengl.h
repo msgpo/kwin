@@ -33,6 +33,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 namespace KWin
 {
 class LanczosFilter;
+class OffscreenRenderer;
 class OpenGLBackend;
 class SyncManager;
 class SyncObject;
@@ -138,6 +139,7 @@ private:
 
 private:
     LanczosFilter *m_lanczosFilter;
+    OffscreenRenderer *m_offscreenRenderer;
     QScopedPointer<GLTexture> m_cursorTexture;
     QMatrix4x4 m_projectionMatrix;
     QMatrix4x4 m_screenProjectionMatrix;
@@ -153,9 +155,11 @@ public:
     void performPaint(int mask, QRegion region, WindowPaintData data) override = 0;
     void endRenderWindow();
     bool bindTexture();
-    void setScene(SceneOpenGL *scene) {
-        m_scene = scene;
-    }
+
+    SceneOpenGL *scene() const;
+    void setScene(SceneOpenGL *scene);
+
+    QMatrix4x4 transformation(int mask, const WindowPaintData &data) const;
 
 protected:
     WindowPixmap* createWindowPixmap() override;
@@ -166,7 +170,6 @@ protected:
         Shadow
     };
 
-    QMatrix4x4 transformation(int mask, const WindowPaintData &data) const;
     GLTexture *getDecorationTexture() const;
 
 protected:
@@ -204,15 +207,25 @@ public:
     explicit SceneOpenGL2Window(Toplevel *c);
     ~SceneOpenGL2Window() override;
 
-protected:
+    void performPaint(int mask, QRegion region, WindowPaintData data) override;
+
+    GLTexture *offscreenTexture() const;
+    void setOffscreenTexture(GLTexture *texture);
+
+    GLRenderTarget *offscreenTarget() const;
+    void setOffscreenTarget(GLRenderTarget *target);
+
     QMatrix4x4 modelViewProjectionMatrix(int mask, const WindowPaintData &data) const;
+
+protected:
     QVector4D modulate(float opacity, float brightness) const;
     void setBlendEnabled(bool enabled);
     void setupLeafNodes(LeafNode *nodes, const WindowQuadList *quads, const WindowPaintData &data);
-    void performPaint(int mask, QRegion region, WindowPaintData data) override;
 
 private:
     void renderSubSurface(GLShader *shader, const QMatrix4x4 &mvp, const QMatrix4x4 &windowMatrix, OpenGLWindowPixmap *pixmap, const QRegion &region, bool hardwareClipping);
+    GLTexture *m_offscreenTexture = nullptr;
+    GLRenderTarget *m_offscreenTarget = nullptr;
     /**
      * Whether prepareStates enabled blending and restore states should disable again.
      */

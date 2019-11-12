@@ -1,5 +1,6 @@
 set(SCENE_OPENGL_SRCS
     lanczosfilter.cpp
+    offscreenrenderer.cpp
     scene_opengl.cpp
 )
 

@@ -128,6 +128,7 @@ public:
      */
     Unmanaged *findUnmanaged(xcb_window_t w) const;
     void forEachUnmanaged(std::function<void (Unmanaged*)> func);
+    void forEachToplevel(std::function<void (Toplevel *)> func);
     Toplevel *findToplevel(std::function<bool (const Toplevel*)> func) const;
     /**
      * @brief Finds a Toplevel for the internal window @p w.

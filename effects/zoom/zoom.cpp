@@ -394,6 +394,12 @@ void ZoomEffect::postPaintScreen()
     effects->postPaintScreen();
 }
 
+void ZoomEffect::prePaintWindow(EffectWindow *w, WindowPrePaintData &data, int time)
+{
+    data.setOffscreen();
+    effects->prePaintWindow(w, data, time);
+}
+
 void ZoomEffect::zoomIn(double to)
 {
     source_zoom = zoom;
