@@ -59,7 +59,7 @@ private:
     bool initializeEgl();
     bool initBufferConfigs();
     bool initRenderingContext();
-    struct StreamTexture 
+    struct StreamTexture
     {
         EGLStreamKHR stream;
         GLuint texture;
@@ -68,7 +68,7 @@ private:
     void attachStreamConsumer(KWayland::Server::SurfaceInterface *surface,
                               void *eglStream,
                               wl_array *attribs);
-    struct Output 
+    struct Output
     {
         DrmOutput *output = nullptr;
         DrmBuffer *buffer = nullptr;
@@ -96,8 +96,9 @@ class EglStreamTexture : public AbstractEglTexture
 {
 public:
     ~EglStreamTexture() override;
-    bool loadTexture(WindowPixmap *pixmap) override;
-    void updateTexture(WindowPixmap *pixmap) override;
+
+    bool create(WaylandPlatformSurface *platformSurface) override final;
+    void update(WaylandPlatformSurface *platformSurface) override final;
 
 private:
     EglStreamTexture(SceneOpenGLTexture *texture, EglStreamBackend *backend);

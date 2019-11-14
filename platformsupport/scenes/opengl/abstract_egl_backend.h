@@ -91,30 +91,35 @@ class KWIN_EXPORT AbstractEglTexture : public SceneOpenGLTexturePrivate
 {
 public:
     ~AbstractEglTexture() override;
-    bool loadTexture(WindowPixmap *pixmap) override;
-    void updateTexture(WindowPixmap *pixmap) override;
+
+    bool create(InternalPlatformSurface *platformSurface) override;
+    bool create(WaylandPlatformSurface *platformSurface) override;
+    bool create(X11PlatformSurface *platformSurface) override;
+
+    void update(InternalPlatformSurface *platformSurface) override;
+    void update(WaylandPlatformSurface *platformSurface) override;
+    void update(X11PlatformSurface *platformSurface) override;
+
     OpenGLBackend *backend() override;
 
 protected:
     AbstractEglTexture(SceneOpenGLTexture *texture, AbstractEglBackend *backend);
-    EGLImageKHR image() const {
-        return m_image;
-    }
-    void setImage(const EGLImageKHR &img) {
-        m_image = img;
-    }
-    SceneOpenGLTexture *texture() const {
-        return q;
-    }
+
+    SceneOpenGLTexture *texture() const;
+    EGLImageKHR image() const;
+    void setImage(const EGLImageKHR &image);
 
 private:
-    bool loadShmTexture(const QPointer<KWayland::Server::BufferInterface> &buffer);
-    bool loadEglTexture(const QPointer<KWayland::Server::BufferInterface> &buffer);
-    bool loadDmabufTexture(const QPointer< KWayland::Server::BufferInterface > &buffer);
-    bool loadInternalImageObject(WindowPixmap *pixmap);
-    EGLImageKHR attach(const QPointer<KWayland::Server::BufferInterface> &buffer);
-    bool updateFromFBO(const QSharedPointer<QOpenGLFramebufferObject> &fbo);
-    bool updateFromInternalImageObject(WindowPixmap *pixmap);
+    bool loadShmTexture(KWayland::Server::BufferInterface *buffer);
+    bool loadEglTexture(KWayland::Server::BufferInterface *buffer);
+    bool loadDmaBufTexture(KWayland::Server::BufferInterface *buffer);
+    void updateFromShmTexture(KWayland::Server::BufferInterface *buffer, const QRegion &damage);
+    void updateFromEglTexture(KWayland::Server::BufferInterface *buffer);
+    void updateFromDmaBufTexture(KWayland::Server::BufferInterface *buffer);
+    EGLImageKHR attach(KWayland::Server::BufferInterface *buffer);
+    bool loadImage(InternalPlatformSurface *platformSurface);
+    bool updateFromFBO(InternalPlatformSurface *platformSurface);
+    bool updateFromImage(InternalPlatformSurface *platformSurface);
     SceneOpenGLTexture *q;
     AbstractEglBackend *m_backend;
     EGLImageKHR m_image;

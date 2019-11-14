@@ -657,7 +657,7 @@ void SceneOpenGLShadowTest::testShadowTileOverlaps()
     auto *shadow = client->effectWindow()->sceneWindow()->shadow();
 
     // Validate shadow quads.
-    const WindowQuadList &quads = shadow->shadowQuads();
+    const WindowQuadList &quads = shadow->windowQuads();
     QCOMPARE(quads.size(), expectedQuads.size());
 
     QVector<bool> mask(expectedQuads.size(), false);
@@ -748,7 +748,7 @@ void SceneOpenGLShadowTest::testNoCornerShadowTiles()
     KWin::Shadow *shadow = client->effectWindow()->sceneWindow()->shadow();
     QVERIFY(shadow != nullptr);
 
-    const WindowQuadList &quads = shadow->shadowQuads();
+    const WindowQuadList &quads = shadow->windowQuads();
     QCOMPARE(quads.count(), 4);
 
     // Shadow size: 128
@@ -840,7 +840,7 @@ void SceneOpenGLShadowTest::testDistributeHugeCornerTiles()
         QRectF(32, -256, 256 + 32, 256 + 64),
         1.0 - (256.0 + 32.0) / 1024.0, 0.0, 1.0, (256.0 + 64.0) / 512.0);
 
-    const WindowQuadList &quads = shadow->shadowQuads();
+    const WindowQuadList &quads = shadow->windowQuads();
     QCOMPARE(quads.count(), expectedQuads.count());
 
     for (const WindowQuad &expectedQuad : expectedQuads) {

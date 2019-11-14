@@ -18,6 +18,11 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 *********************************************************************/
 #include "scene_qpainter.h"
+#include "qpainterdecorationscenenode.h"
+#include "qpainterplatformsurface_internal.h"
+#include "qpainterplatformsurface_wayland.h"
+#include "qpaintershadowscenenode.h"
+#include "qpaintersurfacescenenode.h"
 // KWin
 #include "x11client.h"
 #include "composite.h"
@@ -225,109 +230,19 @@ SceneQPainter::Window::~Window()
 {
 }
 
-static void paintSubSurface(QPainter *painter, const QPoint &pos, QPainterWindowPixmap *pixmap)
-{
-    QPoint p = pos;
-    if (!pixmap->subSurface().isNull()) {
-        p += pixmap->subSurface()->position();
-    }
-
-    painter->drawImage(QRect(pos, pixmap->size()), pixmap->image());
-    const auto &children = pixmap->children();
-    for (auto it = children.begin(); it != children.end(); ++it) {
-        auto pixmap = static_cast<QPainterWindowPixmap*>(*it);
-        if (pixmap->subSurface().isNull() || pixmap->subSurface()->surface().isNull() || !pixmap->subSurface()->surface()->isMapped()) {
-            continue;
-        }
-        paintSubSurface(painter, p, pixmap);
-    }
-}
-
 void SceneQPainter::Window::performPaint(int mask, QRegion region, WindowPaintData data)
 {
-    if (!(mask & (PAINT_WINDOW_TRANSFORMED | PAINT_SCREEN_TRANSFORMED)))
-        region &= toplevel->visibleRect();
-
-    if (region.isEmpty())
-        return;
-    QPainterWindowPixmap *pixmap = windowPixmap<QPainterWindowPixmap>();
-    if (!pixmap || !pixmap->isValid()) {
-        return;
-    }
-    if (!toplevel->damage().isEmpty()) {
-        pixmap->updateBuffer();
-        toplevel->resetDamage();
-    }
-
-    QPainter *scenePainter = m_scene->scenePainter();
-    QPainter *painter = scenePainter;
-    painter->save();
-    painter->setClipRegion(region);
-    painter->setClipping(true);
-
-    painter->translate(x(), y());
-    if (mask & PAINT_WINDOW_TRANSFORMED) {
-        painter->translate(data.xTranslation(), data.yTranslation());
-        painter->scale(data.xScale(), data.yScale());
-    }
-
-    const bool opaque = qFuzzyCompare(1.0, data.opacity());
-    QImage tempImage;
-    QPainter tempPainter;
-    if (!opaque) {
-        // need a temp render target which we later on blit to the screen
-        tempImage = QImage(toplevel->visibleRect().size(), QImage::Format_ARGB32_Premultiplied);
-        tempImage.fill(Qt::transparent);
-        tempPainter.begin(&tempImage);
-        tempPainter.save();
-        tempPainter.translate(toplevel->frameGeometry().topLeft() - toplevel->visibleRect().topLeft());
-        painter = &tempPainter;
-    }
-    renderShadow(painter);
-    renderWindowDecorations(painter);
-
-    // render content
-    const QRect target = QRect(toplevel->clientPos(), toplevel->clientSize());
-    QSize srcSize = pixmap->image().size();
-    if (pixmap->surface() && pixmap->surface()->scale() == 1 && srcSize != toplevel->clientSize()) {
-        // special case for XWayland windows
-        srcSize = toplevel->clientSize();
-    }
-    const QRect src = QRect(toplevel->clientPos() + toplevel->clientContentPos(), srcSize);
-    painter->drawImage(target, pixmap->image(), src);
-
-    // render subsurfaces
-    const auto &children = pixmap->children();
-    for (auto pixmap : children) {
-        if (pixmap->subSurface().isNull() || pixmap->subSurface()->surface().isNull() || !pixmap->subSurface()->surface()->isMapped()) {
-            continue;
-        }
-        paintSubSurface(painter, toplevel->clientPos(), static_cast<QPainterWindowPixmap*>(pixmap));
-    }
-
-    if (!opaque) {
-        tempPainter.restore();
-        tempPainter.setCompositionMode(QPainter::CompositionMode_DestinationIn);
-        QColor translucent(Qt::transparent);
-        translucent.setAlphaF(data.opacity());
-        tempPainter.fillRect(QRect(QPoint(0, 0), toplevel->visibleRect().size()), translucent);
-        tempPainter.end();
-        painter = scenePainter;
-        painter->drawImage(toplevel->visibleRect().topLeft() - toplevel->frameGeometry().topLeft(), tempImage);
-    }
-
-    painter->restore();
 }
 
 void SceneQPainter::Window::renderShadow(QPainter* painter)
 {
-    if (!toplevel->shadow()) {
+    if (!toplevel()->shadow()) {
         return;
     }
-    SceneQPainterShadow *shadow = static_cast<SceneQPainterShadow *>(toplevel->shadow());
+    SceneQPainterShadow *shadow = static_cast<SceneQPainterShadow *>(toplevel()->shadow());
 
     const QImage &shadowTexture = shadow->shadowTexture();
-    const WindowQuadList &shadowQuads = shadow->shadowQuads();
+    const WindowQuadList &shadowQuads = shadow->windowQuads();
 
     for (const auto &q : shadowQuads) {
         auto topLeft = q[0];
@@ -345,8 +260,8 @@ void SceneQPainter::Window::renderShadow(QPainter* painter)
 void SceneQPainter::Window::renderWindowDecorations(QPainter *painter)
 {
     // TODO: custom decoration opacity
-    AbstractClient *client = dynamic_cast<AbstractClient*>(toplevel);
-    Deleted *deleted = dynamic_cast<Deleted*>(toplevel);
+    AbstractClient *client = dynamic_cast<AbstractClient*>(toplevel());
+    Deleted *deleted = dynamic_cast<Deleted*>(toplevel());
     if (!client && !deleted) {
         return;
     }
@@ -378,89 +293,24 @@ void SceneQPainter::Window::renderWindowDecorations(QPainter *painter)
     painter->drawImage(dbr, renderer->image(SceneQPainterDecorationRenderer::DecorationPart::Bottom));
 }
 
-WindowPixmap *SceneQPainter::Window::createWindowPixmap()
-{
-    return new QPainterWindowPixmap(this);
-}
-
 Decoration::Renderer *SceneQPainter::createDecorationRenderer(Decoration::DecoratedClientImpl *impl)
 {
     return new SceneQPainterDecorationRenderer(impl);
 }
 
-//****************************************
-// QPainterWindowPixmap
-//****************************************
-QPainterWindowPixmap::QPainterWindowPixmap(Scene::Window *window)
-    : WindowPixmap(window)
+DecorationSceneNode *SceneQPainter::createDecorationSceneNode()
 {
+    return new QPainterDecorationSceneNode;
 }
 
-QPainterWindowPixmap::QPainterWindowPixmap(const QPointer<KWayland::Server::SubSurfaceInterface> &subSurface, WindowPixmap *parent)
-    : WindowPixmap(subSurface, parent)
+ShadowSceneNode *SceneQPainter::createShadowSceneNode()
 {
+    return new QPainterShadowSceneNode;
 }
 
-QPainterWindowPixmap::~QPainterWindowPixmap()
+SurfaceSceneNode *SceneQPainter::createSurfaceSceneNode()
 {
-}
-
-void QPainterWindowPixmap::create()
-{
-    if (isValid()) {
-        return;
-    }
-    KWin::WindowPixmap::create();
-    if (!isValid()) {
-        return;
-    }
-    if (!surface()) {
-        // That's an internal client.
-        m_image = internalImage();
-        return;
-    }
-    // performing deep copy, this could probably be improved
-    m_image = buffer()->data().copy();
-    if (auto s = surface()) {
-        s->resetTrackedDamage();
-    }
-}
-
-WindowPixmap *QPainterWindowPixmap::createChild(const QPointer<KWayland::Server::SubSurfaceInterface> &subSurface)
-{
-    return new QPainterWindowPixmap(subSurface, this);
-}
-
-void QPainterWindowPixmap::updateBuffer()
-{
-    const auto oldBuffer = buffer();
-    WindowPixmap::updateBuffer();
-    const auto &b = buffer();
-    if (!surface()) {
-        // That's an internal client.
-        m_image = internalImage();
-        return;
-    }
-    if (b.isNull()) {
-        m_image = QImage();
-        return;
-    }
-    if (b == oldBuffer) {
-        return;
-    }
-    // perform deep copy
-    m_image = b->data().copy();
-    if (auto s = surface()) {
-        s->resetTrackedDamage();
-    }
-}
-
-bool QPainterWindowPixmap::isValid() const
-{
-    if (!m_image.isNull()) {
-        return true;
-    }
-    return WindowPixmap::isValid();
+    return new QPainterSurfaceSceneNode;
 }
 
 QPainterEffectFrame::QPainterEffectFrame(EffectFrameImpl *frame, SceneQPainter *scene)

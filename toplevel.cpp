@@ -305,8 +305,10 @@ void Toplevel::finishCompositing(ReleaseReason releaseReason)
 void Toplevel::discardWindowPixmap()
 {
     addDamageFull();
+#if 0
     if (effectWindow() != nullptr && effectWindow()->sceneWindow() != nullptr)
         effectWindow()->sceneWindow()->pixmapDiscarded();
+#endif
 }
 
 void Toplevel::damageNotifyEvent()

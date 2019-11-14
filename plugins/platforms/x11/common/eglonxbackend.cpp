@@ -420,36 +420,29 @@ EglTexture::EglTexture(KWin::SceneOpenGLTexture *texture, KWin::EglOnXBackend *b
 
 EglTexture::~EglTexture() = default;
 
-bool EglTexture::loadTexture(WindowPixmap *pixmap)
-{
-    // first try the Wayland enabled loading
-    if (AbstractEglTexture::loadTexture(pixmap)) {
-        return true;
-    }
-    // did not succeed, try on X11
-    return loadTexture(pixmap->pixmap(), pixmap->toplevel()->size());
-}
-
-bool EglTexture::loadTexture(xcb_pixmap_t pix, const QSize &size)
+bool EglTexture::create(X11PlatformSurface *platformSurface)
 {
     if (!m_backend->isX11TextureFromPixmapSupported()) {
         return false;
     }
 
-    if (pix == XCB_NONE)
+    if (platformSurface->pixmap() == XCB_PIXMAP_NONE) {
         return false;
+    }
+
+    SceneOpenGLTexture *q = texture();
 
     glGenTextures(1, &m_texture);
-    auto q = texture();
     q->setWrapMode(GL_CLAMP_TO_EDGE);
     q->setFilter(GL_LINEAR);
     q->bind();
+
     const EGLint attribs[] = {
         EGL_IMAGE_PRESERVED_KHR, EGL_TRUE,
         EGL_NONE
     };
     setImage(eglCreateImageKHR(m_backend->eglDisplay(), EGL_NO_CONTEXT, EGL_NATIVE_PIXMAP_KHR,
-                               (EGLClientBuffer)pix, attribs));
+                               reinterpret_cast<EGLClientBuffer>(platformSurface->pixmap()), attribs));
 
     if (EGL_NO_IMAGE_KHR == image()) {
         qCDebug(KWIN_CORE) << "failed to create egl image";
@@ -457,12 +450,18 @@ bool EglTexture::loadTexture(xcb_pixmap_t pix, const QSize &size)
         q->discard();
         return false;
     }
-    glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, (GLeglImageOES)image());
+
+    glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, static_cast<GLeglImageOES>(image()));
     q->unbind();
     q->setYInverted(true);
-    m_size = size;
+    m_size = platformSurface->size();
     updateMatrix();
     return true;
+}
+
+void EglTexture::update(X11PlatformSurface *platformSurface)
+{
+    Q_UNUSED(platformSurface)
 }
 
 void KWin::EglTexture::onDamage()
@@ -471,7 +470,7 @@ void KWin::EglTexture::onDamage()
         // This is just implemented to be consistent with
         // the example in mesa/demos/src/egl/opengles1/texture_from_pixmap.c
         eglWaitNative(EGL_CORE_NATIVE_ENGINE);
-        glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, (GLeglImageOES) image());
+        glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, static_cast<GLeglImageOES>(image()));
     }
     GLTexturePrivate::onDamage();
 }

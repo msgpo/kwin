@@ -26,15 +26,25 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 namespace KWin
 {
 
+class InternalPlatformSurface;
 class OpenGLBackend;
 class SceneOpenGLTexturePrivate;
-class WindowPixmap;
+class WaylandPlatformSurface;
+class X11PlatformSurface;
 
 class SceneOpenGLTexture : public GLTexture
 {
 public:
     explicit SceneOpenGLTexture(OpenGLBackend *backend);
     ~SceneOpenGLTexture() override;
+
+    bool loadTexture(InternalPlatformSurface *platformSurface);
+    bool loadTexture(WaylandPlatformSurface *platformSurface);
+    bool loadTexture(X11PlatformSurface *platformSurface);
+
+    void updateTexture(InternalPlatformSurface *platformSurface);
+    void updateTexture(WaylandPlatformSurface *platformSurface);
+    void updateTexture(X11PlatformSurface *platformSurface);
 
     SceneOpenGLTexture & operator = (const SceneOpenGLTexture& tex);
 
@@ -43,12 +53,7 @@ public:
 private:
     SceneOpenGLTexture(SceneOpenGLTexturePrivate& dd);
 
-    bool load(WindowPixmap *pixmap);
-    void updateFromPixmap(WindowPixmap *pixmap);
-
     Q_DECLARE_PRIVATE(SceneOpenGLTexture)
-
-    friend class OpenGLWindowPixmap;
 };
 
 class SceneOpenGLTexturePrivate : public GLTexturePrivate
@@ -56,8 +61,14 @@ class SceneOpenGLTexturePrivate : public GLTexturePrivate
 public:
     ~SceneOpenGLTexturePrivate() override;
 
-    virtual bool loadTexture(WindowPixmap *pixmap) = 0;
-    virtual void updateTexture(WindowPixmap *pixmap);
+    virtual bool create(InternalPlatformSurface *platformSurface) = 0;
+    virtual bool create(WaylandPlatformSurface *platformSurface) = 0;
+    virtual bool create(X11PlatformSurface *platformSurface) = 0;
+
+    virtual void update(InternalPlatformSurface *platformSurface) = 0;
+    virtual void update(WaylandPlatformSurface *platformSurface) = 0;
+    virtual void update(X11PlatformSurface *platformSurface) = 0;
+
     virtual OpenGLBackend *backend() = 0;
 
 protected:

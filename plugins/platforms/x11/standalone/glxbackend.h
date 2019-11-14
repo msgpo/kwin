@@ -123,14 +123,22 @@ class GlxTexture : public SceneOpenGLTexturePrivate
 {
 public:
     ~GlxTexture() override;
+
+    bool create(InternalPlatformSurface *platformSurface) override final;
+    bool create(WaylandPlatformSurface *platformSurface) override final;
+    bool create(X11PlatformSurface *platformSurface) override final;
+
+    void update(InternalPlatformSurface *platformSurface) override final;
+    void update(WaylandPlatformSurface *platformSurface) override final;
+    void update(X11PlatformSurface *platformSurface) override final;
+
     void onDamage() override;
-    bool loadTexture(WindowPixmap *pixmap) override;
+
     OpenGLBackend *backend() override;
 
 private:
     friend class GlxBackend;
     GlxTexture(SceneOpenGLTexture *texture, GlxBackend *backend);
-    bool loadTexture(xcb_pixmap_t pix, const QSize &size, xcb_visualid_t visual);
     Display *display() const {
         return m_backend->m_x11Display;
     }

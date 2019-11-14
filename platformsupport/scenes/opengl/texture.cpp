@@ -34,6 +34,39 @@ SceneOpenGLTexture::~SceneOpenGLTexture()
 {
 }
 
+bool SceneOpenGLTexture::loadTexture(InternalPlatformSurface *platformSurface)
+{
+    return false;
+}
+
+bool SceneOpenGLTexture::loadTexture(WaylandPlatformSurface *platformSurface)
+{
+    return false;
+}
+
+bool SceneOpenGLTexture::loadTexture(X11PlatformSurface *platformSurface)
+{
+    return false;
+}
+
+void SceneOpenGLTexture::updateTexture(InternalPlatformSurface *platformSurface)
+{
+    Q_D(SceneOpenGLTexture);
+    d->update(platformSurface);
+}
+
+void SceneOpenGLTexture::updateTexture(WaylandPlatformSurface *platformSurface)
+{
+    Q_D(SceneOpenGLTexture);
+    d->update(platformSurface);
+}
+
+void SceneOpenGLTexture::updateTexture(X11PlatformSurface *platformSurface)
+{
+    Q_D(SceneOpenGLTexture);
+    d->update(platformSurface);
+}
+
 SceneOpenGLTexture& SceneOpenGLTexture::operator = (const SceneOpenGLTexture& tex)
 {
     d_ptr = tex.d_ptr;
@@ -45,36 +78,12 @@ void SceneOpenGLTexture::discard()
     d_ptr = d_func()->backend()->createBackendTexture(this);
 }
 
-bool SceneOpenGLTexture::load(WindowPixmap *pixmap)
-{
-    if (!pixmap->isValid()) {
-        return false;
-    }
-
-    // decrease the reference counter for the old texture
-    d_ptr = d_func()->backend()->createBackendTexture(this); //new TexturePrivate();
-
-    Q_D(SceneOpenGLTexture);
-    return d->loadTexture(pixmap);
-}
-
-void SceneOpenGLTexture::updateFromPixmap(WindowPixmap *pixmap)
-{
-    Q_D(SceneOpenGLTexture);
-    d->updateTexture(pixmap);
-}
-
 SceneOpenGLTexturePrivate::SceneOpenGLTexturePrivate()
 {
 }
 
 SceneOpenGLTexturePrivate::~SceneOpenGLTexturePrivate()
 {
-}
-
-void SceneOpenGLTexturePrivate::updateTexture(WindowPixmap *pixmap)
-{
-    Q_UNUSED(pixmap)
 }
 
 }

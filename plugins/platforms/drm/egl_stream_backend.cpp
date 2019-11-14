@@ -61,7 +61,7 @@ PFNEGLSTREAMCONSUMERGLTEXTUREEXTERNALKHR pEglStreamConsumerGLTextureExternalKHR 
 PFNEGLQUERYSTREAMATTRIBNV pEglQueryStreamAttribNV = nullptr;
 PFNEGLSTREAMCONSUMERRELEASEKHR pEglStreamConsumerReleaseKHR = nullptr;
 PFNEGLQUERYWAYLANDBUFFERWL pEglQueryWaylandBufferWL = nullptr;
-    
+
 #ifndef EGL_CONSUMER_AUTO_ACQUIRE_EXT
 #define EGL_CONSUMER_AUTO_ACQUIRE_EXT 0x332B
 #endif
@@ -80,7 +80,7 @@ PFNEGLQUERYWAYLANDBUFFERWL pEglQueryWaylandBufferWL = nullptr;
 
 #ifndef EGL_WAYLAND_Y_INVERTED_WL
 #define EGL_WAYLAND_Y_INVERTED_WL 0x31DB
-#endif    
+#endif
 
 EglStreamBackend::EglStreamBackend(DrmBackend *b)
     : AbstractEglBackend(), m_backend(b)
@@ -151,14 +151,14 @@ bool EglStreamBackend::initializeEgl()
             if (m_backend->devNode() != drmDeviceFile) {
                 continue;
             }
-            
+
             const char *deviceExtensionCString = eglQueryDeviceStringEXT(device, EGL_EXTENSIONS);
             QByteArray deviceExtensions = QByteArray::fromRawData(deviceExtensionCString,
                                                                   qstrlen(deviceExtensionCString));
             if (!deviceExtensions.split(' ').contains(QByteArrayLiteral("EGL_EXT_device_drm"))) {
                 continue;
             }
-                
+
             EGLint platformAttribs[] = {
                 EGL_DRM_MASTER_FD_EXT, m_backend->fd(),
                 EGL_NONE
@@ -172,7 +172,7 @@ bool EglStreamBackend::initializeEgl()
         setFailed("No suitable EGL device found");
         return false;
     }
-    
+
     setEglDisplay(display);
     if (!initEglAPI()) {
         return false;
@@ -213,7 +213,7 @@ EglStreamBackend::StreamTexture *EglStreamBackend::lookupStreamTexture(KWayland:
 {
     auto it = m_streamTextures.find(surface);
     return it != m_streamTextures.end() ?
-           &it.value() : 
+           &it.value() :
            nullptr;
 }
 
@@ -268,7 +268,7 @@ void EglStreamBackend::init()
         setFailed("EGLStream backend requires atomic modesetting");
         return;
     }
-    
+
     if (!initializeEgl()) {
         setFailed("Failed to initialize EGL api");
         return;
@@ -370,11 +370,11 @@ bool EglStreamBackend::resetOutput(Output &o, DrmOutput *drmOutput)
         }
         eglDestroySurface(eglDisplay(), o.eglSurface);
     }
-    
+
     if (o.eglStream != EGL_NO_STREAM_KHR) {
         pEglDestroyStreamKHR(eglDisplay(), o.eglStream);
     }
-    
+
     o.eglStream = stream;
     o.eglSurface = eglSurface;
     return true;
@@ -409,7 +409,7 @@ bool EglStreamBackend::makeContextCurrent(const Output &output)
     if (surface == EGL_NO_SURFACE) {
         return false;
     }
-    
+
     if (eglMakeCurrent(eglDisplay(), surface, surface, context()) == EGL_FALSE) {
         qCCritical(KWIN_DRM) << "Failed to make EGL context current";
         return false;
@@ -420,7 +420,7 @@ bool EglStreamBackend::makeContextCurrent(const Output &output)
         qCWarning(KWIN_DRM) << "Error occurred while making EGL context current" << error;
         return false;
     }
-    
+
     const QSize &overall = screens()->size();
     const QRect &v = output.output->geometry();
     qreal scale = output.output->scale();
@@ -636,55 +636,44 @@ bool EglStreamTexture::attachBuffer(KWayland::Server::BufferInterface *buffer)
            wasYInverted != texture()->isYInverted();
 }
 
-bool EglStreamTexture::loadTexture(WindowPixmap *pixmap)
+bool EglStreamTexture::create(WaylandPlatformSurface *platformSurface)
 {
-    using namespace KWayland::Server;
-    SurfaceInterface *surface = pixmap->surface();
+    KWayland::Server::SurfaceInterface *surface = platformSurface->surface();
     const EglStreamBackend::StreamTexture *st = m_backend->lookupStreamTexture(surface);
-    if (!pixmap->buffer().isNull() && st != nullptr) {
 
-        glGenTextures(1, &m_texture);
-        texture()->setWrapMode(GL_CLAMP_TO_EDGE);
-        texture()->setFilter(GL_LINEAR);
+    glGenTextures(1, &m_texture);
+    texture()->setWrapMode(GL_CLAMP_TO_EDGE);
+    texture()->setFilter(GL_LINEAR);
 
-        attachBuffer(surface->buffer());
-        createFbo();
-        surface->resetTrackedDamage();
+    attachBuffer(surface->buffer());
+    createFbo();
+    surface->resetTrackedDamage();
 
-        if (acquireStreamFrame(st->stream)) {
-            copyExternalTexture(st->texture);
-            if (!pEglStreamConsumerReleaseKHR(m_backend->eglDisplay(), st->stream)) {
-                qCWarning(KWIN_DRM) << "Failed to release EGL stream";
-            }
+    if (acquireStreamFrame(st->stream)) {
+        copyExternalTexture(st->texture);
+        if (!pEglStreamConsumerReleaseKHR(m_backend->eglDisplay(), st->stream)) {
+            qCWarning(KWIN_DRM) << "Failed to release EGL stream";
         }
-        return true;
-    } else {
-        // Not an EGLStream surface
-        return AbstractEglTexture::loadTexture(pixmap);
     }
+
+    return true;
 }
 
-void EglStreamTexture::updateTexture(WindowPixmap *pixmap)
+void EglStreamTexture::update(WaylandPlatformSurface *platformSurface)
 {
-    using namespace KWayland::Server;    
-    SurfaceInterface *surface = pixmap->surface();
+    KWayland::Server::SurfaceInterface *surface = platformSurface->surface();
     const EglStreamBackend::StreamTexture *st = m_backend->lookupStreamTexture(surface);
-    if (!pixmap->buffer().isNull() && st != nullptr) {
 
-        if (attachBuffer(surface->buffer())) {
-            createFbo();
-        }
-        surface->resetTrackedDamage();
+    if (attachBuffer(surface->buffer())) {
+        createFbo();
+    }
+    surface->resetTrackedDamage();
 
-        if (acquireStreamFrame(st->stream)) {
-            copyExternalTexture(st->texture);
-            if (!pEglStreamConsumerReleaseKHR(m_backend->eglDisplay(), st->stream)) {
-                qCWarning(KWIN_DRM) << "Failed to release EGL stream";
-            }
+    if (acquireStreamFrame(st->stream)) {
+        copyExternalTexture(st->texture);
+        if (!pEglStreamConsumerReleaseKHR(m_backend->eglDisplay(), st->stream)) {
+            qCWarning(KWIN_DRM) << "Failed to release EGL stream";
         }
-    } else {
-        // Not an EGLStream surface
-        AbstractEglTexture::updateTexture(pixmap);
     }
 }
 

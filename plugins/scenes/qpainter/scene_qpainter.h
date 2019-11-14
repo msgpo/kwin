@@ -43,6 +43,9 @@ public:
     EffectFrame *createEffectFrame(EffectFrameImpl *frame) override;
     Shadow *createShadow(Toplevel *toplevel) override;
     Decoration::Renderer *createDecorationRenderer(Decoration::DecoratedClientImpl *impl) override;
+    ShadowSceneNode *createShadowSceneNode() override;
+    DecorationSceneNode *createDecorationSceneNode() override;
+    SurfaceSceneNode *createSurfaceSceneNode() override;
     void screenGeometryChanged(const QSize &size) override;
 
     bool animationsSupported() const override {
@@ -77,30 +80,11 @@ public:
     Window(SceneQPainter *scene, Toplevel *c);
     ~Window() override;
     void performPaint(int mask, QRegion region, WindowPaintData data) override;
-protected:
-    WindowPixmap *createWindowPixmap() override;
+
 private:
     void renderShadow(QPainter *painter);
     void renderWindowDecorations(QPainter *painter);
     SceneQPainter *m_scene;
-};
-
-class QPainterWindowPixmap : public WindowPixmap
-{
-public:
-    explicit QPainterWindowPixmap(Scene::Window *window);
-    ~QPainterWindowPixmap() override;
-    void create() override;
-    bool isValid() const override;
-
-    void updateBuffer() override;
-    const QImage &image();
-
-protected:
-    WindowPixmap *createChild(const QPointer<KWayland::Server::SubSurfaceInterface> &subSurface) override;
-private:
-    explicit QPainterWindowPixmap(const QPointer<KWayland::Server::SubSurfaceInterface> &subSurface, WindowPixmap *parent);
-    QImage m_image;
 };
 
 class QPainterEffectFrame : public Scene::EffectFrame
@@ -190,12 +174,6 @@ inline
 QPainter* SceneQPainter::scenePainter() const
 {
     return m_painter.data();
-}
-
-inline
-const QImage &QPainterWindowPixmap::image()
-{
-    return m_image;
 }
 
 } // KWin

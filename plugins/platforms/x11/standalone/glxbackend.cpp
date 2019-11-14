@@ -804,23 +804,32 @@ GlxTexture::~GlxTexture()
     }
 }
 
-void GlxTexture::onDamage()
+bool GlxTexture::create(InternalPlatformSurface *platformSurface)
 {
-    if (options->isGlStrictBinding() && m_glxpixmap) {
-        glXReleaseTexImageEXT(display(), m_glxpixmap, GLX_FRONT_LEFT_EXT);
-        glXBindTexImageEXT(display(), m_glxpixmap, GLX_FRONT_LEFT_EXT, nullptr);
-    }
-    GLTexturePrivate::onDamage();
+    Q_UNUSED(platformSurface)
+    return false;
 }
 
-bool GlxTexture::loadTexture(xcb_pixmap_t pixmap, const QSize &size, xcb_visualid_t visual)
+bool GlxTexture::create(WaylandPlatformSurface *platformSurface)
 {
-    if (pixmap == XCB_NONE || size.isEmpty() || visual == XCB_NONE)
+    Q_UNUSED(platformSurface)
+    return false;
+}
+
+bool GlxTexture::create(X11PlatformSurface *platformSurface)
+{
+    const xcb_visualid_t visual = platformSurface->toplevel()->visual();
+    const xcb_pixmap_t pixmap = platformSurface->pixmap();
+    const QSize size = platformSurface->size();
+
+    if (pixmap == XCB_NONE || size.isEmpty() || visual == XCB_NONE) {
         return false;
+    }
 
     const FBConfigInfo *info = m_backend->infoForVisual(visual);
-    if (!info || info->fbconfig == nullptr)
+    if (!info || info->fbconfig == nullptr) {
         return false;
+    }
 
     if (info->texture_targets & GLX_TEXTURE_2D_BIT_EXT) {
         m_target = GL_TEXTURE_2D;
@@ -841,9 +850,9 @@ bool GlxTexture::loadTexture(xcb_pixmap_t pixmap, const QSize &size, xcb_visuali
         0
     };
 
-    m_glxpixmap     = glXCreatePixmap(display(), info->fbconfig, pixmap, attrs);
-    m_size          = size;
-    m_yInverted     = info->y_inverted ? true : false;
+    m_glxpixmap = glXCreatePixmap(display(), info->fbconfig, pixmap, attrs);
+    m_size = size;
+    m_yInverted = info->y_inverted ? true : false;
     m_canUseMipmaps = false;
 
     glGenTextures(1, &m_texture);
@@ -855,13 +864,32 @@ bool GlxTexture::loadTexture(xcb_pixmap_t pixmap, const QSize &size, xcb_visuali
     glXBindTexImageEXT(display(), m_glxpixmap, GLX_FRONT_LEFT_EXT, nullptr);
 
     updateMatrix();
+
     return true;
 }
 
-bool GlxTexture::loadTexture(WindowPixmap *pixmap)
+void GlxTexture::update(InternalPlatformSurface *platformSurface)
 {
-    Toplevel *t = pixmap->toplevel();
-    return loadTexture(pixmap->pixmap(), t->size(), t->visual());
+    Q_UNUSED(platformSurface)
+}
+
+void GlxTexture::update(WaylandPlatformSurface *platformSurface)
+{
+    Q_UNUSED(platformSurface)
+}
+
+void GlxTexture::update(X11PlatformSurface *platformSurface)
+{
+    Q_UNUSED(platformSurface)
+}
+
+void GlxTexture::onDamage()
+{
+    if (options->isGlStrictBinding() && m_glxpixmap) {
+        glXReleaseTexImageEXT(display(), m_glxpixmap, GLX_FRONT_LEFT_EXT);
+        glXBindTexImageEXT(display(), m_glxpixmap, GLX_FRONT_LEFT_EXT, nullptr);
+    }
+    GLTexturePrivate::onDamage();
 }
 
 OpenGLBackend *GlxTexture::backend()

@@ -37,10 +37,10 @@ class OpenGLBackend;
 class SyncManager;
 class SyncObject;
 
-class KWIN_EXPORT SceneOpenGL
-    : public Scene
+class KWIN_EXPORT SceneOpenGL : public Scene
 {
     Q_OBJECT
+
 public:
     class EffectFrame;
     class Window;
@@ -56,6 +56,9 @@ public:
     bool makeOpenGLContextCurrent() override;
     void doneOpenGLContextCurrent() override;
     Decoration::Renderer *createDecorationRenderer(Decoration::DecoratedClientImpl *impl) override;
+    ShadowSceneNode *createShadowSceneNode() override;
+    DecorationSceneNode *createDecorationSceneNode() override;
+    SurfaceSceneNode *createSurfaceSceneNode() override;
     void triggerFence() override;
     virtual QMatrix4x4 projectionMatrix() const = 0;
     bool animationsSupported() const override;
@@ -66,13 +69,6 @@ public:
 
     bool debug() const { return m_debug; }
     void initDebugOutput();
-
-    /**
-     * @brief Factory method to create a backend specific texture.
-     *
-     * @return :SceneOpenGL::Texture*
-     */
-    SceneOpenGLTexture *createTexture();
 
     OpenGLBackend *backend() const {
         return m_backend;
@@ -97,8 +93,10 @@ protected:
 
 protected:
     bool init_ok;
+
 private:
     bool viewportLimitsMatched(const QSize &size) const;
+
 private:
     bool m_debug;
     OpenGLBackend *m_backend;
@@ -109,6 +107,7 @@ private:
 class SceneOpenGL2 : public SceneOpenGL
 {
     Q_OBJECT
+
 public:
     explicit SceneOpenGL2(OpenGLBackend *backend, QObject *parent = nullptr);
     ~SceneOpenGL2() override;
@@ -142,11 +141,11 @@ private:
     GLuint vao;
 };
 
-class SceneOpenGL::Window
-    : public Scene::Window
+class SceneOpenGL::Window : public Scene::Window
 {
 public:
     ~Window() override;
+
     bool beginRenderWindow(int mask, const QRegion &region, WindowPaintData &data);
     void performPaint(int mask, QRegion region, WindowPaintData data) override = 0;
     void endRenderWindow();
@@ -156,16 +155,9 @@ public:
     }
 
 protected:
-    WindowPixmap* createWindowPixmap() override;
     Window(Toplevel* c);
-    enum TextureType {
-        Content,
-        Decoration,
-        Shadow
-    };
 
     QMatrix4x4 transformation(int mask, const WindowPaintData &data) const;
-    GLTexture *getDecorationTexture() const;
 
 protected:
     SceneOpenGL *m_scene;
@@ -206,35 +198,16 @@ protected:
     QMatrix4x4 modelViewProjectionMatrix(int mask, const WindowPaintData &data) const;
     QVector4D modulate(float opacity, float brightness) const;
     void setBlendEnabled(bool enabled);
-    void setupLeafNodes(LeafNode *nodes, const WindowQuadList *quads, const WindowPaintData &data);
     void performPaint(int mask, QRegion region, WindowPaintData data) override;
 
 private:
-    void renderSubSurface(GLShader *shader, const QMatrix4x4 &mvp, const QMatrix4x4 &windowMatrix, OpenGLWindowPixmap *pixmap, const QRegion &region, bool hardwareClipping);
     /**
      * Whether prepareStates enabled blending and restore states should disable again.
      */
     bool m_blendingEnabled;
 };
 
-class OpenGLWindowPixmap : public WindowPixmap
-{
-public:
-    explicit OpenGLWindowPixmap(Scene::Window *window, SceneOpenGL *scene);
-    ~OpenGLWindowPixmap() override;
-    SceneOpenGLTexture *texture() const;
-    bool bind();
-    bool isValid() const override;
-protected:
-    WindowPixmap *createChild(const QPointer<KWayland::Server::SubSurfaceInterface> &subSurface) override;
-private:
-    explicit OpenGLWindowPixmap(const QPointer<KWayland::Server::SubSurfaceInterface> &subSurface, WindowPixmap *parent, SceneOpenGL *scene);
-    QScopedPointer<SceneOpenGLTexture> m_texture;
-    SceneOpenGL *m_scene;
-};
-
-class SceneOpenGL::EffectFrame
-    : public Scene::EffectFrame
+class SceneOpenGL::EffectFrame : public Scene::EffectFrame
 {
 public:
     EffectFrame(EffectFrameImpl* frame, SceneOpenGL *scene);
@@ -277,19 +250,18 @@ private:
  * This class extends Shadow by the Elements required for OpenGL rendering.
  * @author Martin Gräßlin <mgraesslin@kde.org>
  */
-class SceneOpenGLShadow
-    : public Shadow
+class SceneOpenGLShadow : public Shadow
 {
 public:
     explicit SceneOpenGLShadow(Toplevel *toplevel);
     ~SceneOpenGLShadow() override;
 
-    GLTexture *shadowTexture() {
-        return m_texture.data();
-    }
+    QSharedPointer<GLTexture> shadowTexture() const;
+
 protected:
     void buildQuads() override;
     bool prepareBackend() override;
+
 private:
     QSharedPointer<GLTexture> m_texture;
 };
@@ -331,11 +303,6 @@ inline bool SceneOpenGL::hasPendingFlush() const
 inline bool SceneOpenGL::usesOverlayWindow() const
 {
     return m_backend->usesOverlayWindow();
-}
-
-inline SceneOpenGLTexture* OpenGLWindowPixmap::texture() const
-{
-    return m_texture.data();
 }
 
 class KWIN_EXPORT OpenGLFactory : public SceneFactory

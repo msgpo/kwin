@@ -91,14 +91,16 @@ class EglTexture : public AbstractEglTexture
 {
 public:
     ~EglTexture() override;
-    void onDamage() override;
-    bool loadTexture(WindowPixmap *pixmap) override;
+
+    bool create(X11PlatformSurface *platformSurface) override final;
+    void update(X11PlatformSurface *platformSurface) override final;
+
+    void onDamage() override final;
 
 private:
-    bool loadTexture(xcb_pixmap_t pix, const QSize &size);
-    friend class EglOnXBackend;
     EglTexture(SceneOpenGLTexture *texture, EglOnXBackend *backend);
     EglOnXBackend *m_backend;
+    friend class EglOnXBackend;
 };
 
 } // namespace
