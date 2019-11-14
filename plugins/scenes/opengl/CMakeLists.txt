@@ -1,5 +1,11 @@
 set(SCENE_OPENGL_SRCS
     lanczosfilter.cpp
+    opengldecorationscenenode.cpp
+    openglplatformsurface_internal.cpp
+    openglplatformsurface_wayland.cpp
+    openglplatformsurface_x11.cpp
+    openglshadowscenenode.cpp
+    openglsurfacescenenode.cpp
     scene_opengl.cpp
 )
 

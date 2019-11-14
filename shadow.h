@@ -53,7 +53,7 @@ class Toplevel;
  * create an instance for the currently used Compositing Backend. It will read the X11 Property
  * and create the Shadow and all required data (such as WindowQuads). If there is no Shadow
  * defined for the Toplevel the factory method returns @c NULL.
- * 
+ *
  * @author Martin Gräßlin <mgraesslin@kde.org>
  * @todo React on Toplevel size changes.
  */
@@ -72,10 +72,10 @@ public:
     /**
      * @return Cached Shadow Quads
      */
-    const WindowQuadList &shadowQuads() const {
+    const WindowQuadList &windowQuads() const {
         return m_shadowQuads;
     };
-    WindowQuadList &shadowQuads() {
+    WindowQuadList &windowQuads() {
         return m_shadowQuads;
     };
 

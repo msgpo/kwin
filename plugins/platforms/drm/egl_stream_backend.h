@@ -42,7 +42,6 @@ public:
     EglStreamBackend(DrmBackend *b);
     ~EglStreamBackend() override;
     void screenGeometryChanged(const QSize &size) override;
-    SceneOpenGLTexturePrivate *createBackendTexture(SceneOpenGLTexture *texture) override;
     QRegion prepareRenderingFrame() override;
     void endRenderingFrame(const QRegion &renderedRegion, const QRegion &damagedRegion) override;
     void endRenderingFrameForScreen(int screenId, const QRegion &damage, const QRegion &damagedRegion) override;
@@ -59,7 +58,7 @@ private:
     bool initializeEgl();
     bool initBufferConfigs();
     bool initRenderingContext();
-    struct StreamTexture 
+    struct StreamTexture
     {
         EGLStreamKHR stream;
         GLuint texture;
@@ -68,7 +67,7 @@ private:
     void attachStreamConsumer(KWayland::Server::SurfaceInterface *surface,
                               void *eglStream,
                               wl_array *attribs);
-    struct Output 
+    struct Output
     {
         DrmOutput *output = nullptr;
         DrmBuffer *buffer = nullptr;
@@ -87,28 +86,6 @@ private:
     QHash<KWayland::Server::SurfaceInterface *, StreamTexture> m_streamTextures;
 
     friend class EglStreamTexture;
-};
-
-/**
- * @brief External texture bound to an EGLStreamKHR.
- */
-class EglStreamTexture : public AbstractEglTexture
-{
-public:
-    ~EglStreamTexture() override;
-    bool loadTexture(WindowPixmap *pixmap) override;
-    void updateTexture(WindowPixmap *pixmap) override;
-
-private:
-    EglStreamTexture(SceneOpenGLTexture *texture, EglStreamBackend *backend);
-    bool acquireStreamFrame(EGLStreamKHR stream);
-    void createFbo();
-    void copyExternalTexture(GLuint tex);
-    bool attachBuffer(KWayland::Server::BufferInterface *buffer);
-    EglStreamBackend *m_backend;
-    GLuint m_fbo, m_rbo;
-    GLenum m_format;
-    friend class EglStreamBackend;
 };
 
 } // namespace

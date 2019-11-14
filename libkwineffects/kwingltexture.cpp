@@ -70,114 +70,7 @@ GLTexture::GLTexture(const GLTexture& tex)
 GLTexture::GLTexture(const QImage& image, GLenum target)
     : d_ptr(new GLTexturePrivate())
 {
-    Q_D(GLTexture);
-
-    if (image.isNull())
-        return;
-
-    d->m_target = target;
-
-    if (d->m_target != GL_TEXTURE_RECTANGLE_ARB) {
-        d->m_scale.setWidth(1.0 / image.width());
-        d->m_scale.setHeight(1.0 / image.height());
-    } else {
-        d->m_scale.setWidth(1.0);
-        d->m_scale.setHeight(1.0);
-    }
-
-    d->m_size = image.size();
-    d->m_yInverted = true;
-    d->m_canUseMipmaps = false;
-    d->m_mipLevels = 1;
-
-    d->updateMatrix();
-
-    glGenTextures(1, &d->m_texture);
-    bind();
-
-    if (!GLPlatform::instance()->isGLES()) {
-        // Note: Blending is set up to expect premultiplied data, so non-premultiplied
-        //       formats must always be converted.
-        struct {
-            GLenum internalFormat;
-            GLenum format;
-            GLenum type;
-        } static const table[] = {
-            { 0,           0,       0                              }, // QImage::Format_Invalid
-            { 0,           0,       0                              }, // QImage::Format_Mono
-            { 0,           0,       0                              }, // QImage::Format_MonoLSB
-            { GL_R8,       GL_RED,  GL_UNSIGNED_BYTE               }, // QImage::Format_Indexed8
-            { GL_RGB8,     GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV    }, // QImage::Format_RGB32
-            { 0,           0,       0                              }, // QImage::Format_ARGB32
-            { GL_RGBA8,    GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV    }, // QImage::Format_ARGB32_Premultiplied
-            { GL_RGB8,     GL_BGR,  GL_UNSIGNED_SHORT_5_6_5_REV    }, // QImage::Format_RGB16
-            { 0,           0,       0                              }, // QImage::Format_ARGB8565_Premultiplied
-            { 0,           0,       0                              }, // QImage::Format_RGB666
-            { 0,           0,       0                              }, // QImage::Format_ARGB6666_Premultiplied
-            { GL_RGB5,     GL_BGRA, GL_UNSIGNED_SHORT_1_5_5_5_REV  }, // QImage::Format_RGB555
-            { 0,           0,       0                              }, // QImage::Format_ARGB8555_Premultiplied
-            { GL_RGB8,     GL_RGB,  GL_UNSIGNED_BYTE               }, // QImage::Format_RGB888
-            { GL_RGB4,     GL_BGRA, GL_UNSIGNED_SHORT_4_4_4_4_REV  }, // QImage::Format_RGB444
-            { GL_RGBA4,    GL_BGRA, GL_UNSIGNED_SHORT_4_4_4_4_REV  }, // QImage::Format_ARGB4444_Premultiplied
-            { GL_RGB8,     GL_RGBA, GL_UNSIGNED_BYTE               }, // QImage::Format_RGBX8888
-            { 0,           0,       0                              }, // QImage::Format_RGBA8888
-            { GL_RGBA8,    GL_RGBA, GL_UNSIGNED_BYTE               }, // QImage::Format_RGBA8888_Premultiplied
-            { GL_RGB10,    GL_RGBA, GL_UNSIGNED_INT_2_10_10_10_REV }, // QImage::Format_BGR30
-            { GL_RGB10_A2, GL_RGBA, GL_UNSIGNED_INT_2_10_10_10_REV }, // QImage::Format_A2BGR30_Premultiplied
-            { GL_RGB10,    GL_BGRA, GL_UNSIGNED_INT_2_10_10_10_REV }, // QImage::Format_RGB30
-            { GL_RGB10_A2, GL_BGRA, GL_UNSIGNED_INT_2_10_10_10_REV }, // QImage::Format_A2RGB30_Premultiplied
-            { GL_R8,       GL_RED,  GL_UNSIGNED_BYTE               }, // QImage::Format_Alpha8
-            { GL_R8,       GL_RED,  GL_UNSIGNED_BYTE               }, // QImage::Format_Grayscale8
-        };
-
-        QImage im;
-        GLenum internalFormat;
-        GLenum format;
-        GLenum type;
-
-        const QImage::Format index = image.format();
-
-        if (index < sizeof(table) / sizeof(table[0]) && table[index].internalFormat &&
-            !(index == QImage::Format_Indexed8 && image.colorCount() > 0)) {
-            internalFormat = table[index].internalFormat;
-            format = table[index].format;
-            type = table[index].type;
-            im = image;
-        } else {
-            im = image.convertToFormat(QImage::Format_ARGB32_Premultiplied);
-            internalFormat = GL_RGBA8;
-            format = GL_BGRA;
-            type = GL_UNSIGNED_INT_8_8_8_8_REV;
-        }
-
-        d->m_internalFormat = internalFormat;
-
-        if (d->s_supportsTextureStorage) {
-            glTexStorage2D(d->m_target, 1, internalFormat, im.width(), im.height());
-            glTexSubImage2D(d->m_target, 0, 0, 0, im.width(), im.height(),
-                            format, type, im.bits());
-            d->m_immutable = true;
-        } else {
-            glTexParameteri(d->m_target, GL_TEXTURE_MAX_LEVEL, d->m_mipLevels - 1);
-            glTexImage2D(d->m_target, 0, internalFormat, im.width(), im.height(), 0,
-                         format, type, im.bits());
-        }
-    } else {
-        d->m_internalFormat = GL_RGBA8;
-
-        if (d->s_supportsARGB32) {
-            const QImage im = image.convertToFormat(QImage::Format_ARGB32_Premultiplied);
-            glTexImage2D(d->m_target, 0, GL_BGRA_EXT, im.width(), im.height(),
-                         0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, im.bits());
-        } else {
-            const QImage im = image.convertToFormat(QImage::Format_RGBA8888_Premultiplied);
-            glTexImage2D(d->m_target, 0, GL_RGBA, im.width(), im.height(),
-                         0, GL_RGBA, GL_UNSIGNED_BYTE, im.bits());
-        }
-    }
-
-    unbind();
-    setFilter(GL_LINEAR);
+    setData(image, target);
 }
 
 GLTexture::GLTexture(const QPixmap& pixmap, GLenum target)
@@ -678,6 +571,123 @@ bool GLTexture::supportsSwizzle()
 bool GLTexture::supportsFormatRG()
 {
     return GLTexturePrivate::s_supportsTextureFormatRG;
+}
+
+void GLTexture::setData(const QImage &data, GLuint target)
+{
+    if (!isNull()) {
+        discard();
+    }
+
+    Q_D(GLTexture);
+
+    if (data.isNull()) {
+        return;
+    }
+
+    d->m_target = target;
+
+    if (d->m_target != GL_TEXTURE_RECTANGLE_ARB) {
+        d->m_scale.setWidth(1.0 / data.width());
+        d->m_scale.setHeight(1.0 / data.height());
+    } else {
+        d->m_scale.setWidth(1.0);
+        d->m_scale.setHeight(1.0);
+    }
+
+    d->m_size = data.size();
+    d->m_yInverted = true;
+    d->m_canUseMipmaps = false;
+    d->m_mipLevels = 1;
+
+    d->updateMatrix();
+
+    glGenTextures(1, &d->m_texture);
+    bind();
+
+    if (!GLPlatform::instance()->isGLES()) {
+        // Note: Blending is set up to expect premultiplied data, so non-premultiplied
+        //       formats must always be converted.
+        struct {
+            GLenum internalFormat;
+            GLenum format;
+            GLenum type;
+        } static const table[] = {
+            { 0,           0,       0                              }, // QImage::Format_Invalid
+            { 0,           0,       0                              }, // QImage::Format_Mono
+            { 0,           0,       0                              }, // QImage::Format_MonoLSB
+            { GL_R8,       GL_RED,  GL_UNSIGNED_BYTE               }, // QImage::Format_Indexed8
+            { GL_RGB8,     GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV    }, // QImage::Format_RGB32
+            { 0,           0,       0                              }, // QImage::Format_ARGB32
+            { GL_RGBA8,    GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV    }, // QImage::Format_ARGB32_Premultiplied
+            { GL_RGB8,     GL_BGR,  GL_UNSIGNED_SHORT_5_6_5_REV    }, // QImage::Format_RGB16
+            { 0,           0,       0                              }, // QImage::Format_ARGB8565_Premultiplied
+            { 0,           0,       0                              }, // QImage::Format_RGB666
+            { 0,           0,       0                              }, // QImage::Format_ARGB6666_Premultiplied
+            { GL_RGB5,     GL_BGRA, GL_UNSIGNED_SHORT_1_5_5_5_REV  }, // QImage::Format_RGB555
+            { 0,           0,       0                              }, // QImage::Format_ARGB8555_Premultiplied
+            { GL_RGB8,     GL_RGB,  GL_UNSIGNED_BYTE               }, // QImage::Format_RGB888
+            { GL_RGB4,     GL_BGRA, GL_UNSIGNED_SHORT_4_4_4_4_REV  }, // QImage::Format_RGB444
+            { GL_RGBA4,    GL_BGRA, GL_UNSIGNED_SHORT_4_4_4_4_REV  }, // QImage::Format_ARGB4444_Premultiplied
+            { GL_RGB8,     GL_RGBA, GL_UNSIGNED_BYTE               }, // QImage::Format_RGBX8888
+            { 0,           0,       0                              }, // QImage::Format_RGBA8888
+            { GL_RGBA8,    GL_RGBA, GL_UNSIGNED_BYTE               }, // QImage::Format_RGBA8888_Premultiplied
+            { GL_RGB10,    GL_RGBA, GL_UNSIGNED_INT_2_10_10_10_REV }, // QImage::Format_BGR30
+            { GL_RGB10_A2, GL_RGBA, GL_UNSIGNED_INT_2_10_10_10_REV }, // QImage::Format_A2BGR30_Premultiplied
+            { GL_RGB10,    GL_BGRA, GL_UNSIGNED_INT_2_10_10_10_REV }, // QImage::Format_RGB30
+            { GL_RGB10_A2, GL_BGRA, GL_UNSIGNED_INT_2_10_10_10_REV }, // QImage::Format_A2RGB30_Premultiplied
+            { GL_R8,       GL_RED,  GL_UNSIGNED_BYTE               }, // QImage::Format_Alpha8
+            { GL_R8,       GL_RED,  GL_UNSIGNED_BYTE               }, // QImage::Format_Grayscale8
+        };
+
+        QImage im;
+        GLenum internalFormat;
+        GLenum format;
+        GLenum type;
+
+        const QImage::Format index = data.format();
+
+        if (index < sizeof(table) / sizeof(table[0]) && table[index].internalFormat &&
+            !(index == QImage::Format_Indexed8 && data.colorCount() > 0)) {
+            internalFormat = table[index].internalFormat;
+            format = table[index].format;
+            type = table[index].type;
+            im = data;
+        } else {
+            im = data.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+            internalFormat = GL_RGBA8;
+            format = GL_BGRA;
+            type = GL_UNSIGNED_INT_8_8_8_8_REV;
+        }
+
+        d->m_internalFormat = internalFormat;
+
+        if (d->s_supportsTextureStorage) {
+            glTexStorage2D(d->m_target, 1, internalFormat, im.width(), im.height());
+            glTexSubImage2D(d->m_target, 0, 0, 0, im.width(), im.height(),
+                            format, type, im.bits());
+            d->m_immutable = true;
+        } else {
+            glTexParameteri(d->m_target, GL_TEXTURE_MAX_LEVEL, d->m_mipLevels - 1);
+            glTexImage2D(d->m_target, 0, internalFormat, im.width(), im.height(), 0,
+                         format, type, im.bits());
+        }
+    } else {
+        d->m_internalFormat = GL_RGBA8;
+
+        if (d->s_supportsARGB32) {
+            const QImage im = data.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+            glTexImage2D(d->m_target, 0, GL_BGRA_EXT, im.width(), im.height(),
+                         0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, im.bits());
+        } else {
+            const QImage im = data.convertToFormat(QImage::Format_RGBA8888_Premultiplied);
+            glTexImage2D(d->m_target, 0, GL_RGBA, im.width(), im.height(),
+                         0, GL_RGBA, GL_UNSIGNED_BYTE, im.bits());
+        }
+    }
+
+    unbind();
+    setFilter(GL_LINEAR);
 }
 
 } // namespace KWin

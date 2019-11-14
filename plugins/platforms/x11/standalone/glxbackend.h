@@ -20,8 +20,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #ifndef KWIN_GLX_BACKEND_H
 #define KWIN_GLX_BACKEND_H
 #include "backend.h"
-#include "texture.h"
 #include "x11eventfilter.h"
+
+#include <QHash>
 
 #include <xcb/glx.h>
 #include <epoxy/glx.h>
@@ -70,7 +71,6 @@ public:
     GlxBackend(Display *display);
     ~GlxBackend() override;
     void screenGeometryChanged(const QSize &size) override;
-    SceneOpenGLTexturePrivate *createBackendTexture(SceneOpenGLTexture *texture) override;
     QRegion prepareRenderingFrame() override;
     void endRenderingFrame(const QRegion &damage, const QRegion &damagedRegion) override;
     bool makeCurrent() override;
@@ -114,29 +114,6 @@ private:
     bool m_haveINTELSwapEvent = false;
     Display *m_x11Display;
     friend class GlxTexture;
-};
-
-/**
- * @brief Texture using an GLXPixmap.
- */
-class GlxTexture : public SceneOpenGLTexturePrivate
-{
-public:
-    ~GlxTexture() override;
-    void onDamage() override;
-    bool loadTexture(WindowPixmap *pixmap) override;
-    OpenGLBackend *backend() override;
-
-private:
-    friend class GlxBackend;
-    GlxTexture(SceneOpenGLTexture *texture, GlxBackend *backend);
-    bool loadTexture(xcb_pixmap_t pix, const QSize &size, xcb_visualid_t visual);
-    Display *display() const {
-        return m_backend->m_x11Display;
-    }
-    SceneOpenGLTexture *q;
-    GlxBackend *m_backend;
-    GLXPixmap m_glxpixmap; // the glx pixmap the texture is bound to
 };
 
 } // namespace

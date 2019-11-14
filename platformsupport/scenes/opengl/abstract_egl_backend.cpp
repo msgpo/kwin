@@ -19,7 +19,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 *********************************************************************/
 #include "abstract_egl_backend.h"
 #include "egl_dmabuf.h"
-#include "texture.h"
 #include "composite.h"
 #include "egl_context_attribute_builder.h"
 #include "options.h"
@@ -35,7 +34,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <kwinglutils.h>
 // Qt
 #include <QOpenGLContext>
-#include <QOpenGLFramebufferObject>
 
 #include <memory>
 
@@ -208,6 +206,26 @@ void AbstractEglBackend::doneCurrent()
     eglMakeCurrent(m_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 }
 
+EGLDisplay AbstractEglBackend::eglDisplay() const
+{
+    return m_display;
+}
+
+EGLContext AbstractEglBackend::context() const
+{
+    return m_context;
+}
+
+EGLSurface AbstractEglBackend::surface() const
+{
+    return m_surface;
+}
+
+EGLConfig AbstractEglBackend::config() const
+{
+    return m_config;
+}
+
 bool AbstractEglBackend::isOpenGLES() const
 {
     if (qstrcmp(qgetenv("KWIN_COMPOSE"), "O2ES") == 0) {
@@ -319,389 +337,6 @@ void AbstractEglBackend::setSurface(const EGLSurface &surface)
 {
     m_surface = surface;
     kwinApp()->platform()->setSceneEglSurface(surface);
-}
-
-AbstractEglTexture::AbstractEglTexture(SceneOpenGLTexture *texture, AbstractEglBackend *backend)
-    : SceneOpenGLTexturePrivate()
-    , q(texture)
-    , m_backend(backend)
-    , m_image(EGL_NO_IMAGE_KHR)
-{
-    m_target = GL_TEXTURE_2D;
-}
-
-AbstractEglTexture::~AbstractEglTexture()
-{
-    if (m_image != EGL_NO_IMAGE_KHR) {
-        eglDestroyImageKHR(m_backend->eglDisplay(), m_image);
-    }
-}
-
-OpenGLBackend *AbstractEglTexture::backend()
-{
-    return m_backend;
-}
-
-bool AbstractEglTexture::loadTexture(WindowPixmap *pixmap)
-{
-    // FIXME: Refactor this method.
-
-    const auto &buffer = pixmap->buffer();
-    if (buffer.isNull()) {
-        if (updateFromFBO(pixmap->fbo())) {
-            return true;
-        }
-        if (loadInternalImageObject(pixmap)) {
-            return true;
-        }
-        return false;
-    }
-    // try Wayland loading
-    if (auto s = pixmap->surface()) {
-        s->resetTrackedDamage();
-    }
-    if (buffer->linuxDmabufBuffer()) {
-        return loadDmabufTexture(buffer);
-    } else if (buffer->shmBuffer()) {
-        return loadShmTexture(buffer);
-    }
-    return loadEglTexture(buffer);
-}
-
-void AbstractEglTexture::updateTexture(WindowPixmap *pixmap)
-{
-    // FIXME: Refactor this method.
-
-    const auto &buffer = pixmap->buffer();
-    if (buffer.isNull()) {
-        if (updateFromFBO(pixmap->fbo())) {
-            return;
-        }
-        if (updateFromInternalImageObject(pixmap)) {
-            return;
-        }
-        return;
-    }
-    auto s = pixmap->surface();
-    if (EglDmabufBuffer *dmabuf = static_cast<EglDmabufBuffer *>(buffer->linuxDmabufBuffer())) {
-        q->bind();
-        glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, (GLeglImageOES) dmabuf->images()[0]);   //TODO
-        q->unbind();
-        if (m_image != EGL_NO_IMAGE_KHR) {
-            eglDestroyImageKHR(m_backend->eglDisplay(), m_image);
-        }
-        m_image = EGL_NO_IMAGE_KHR; // The wl_buffer has ownership of the image
-        // The origin in a dmabuf-buffer is at the upper-left corner, so the meaning
-        // of Y-inverted is the inverse of OpenGL.
-        const bool yInverted = !(dmabuf->flags() & KWayland::Server::LinuxDmabufUnstableV1Interface::YInverted);
-        if (m_size != dmabuf->size() || yInverted != q->isYInverted()) {
-            m_size = dmabuf->size();
-            q->setYInverted(yInverted);
-        }
-        if (s) {
-            s->resetTrackedDamage();
-        }
-        return;
-    }
-    if (!buffer->shmBuffer()) {
-        q->bind();
-        EGLImageKHR image = attach(buffer);
-        q->unbind();
-        if (image != EGL_NO_IMAGE_KHR) {
-            if (m_image != EGL_NO_IMAGE_KHR) {
-                eglDestroyImageKHR(m_backend->eglDisplay(), m_image);
-            }
-            m_image = image;
-        }
-        if (s) {
-            s->resetTrackedDamage();
-        }
-        return;
-    }
-    // shm fallback
-    const QImage &image = buffer->data();
-    if (image.isNull() || !s) {
-        return;
-    }
-    if (image.size() != m_size) {
-        // buffer size has changed, reload shm texture
-        if (!loadTexture(pixmap)) {
-            return;
-        }
-    }
-    Q_ASSERT(image.size() == m_size);
-    q->bind();
-    const QRegion damage = s->trackedDamage();
-    s->resetTrackedDamage();
-    auto scale = s->scale(); //damage is normalised, so needs converting up to match texture
-
-    // TODO: this should be shared with GLTexture::update
-    if (GLPlatform::instance()->isGLES()) {
-        if (s_supportsARGB32 && (image.format() == QImage::Format_ARGB32 || image.format() == QImage::Format_ARGB32_Premultiplied)) {
-            const QImage im = image.convertToFormat(QImage::Format_ARGB32_Premultiplied);
-            for (const QRect &rect : damage) {
-                auto scaledRect = QRect(rect.x() * scale, rect.y() * scale, rect.width() * scale, rect.height() * scale);
-                glTexSubImage2D(m_target, 0, scaledRect.x(), scaledRect.y(), scaledRect.width(), scaledRect.height(),
-                                GL_BGRA_EXT, GL_UNSIGNED_BYTE, im.copy(scaledRect).bits());
-            }
-        } else {
-            const QImage im = image.convertToFormat(QImage::Format_RGBA8888_Premultiplied);
-            for (const QRect &rect : damage) {
-                auto scaledRect = QRect(rect.x() * scale, rect.y() * scale, rect.width() * scale, rect.height() * scale);
-                glTexSubImage2D(m_target, 0, scaledRect.x(), scaledRect.y(), scaledRect.width(), scaledRect.height(),
-                                GL_RGBA, GL_UNSIGNED_BYTE, im.copy(scaledRect).bits());
-            }
-        }
-    } else {
-        const QImage im = image.convertToFormat(QImage::Format_ARGB32_Premultiplied);
-        for (const QRect &rect : damage) {
-            auto scaledRect = QRect(rect.x() * scale, rect.y() * scale, rect.width() * scale, rect.height() * scale);
-            glTexSubImage2D(m_target, 0, scaledRect.x(), scaledRect.y(), scaledRect.width(), scaledRect.height(),
-                            GL_BGRA, GL_UNSIGNED_BYTE, im.copy(scaledRect).bits());
-        }
-    }
-    q->unbind();
-}
-
-bool AbstractEglTexture::loadShmTexture(const QPointer< KWayland::Server::BufferInterface > &buffer)
-{
-    const QImage &image = buffer->data();
-    if (image.isNull()) {
-        return false;
-    }
-
-    glGenTextures(1, &m_texture);
-    q->setWrapMode(GL_CLAMP_TO_EDGE);
-    q->setFilter(GL_LINEAR);
-    q->bind();
-
-    const QSize &size = image.size();
-    // TODO: this should be shared with GLTexture(const QImage&, GLenum)
-    GLenum format = 0;
-    switch (image.format()) {
-    case QImage::Format_ARGB32:
-    case QImage::Format_ARGB32_Premultiplied:
-        format = GL_RGBA8;
-        break;
-    case QImage::Format_RGB32:
-        format = GL_RGB8;
-        break;
-    default:
-        return false;
-    }
-    if (GLPlatform::instance()->isGLES()) {
-        if (s_supportsARGB32 && format == GL_RGBA8) {
-            const QImage im = image.convertToFormat(QImage::Format_ARGB32_Premultiplied);
-            glTexImage2D(m_target, 0, GL_BGRA_EXT, im.width(), im.height(),
-                         0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, im.bits());
-        } else {
-            const QImage im = image.convertToFormat(QImage::Format_RGBA8888_Premultiplied);
-            glTexImage2D(m_target, 0, GL_RGBA, im.width(), im.height(),
-                         0, GL_RGBA, GL_UNSIGNED_BYTE, im.bits());
-        }
-    } else {
-        glTexImage2D(m_target, 0, format, size.width(), size.height(), 0,
-                    GL_BGRA, GL_UNSIGNED_BYTE, image.bits());
-    }
-
-    q->unbind();
-    q->setYInverted(true);
-    m_size = size;
-    updateMatrix();
-    return true;
-}
-
-bool AbstractEglTexture::loadEglTexture(const QPointer< KWayland::Server::BufferInterface > &buffer)
-{
-    if (!eglQueryWaylandBufferWL) {
-        return false;
-    }
-    if (!buffer->resource()) {
-        return false;
-    }
-
-    glGenTextures(1, &m_texture);
-    q->setWrapMode(GL_CLAMP_TO_EDGE);
-    q->setFilter(GL_LINEAR);
-    q->bind();
-    m_image = attach(buffer);
-    q->unbind();
-
-    if (EGL_NO_IMAGE_KHR == m_image) {
-        qCDebug(KWIN_OPENGL) << "failed to create egl image";
-        q->discard();
-        return false;
-    }
-
-    return true;
-}
-
-bool AbstractEglTexture::loadDmabufTexture(const QPointer< KWayland::Server::BufferInterface > &buffer)
-{
-    auto *dmabuf = static_cast<EglDmabufBuffer *>(buffer->linuxDmabufBuffer());
-    if (!dmabuf || dmabuf->images()[0] == EGL_NO_IMAGE_KHR) {
-        qCritical(KWIN_OPENGL) << "Invalid dmabuf-based wl_buffer";
-        q->discard();
-        return false;
-    }
-
-    Q_ASSERT(m_image == EGL_NO_IMAGE_KHR);
-
-    glGenTextures(1, &m_texture);
-    q->setWrapMode(GL_CLAMP_TO_EDGE);
-    q->setFilter(GL_NEAREST);
-    q->bind();
-    glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, (GLeglImageOES) dmabuf->images()[0]);
-    q->unbind();
-
-    m_size = dmabuf->size();
-    q->setYInverted(!(dmabuf->flags() & KWayland::Server::LinuxDmabufUnstableV1Interface::YInverted));
-
-    return true;
-}
-
-bool AbstractEglTexture::loadInternalImageObject(WindowPixmap *pixmap)
-{
-    // FIXME: Share some code with loadShmTexture().
-
-    const QImage image = pixmap->internalImage();
-    if (image.isNull()) {
-        return false;
-    }
-
-    glGenTextures(1, &m_texture);
-    q->setFilter(GL_LINEAR);
-    q->setWrapMode(GL_CLAMP_TO_EDGE);
-    q->setYInverted(true);
-    q->bind();
-
-    const QSize &size = image.size();
-    // TODO: this should be shared with GLTexture(const QImage&, GLenum)
-    GLenum format = 0;
-    switch (image.format()) {
-    case QImage::Format_ARGB32:
-    case QImage::Format_ARGB32_Premultiplied:
-        format = GL_RGBA8;
-        break;
-    case QImage::Format_RGB32:
-        format = GL_RGB8;
-        break;
-    default:
-        return false;
-    }
-    if (GLPlatform::instance()->isGLES()) {
-        if (s_supportsARGB32 && format == GL_RGBA8) {
-            const QImage im = image.convertToFormat(QImage::Format_ARGB32_Premultiplied);
-            glTexImage2D(m_target, 0, GL_BGRA_EXT, im.width(), im.height(),
-                         0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, im.bits());
-        } else {
-            const QImage im = image.convertToFormat(QImage::Format_RGBA8888_Premultiplied);
-            glTexImage2D(m_target, 0, GL_RGBA, im.width(), im.height(),
-                         0, GL_RGBA, GL_UNSIGNED_BYTE, im.bits());
-        }
-    } else {
-        glTexImage2D(m_target, 0, format, size.width(), size.height(), 0,
-                    GL_BGRA, GL_UNSIGNED_BYTE, image.bits());
-    }
-
-    q->unbind();
-
-    m_size = size;
-    updateMatrix();
-
-    return true;
-}
-
-EGLImageKHR AbstractEglTexture::attach(const QPointer< KWayland::Server::BufferInterface > &buffer)
-{
-    EGLint format, yInverted;
-    eglQueryWaylandBufferWL(m_backend->eglDisplay(), buffer->resource(), EGL_TEXTURE_FORMAT, &format);
-    if (format != EGL_TEXTURE_RGB && format != EGL_TEXTURE_RGBA) {
-        qCDebug(KWIN_OPENGL) << "Unsupported texture format: " << format;
-        return EGL_NO_IMAGE_KHR;
-    }
-    if (!eglQueryWaylandBufferWL(m_backend->eglDisplay(), buffer->resource(), EGL_WAYLAND_Y_INVERTED_WL, &yInverted)) {
-        // if EGL_WAYLAND_Y_INVERTED_WL is not supported wl_buffer should be treated as if value were EGL_TRUE
-        yInverted = EGL_TRUE;
-    }
-
-    const EGLint attribs[] = {
-        EGL_WAYLAND_PLANE_WL, 0,
-        EGL_NONE
-    };
-    EGLImageKHR image = eglCreateImageKHR(m_backend->eglDisplay(), EGL_NO_CONTEXT, EGL_WAYLAND_BUFFER_WL,
-                                      (EGLClientBuffer)buffer->resource(), attribs);
-    if (image != EGL_NO_IMAGE_KHR) {
-        glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, (GLeglImageOES)image);
-        m_size = buffer->size();
-        updateMatrix();
-        q->setYInverted(yInverted);
-    }
-    return image;
-}
-
-bool AbstractEglTexture::updateFromFBO(const QSharedPointer<QOpenGLFramebufferObject> &fbo)
-{
-    if (fbo.isNull()) {
-        return false;
-    }
-    m_texture = fbo->texture();
-    m_size = fbo->size();
-    q->setWrapMode(GL_CLAMP_TO_EDGE);
-    q->setFilter(GL_LINEAR);
-    q->setYInverted(false);
-    updateMatrix();
-    return true;
-}
-
-bool AbstractEglTexture::updateFromInternalImageObject(WindowPixmap *pixmap)
-{
-    // FIXME: Share some code with the shm fallback in updateTexture().
-
-    const QImage image = pixmap->internalImage();
-    if (image.isNull()) {
-        return false;
-    }
-
-    if (m_size != image.size()) {
-        glDeleteTextures(1, &m_texture);
-        return loadInternalImageObject(pixmap);
-    }
-
-    const QRegion damage = pixmap->toplevel()->damage();
-    const qreal scale = image.devicePixelRatio();
-
-    q->bind();
-
-    // TODO: this should be shared with GLTexture::update
-    if (GLPlatform::instance()->isGLES()) {
-        if (s_supportsARGB32 && (image.format() == QImage::Format_ARGB32 || image.format() == QImage::Format_ARGB32_Premultiplied)) {
-            const QImage im = image.convertToFormat(QImage::Format_ARGB32_Premultiplied);
-            for (const QRect &rect : damage) {
-                auto scaledRect = QRect(rect.x() * scale, rect.y() * scale, rect.width() * scale, rect.height() * scale);
-                glTexSubImage2D(m_target, 0, scaledRect.x(), scaledRect.y(), scaledRect.width(), scaledRect.height(),
-                                GL_BGRA_EXT, GL_UNSIGNED_BYTE, im.copy(scaledRect).bits());
-            }
-        } else {
-            const QImage im = image.convertToFormat(QImage::Format_RGBA8888_Premultiplied);
-            for (const QRect &rect : damage) {
-                auto scaledRect = QRect(rect.x() * scale, rect.y() * scale, rect.width() * scale, rect.height() * scale);
-                glTexSubImage2D(m_target, 0, scaledRect.x(), scaledRect.y(), scaledRect.width(), scaledRect.height(),
-                                GL_RGBA, GL_UNSIGNED_BYTE, im.copy(scaledRect).bits());
-            }
-        }
-    } else {
-        const QImage im = image.convertToFormat(QImage::Format_ARGB32_Premultiplied);
-        for (const QRect &rect : damage) {
-            auto scaledRect = QRect(rect.x() * scale, rect.y() * scale, rect.width() * scale, rect.height() * scale);
-            glTexSubImage2D(m_target, 0, scaledRect.x(), scaledRect.y(), scaledRect.width(), scaledRect.height(),
-                            GL_BGRA, GL_UNSIGNED_BYTE, im.copy(scaledRect).bits());
-        }
-    }
-
-    q->unbind();
-
-    return true;
 }
 
 }

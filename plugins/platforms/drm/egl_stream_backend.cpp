@@ -61,7 +61,7 @@ PFNEGLSTREAMCONSUMERGLTEXTUREEXTERNALKHR pEglStreamConsumerGLTextureExternalKHR 
 PFNEGLQUERYSTREAMATTRIBNV pEglQueryStreamAttribNV = nullptr;
 PFNEGLSTREAMCONSUMERRELEASEKHR pEglStreamConsumerReleaseKHR = nullptr;
 PFNEGLQUERYWAYLANDBUFFERWL pEglQueryWaylandBufferWL = nullptr;
-    
+
 #ifndef EGL_CONSUMER_AUTO_ACQUIRE_EXT
 #define EGL_CONSUMER_AUTO_ACQUIRE_EXT 0x332B
 #endif
@@ -80,7 +80,7 @@ PFNEGLQUERYWAYLANDBUFFERWL pEglQueryWaylandBufferWL = nullptr;
 
 #ifndef EGL_WAYLAND_Y_INVERTED_WL
 #define EGL_WAYLAND_Y_INVERTED_WL 0x31DB
-#endif    
+#endif
 
 EglStreamBackend::EglStreamBackend(DrmBackend *b)
     : AbstractEglBackend(), m_backend(b)
@@ -151,14 +151,14 @@ bool EglStreamBackend::initializeEgl()
             if (m_backend->devNode() != drmDeviceFile) {
                 continue;
             }
-            
+
             const char *deviceExtensionCString = eglQueryDeviceStringEXT(device, EGL_EXTENSIONS);
             QByteArray deviceExtensions = QByteArray::fromRawData(deviceExtensionCString,
                                                                   qstrlen(deviceExtensionCString));
             if (!deviceExtensions.split(' ').contains(QByteArrayLiteral("EGL_EXT_device_drm"))) {
                 continue;
             }
-                
+
             EGLint platformAttribs[] = {
                 EGL_DRM_MASTER_FD_EXT, m_backend->fd(),
                 EGL_NONE
@@ -172,7 +172,7 @@ bool EglStreamBackend::initializeEgl()
         setFailed("No suitable EGL device found");
         return false;
     }
-    
+
     setEglDisplay(display);
     if (!initEglAPI()) {
         return false;
@@ -213,7 +213,7 @@ EglStreamBackend::StreamTexture *EglStreamBackend::lookupStreamTexture(KWayland:
 {
     auto it = m_streamTextures.find(surface);
     return it != m_streamTextures.end() ?
-           &it.value() : 
+           &it.value() :
            nullptr;
 }
 
@@ -268,7 +268,7 @@ void EglStreamBackend::init()
         setFailed("EGLStream backend requires atomic modesetting");
         return;
     }
-    
+
     if (!initializeEgl()) {
         setFailed("Failed to initialize EGL api");
         return;
@@ -370,11 +370,11 @@ bool EglStreamBackend::resetOutput(Output &o, DrmOutput *drmOutput)
         }
         eglDestroySurface(eglDisplay(), o.eglSurface);
     }
-    
+
     if (o.eglStream != EGL_NO_STREAM_KHR) {
         pEglDestroyStreamKHR(eglDisplay(), o.eglStream);
     }
-    
+
     o.eglStream = stream;
     o.eglSurface = eglSurface;
     return true;
@@ -409,7 +409,7 @@ bool EglStreamBackend::makeContextCurrent(const Output &output)
     if (surface == EGL_NO_SURFACE) {
         return false;
     }
-    
+
     if (eglMakeCurrent(eglDisplay(), surface, surface, context()) == EGL_FALSE) {
         qCCritical(KWIN_DRM) << "Failed to make EGL context current";
         return false;
@@ -420,7 +420,7 @@ bool EglStreamBackend::makeContextCurrent(const Output &output)
         qCWarning(KWIN_DRM) << "Error occurred while making EGL context current" << error;
         return false;
     }
-    
+
     const QSize &overall = screens()->size();
     const QRect &v = output.output->geometry();
     qreal scale = output.output->scale();
@@ -485,11 +485,6 @@ void EglStreamBackend::screenGeometryChanged(const QSize &size)
     Q_UNUSED(size)
 }
 
-SceneOpenGLTexturePrivate *EglStreamBackend::createBackendTexture(SceneOpenGLTexture *texture)
-{
-    return new EglStreamTexture(texture, this);
-}
-
 QRegion EglStreamBackend::prepareRenderingFrame()
 {
     startRenderTimer();
@@ -525,167 +520,6 @@ bool EglStreamBackend::usesOverlayWindow() const
 bool EglStreamBackend::perScreenRendering() const
 {
     return true;
-}
-
-/************************************************
- * EglTexture
- ************************************************/
-
-EglStreamTexture::EglStreamTexture(SceneOpenGLTexture *texture, EglStreamBackend *backend)
-    : AbstractEglTexture(texture, backend), m_backend(backend), m_fbo(0), m_rbo(0)
-{
-}
-
-EglStreamTexture::~EglStreamTexture()
-{
-    glDeleteRenderbuffers(1, &m_rbo);
-    glDeleteFramebuffers(1, &m_fbo);
-}
-
-bool EglStreamTexture::acquireStreamFrame(EGLStreamKHR stream)
-{
-    EGLAttrib streamState;
-    if (!pEglQueryStreamAttribNV(m_backend->eglDisplay(), stream,
-                                 EGL_STREAM_STATE_KHR, &streamState)) {
-        qCWarning(KWIN_DRM) << "Failed to query EGL stream state";
-        return false;
-    }
-
-    if (streamState == EGL_STREAM_STATE_NEW_FRAME_AVAILABLE_KHR) {
-        if (pEglStreamConsumerAcquireAttribNV(m_backend->eglDisplay(), stream, nullptr)) {
-            return true;
-        } else {
-            qCWarning(KWIN_DRM) << "Failed to acquire EGL stream frame";
-        }
-    }
-
-    // Re-use previous texture contents if no new frame is available
-    // or if acquisition fails for some reason
-    return false;
-}
-
-void EglStreamTexture::createFbo()
-{
-    glDeleteRenderbuffers(1, &m_rbo);
-    glDeleteFramebuffers(1, &m_fbo);
-
-    glGenFramebuffers(1, &m_fbo);
-    glBindFramebuffer(GL_FRAMEBUFFER, m_fbo);
-    glGenRenderbuffers(1, &m_rbo);
-    glBindRenderbuffer(GL_RENDERBUFFER, m_rbo);
-    glRenderbufferStorage(GL_RENDERBUFFER, m_format, m_size.width(), m_size.height());
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, m_rbo);
-    glBindRenderbuffer(GL_RENDERBUFFER, 0);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-}
-
-// Renders the contents of the given EXTERNAL_OES texture
-// to the scratch framebuffer, then copies this to m_texture
-void EglStreamTexture::copyExternalTexture(GLuint tex)
-{
-    GLint oldViewport[4], oldProgram;
-    glGetIntegerv(GL_VIEWPORT, oldViewport);
-    glViewport(0, 0, m_size.width(), m_size.height());
-    glGetIntegerv(GL_CURRENT_PROGRAM, &oldProgram);
-    glUseProgram(0);
-    glBindFramebuffer(GL_FRAMEBUFFER, m_fbo);
-    glBindRenderbuffer(GL_RENDERBUFFER, m_rbo);
-    glBindTexture(GL_TEXTURE_EXTERNAL_OES, tex);
-    glEnable(GL_TEXTURE_EXTERNAL_OES);
-
-    GLfloat yTop = texture()->isYInverted() ? 0 : 1;
-    glBegin(GL_QUADS);
-    glTexCoord2f(0, yTop);
-    glVertex2f(-1, 1);
-    glTexCoord2f(0, 1 - yTop);
-    glVertex2f(-1, -1);
-    glTexCoord2f(1, 1 - yTop);
-    glVertex2f(1, -1);
-    glTexCoord2f(1, yTop);
-    glVertex2f(1, 1);
-    glEnd();
-
-    texture()->bind();
-    glCopyTexImage2D(m_target, 0, m_format, 0, 0, m_size.width(), m_size.height(), 0);
-    texture()->unbind();
-
-    glDisable(GL_TEXTURE_EXTERNAL_OES);
-    glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0);
-    glBindRenderbuffer(GL_RENDERBUFFER, 0);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glUseProgram(oldProgram);
-    glViewport(oldViewport[0], oldViewport[1], oldViewport[2], oldViewport[3]);
-}
-
-bool EglStreamTexture::attachBuffer(KWayland::Server::BufferInterface *buffer)
-{
-    QSize oldSize = m_size;
-    m_size = buffer->size();
-    GLenum oldFormat = m_format;
-    m_format = buffer->hasAlphaChannel() ? GL_RGBA : GL_RGB;
-
-    EGLint yInverted, wasYInverted = texture()->isYInverted();
-    if (!pEglQueryWaylandBufferWL(m_backend->eglDisplay(), buffer->resource(), EGL_WAYLAND_Y_INVERTED_WL, &yInverted)) {
-        yInverted = EGL_TRUE;
-    }
-    texture()->setYInverted(yInverted);
-    updateMatrix();
-
-    return oldSize != m_size ||
-           oldFormat != m_format ||
-           wasYInverted != texture()->isYInverted();
-}
-
-bool EglStreamTexture::loadTexture(WindowPixmap *pixmap)
-{
-    using namespace KWayland::Server;
-    SurfaceInterface *surface = pixmap->surface();
-    const EglStreamBackend::StreamTexture *st = m_backend->lookupStreamTexture(surface);
-    if (!pixmap->buffer().isNull() && st != nullptr) {
-
-        glGenTextures(1, &m_texture);
-        texture()->setWrapMode(GL_CLAMP_TO_EDGE);
-        texture()->setFilter(GL_LINEAR);
-
-        attachBuffer(surface->buffer());
-        createFbo();
-        surface->resetTrackedDamage();
-
-        if (acquireStreamFrame(st->stream)) {
-            copyExternalTexture(st->texture);
-            if (!pEglStreamConsumerReleaseKHR(m_backend->eglDisplay(), st->stream)) {
-                qCWarning(KWIN_DRM) << "Failed to release EGL stream";
-            }
-        }
-        return true;
-    } else {
-        // Not an EGLStream surface
-        return AbstractEglTexture::loadTexture(pixmap);
-    }
-}
-
-void EglStreamTexture::updateTexture(WindowPixmap *pixmap)
-{
-    using namespace KWayland::Server;    
-    SurfaceInterface *surface = pixmap->surface();
-    const EglStreamBackend::StreamTexture *st = m_backend->lookupStreamTexture(surface);
-    if (!pixmap->buffer().isNull() && st != nullptr) {
-
-        if (attachBuffer(surface->buffer())) {
-            createFbo();
-        }
-        surface->resetTrackedDamage();
-
-        if (acquireStreamFrame(st->stream)) {
-            copyExternalTexture(st->texture);
-            if (!pEglStreamConsumerReleaseKHR(m_backend->eglDisplay(), st->stream)) {
-                qCWarning(KWIN_DRM) << "Failed to release EGL stream";
-            }
-        }
-    } else {
-        // Not an EGLStream surface
-        AbstractEglTexture::updateTexture(pixmap);
-    }
 }
 
 } // namespace

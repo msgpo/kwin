@@ -34,7 +34,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "scene.h"
 #include "screens.h"
 #include "xcbutils.h"
-#include "texture.h"
 // kwin libs
 #include <kwinglplatform.h>
 #include <kwinglutils.h>
@@ -710,11 +709,6 @@ void GlxBackend::screenGeometryChanged(const QSize &size)
     m_bufferAge = 0;
 }
 
-SceneOpenGLTexturePrivate *GlxBackend::createBackendTexture(SceneOpenGLTexture *texture)
-{
-    return new GlxTexture(texture, this);
-}
-
 QRegion GlxBackend::prepareRenderingFrame()
 {
     QRegion repaint;
@@ -780,93 +774,6 @@ OverlayWindow* GlxBackend::overlayWindow() const
 bool GlxBackend::usesOverlayWindow() const
 {
     return true;
-}
-
-/********************************************************
- * GlxTexture
- *******************************************************/
-GlxTexture::GlxTexture(SceneOpenGLTexture *texture, GlxBackend *backend)
-    : SceneOpenGLTexturePrivate()
-    , q(texture)
-    , m_backend(backend)
-    , m_glxpixmap(None)
-{
-}
-
-GlxTexture::~GlxTexture()
-{
-    if (m_glxpixmap != None) {
-        if (!options->isGlStrictBinding()) {
-            glXReleaseTexImageEXT(display(), m_glxpixmap, GLX_FRONT_LEFT_EXT);
-        }
-        glXDestroyPixmap(display(), m_glxpixmap);
-        m_glxpixmap = None;
-    }
-}
-
-void GlxTexture::onDamage()
-{
-    if (options->isGlStrictBinding() && m_glxpixmap) {
-        glXReleaseTexImageEXT(display(), m_glxpixmap, GLX_FRONT_LEFT_EXT);
-        glXBindTexImageEXT(display(), m_glxpixmap, GLX_FRONT_LEFT_EXT, nullptr);
-    }
-    GLTexturePrivate::onDamage();
-}
-
-bool GlxTexture::loadTexture(xcb_pixmap_t pixmap, const QSize &size, xcb_visualid_t visual)
-{
-    if (pixmap == XCB_NONE || size.isEmpty() || visual == XCB_NONE)
-        return false;
-
-    const FBConfigInfo *info = m_backend->infoForVisual(visual);
-    if (!info || info->fbconfig == nullptr)
-        return false;
-
-    if (info->texture_targets & GLX_TEXTURE_2D_BIT_EXT) {
-        m_target = GL_TEXTURE_2D;
-        m_scale.setWidth(1.0f / m_size.width());
-        m_scale.setHeight(1.0f / m_size.height());
-    } else {
-        Q_ASSERT(info->texture_targets & GLX_TEXTURE_RECTANGLE_BIT_EXT);
-
-        m_target = GL_TEXTURE_RECTANGLE;
-        m_scale.setWidth(1.0f);
-        m_scale.setHeight(1.0f);
-    }
-
-    const int attrs[] = {
-        GLX_TEXTURE_FORMAT_EXT, info->bind_texture_format,
-        GLX_MIPMAP_TEXTURE_EXT, false,
-        GLX_TEXTURE_TARGET_EXT, m_target == GL_TEXTURE_2D ? GLX_TEXTURE_2D_EXT : GLX_TEXTURE_RECTANGLE_EXT,
-        0
-    };
-
-    m_glxpixmap     = glXCreatePixmap(display(), info->fbconfig, pixmap, attrs);
-    m_size          = size;
-    m_yInverted     = info->y_inverted ? true : false;
-    m_canUseMipmaps = false;
-
-    glGenTextures(1, &m_texture);
-
-    q->setDirty();
-    q->setFilter(GL_NEAREST);
-
-    glBindTexture(m_target, m_texture);
-    glXBindTexImageEXT(display(), m_glxpixmap, GLX_FRONT_LEFT_EXT, nullptr);
-
-    updateMatrix();
-    return true;
-}
-
-bool GlxTexture::loadTexture(WindowPixmap *pixmap)
-{
-    Toplevel *t = pixmap->toplevel();
-    return loadTexture(pixmap->pixmap(), t->size(), t->visual());
-}
-
-OpenGLBackend *GlxTexture::backend()
-{
-    return m_backend;
 }
 
 } // namespace

@@ -661,7 +661,7 @@ void SceneQPainterShadowTest::testShadowTileOverlaps()
     auto *shadow = client->effectWindow()->sceneWindow()->shadow();
 
     // Validate shadow quads.
-    const WindowQuadList &quads = shadow->shadowQuads();
+    const WindowQuadList &quads = shadow->windowQuads();
     QCOMPARE(quads.size(), expectedQuads.size());
 
     QVector<bool> mask(expectedQuads.size(), false);

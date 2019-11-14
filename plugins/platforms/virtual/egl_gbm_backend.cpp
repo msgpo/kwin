@@ -170,11 +170,6 @@ void EglGbmBackend::screenGeometryChanged(const QSize &size)
     // TODO, create new buffer?
 }
 
-SceneOpenGLTexturePrivate *EglGbmBackend::createBackendTexture(SceneOpenGLTexture *texture)
-{
-    return new EglGbmTexture(texture, this);
-}
-
 QRegion EglGbmBackend::prepareRenderingFrame()
 {
     if (!lastDamage().isEmpty()) {
@@ -236,16 +231,5 @@ bool EglGbmBackend::usesOverlayWindow() const
 {
     return false;
 }
-
-/************************************************
- * EglTexture
- ************************************************/
-
-EglGbmTexture::EglGbmTexture(KWin::SceneOpenGLTexture *texture, EglGbmBackend *backend)
-    : AbstractEglTexture(texture, backend)
-{
-}
-
-EglGbmTexture::~EglGbmTexture() = default;
 
 } // namespace

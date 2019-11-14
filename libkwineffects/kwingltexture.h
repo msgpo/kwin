@@ -102,6 +102,11 @@ public:
      */
     QMatrix4x4 matrix(TextureCoordinateType type) const;
 
+    /**
+     * Uploads pixel @p data to this texture object.
+     */
+    void setData(const QImage &data, GLuint target = GL_TEXTURE_2D);
+
     void update(const QImage& image, const QPoint &offset = QPoint(0, 0), const QRect &src = QRect());
     virtual void discard();
     void bind();

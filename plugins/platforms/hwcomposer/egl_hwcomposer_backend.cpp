@@ -167,21 +167,9 @@ void EglHwcomposerBackend::endRenderingFrame(const QRegion &renderedRegion, cons
     setLastDamage(renderedRegion);
 }
 
-SceneOpenGLTexturePrivate *EglHwcomposerBackend::createBackendTexture(SceneOpenGLTexture *texture)
-{
-    return new EglHwcomposerTexture(texture, this);
-}
-
 bool EglHwcomposerBackend::usesOverlayWindow() const
 {
     return false;
 }
-
-EglHwcomposerTexture::EglHwcomposerTexture(SceneOpenGLTexture *texture, EglHwcomposerBackend *backend)
-    : AbstractEglTexture(texture, backend)
-{
-}
-
-EglHwcomposerTexture::~EglHwcomposerTexture() = default;
 
 }

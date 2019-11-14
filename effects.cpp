@@ -2047,7 +2047,7 @@ EffectWindow* effectWindow(Toplevel* w)
 
 EffectWindow* effectWindow(Scene::Window* w)
 {
-    EffectWindowImpl* ret = w->window()->effectWindow();
+    EffectWindowImpl* ret = w->toplevel()->effectWindow();
     ret->setSceneWindow(w);
     return ret;
 }
@@ -2121,16 +2121,10 @@ void EffectWindowImpl::closeWindow()
 
 void EffectWindowImpl::referencePreviousWindowPixmap()
 {
-    if (sw) {
-        sw->referencePreviousPixmap();
-    }
 }
 
 void EffectWindowImpl::unreferencePreviousWindowPixmap()
 {
-    if (sw) {
-        sw->unreferencePreviousPixmap();
-    }
 }
 
 bool EffectWindowImpl::isManaged() const

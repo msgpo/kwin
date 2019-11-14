@@ -2,7 +2,12 @@ set(SCENE_OPENGL_BACKEND_SRCS
     abstract_egl_backend.cpp
     backend.cpp
     egl_dmabuf.cpp
-    texture.cpp
+    openglplatformtexture.cpp
+    openglplatformtexture_dmabuf.cpp
+    openglplatformtexture_egl.cpp
+    openglplatformtexture_fbo.cpp
+    openglplatformtexture_image.cpp
+    openglplatformtexture_shm.cpp
 )
 
 include_directories(${CMAKE_SOURCE_DIR})

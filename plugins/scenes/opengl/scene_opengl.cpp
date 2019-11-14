@@ -27,10 +27,15 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 *********************************************************************/
 #include "scene_opengl.h"
+#include "opengldecorationscenenode.h"
+#include "openglplatformsurface_internal.h"
+#include "openglplatformsurface_wayland.h"
+#include "openglplatformsurface_x11.h"
+#include "openglshadowscenenode.h"
+#include "openglsurfacescenenode.h"
 
 #include "platform.h"
 #include "wayland_server.h"
-#include "platformsupport/scenes/opengl/texture.h"
 
 #include <kwinglplatform.h>
 #include <kwineffectquickview.h>
@@ -47,10 +52,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "cursor.h"
 #include "decorations/decoratedclient.h"
 #include <logging.h>
-
-#include <KWayland/Server/buffer_interface.h>
-#include <KWayland/Server/subcompositor_interface.h>
-#include <KWayland/Server/surface_interface.h>
 
 #include <array>
 #include <cmath>
@@ -808,11 +809,6 @@ void SceneOpenGL::extendPaintRegion(QRegion &region, bool opaqueFullscreen)
     }
 }
 
-SceneOpenGLTexture *SceneOpenGL::createTexture()
-{
-    return new SceneOpenGLTexture(m_backend);
-}
-
 bool SceneOpenGL::viewportLimitsMatched(const QSize &size) const {
     if (kwinApp()->operationMode() != Application::OperationModeX11) {
         // TODO: On Wayland we can't suspend. Find a solution that works here as well!
@@ -896,6 +892,21 @@ Shadow *SceneOpenGL::createShadow(Toplevel *toplevel)
 Decoration::Renderer *SceneOpenGL::createDecorationRenderer(Decoration::DecoratedClientImpl *impl)
 {
     return new SceneOpenGLDecorationRenderer(impl);
+}
+
+ShadowSceneNode *SceneOpenGL::createShadowSceneNode()
+{
+    return new OpenGLShadowSceneNode;
+}
+
+DecorationSceneNode *SceneOpenGL::createDecorationSceneNode()
+{
+    return new OpenGLDecorationSceneNode;
+}
+
+SurfaceSceneNode *SceneOpenGL::createSurfaceSceneNode()
+{
+    return new OpenGLSurfaceSceneNode;
 }
 
 bool SceneOpenGL::animationsSupported() const
@@ -1099,24 +1110,17 @@ SceneOpenGL::Window::~Window()
 {
 }
 
-static SceneOpenGLTexture *s_frameTexture = nullptr;
-// Bind the window pixmap to an OpenGL texture.
 bool SceneOpenGL::Window::bindTexture()
 {
-    s_frameTexture = nullptr;
-    OpenGLWindowPixmap *pixmap = windowPixmap<OpenGLWindowPixmap>();
+    OpenGLWindowPixmap *pixmap = nullptr;
     if (!pixmap) {
         return false;
     }
-    s_frameTexture = pixmap->texture();
-    if (pixmap->isDiscarded()) {
-        return !pixmap->texture()->isNull();
-    }
 
-    if (!window()->damage().isEmpty())
+    if (!toplevel()->damage().isEmpty())
         m_scene->insertWait();
 
-    return pixmap->bind();
+    return false;
 }
 
 QMatrix4x4 SceneOpenGL::Window::transformation(int mask, const WindowPaintData &data) const
@@ -1177,7 +1181,7 @@ bool SceneOpenGL::Window::beginRenderWindow(int mask, const QRegion &region, Win
     if (data.quads.isEmpty())
         return false;
 
-    if (!bindTexture() || !s_frameTexture) {
+    if (!bindTexture()) {
         return false;
     }
 
@@ -1187,16 +1191,15 @@ bool SceneOpenGL::Window::beginRenderWindow(int mask, const QRegion &region, Win
 
     // Update the texture filter
     if (waylandServer()) {
-        filter = ImageFilterGood;
-        s_frameTexture->setFilter(GL_LINEAR);
+        m_filter = ImageFilterGood;
+//        s_frameTexture->setFilter(GL_LINEAR);
     } else {
-        if (options->glSmoothScale() != 0 &&
-            (mask & (PAINT_WINDOW_TRANSFORMED | PAINT_SCREEN_TRANSFORMED)))
-            filter = ImageFilterGood;
-        else
-            filter = ImageFilterFast;
-
-        s_frameTexture->setFilter(filter == ImageFilterGood ? GL_LINEAR : GL_NEAREST);
+        if (options->glSmoothScale() && (mask & (PAINT_WINDOW_TRANSFORMED | PAINT_SCREEN_TRANSFORMED))) {
+            m_filter = ImageFilterGood;
+        } else {
+            m_filter = ImageFilterFast;
+        }
+//        s_frameTexture->setFilter(m_filter == ImageFilterGood ? GL_LINEAR : GL_NEAREST);
     }
 
     const GLVertexAttrib attribs[] = {
@@ -1218,36 +1221,31 @@ void SceneOpenGL::Window::endRenderWindow()
     }
 }
 
-GLTexture *SceneOpenGL::Window::getDecorationTexture() const
-{
-    if (AbstractClient *client = dynamic_cast<AbstractClient *>(toplevel)) {
-        if (client->noBorder()) {
-            return nullptr;
-        }
-
-        if (!client->isDecorated()) {
-            return nullptr;
-        }
-        if (SceneOpenGLDecorationRenderer *renderer = static_cast<SceneOpenGLDecorationRenderer*>(client->decoratedClient()->renderer())) {
-            renderer->render();
-            return renderer->texture();
-        }
-    } else if (toplevel->isDeleted()) {
-        Deleted *deleted = static_cast<Deleted *>(toplevel);
-        if (!deleted->wasClient() || deleted->noBorder()) {
-            return nullptr;
-        }
-        if (const SceneOpenGLDecorationRenderer *renderer = static_cast<const SceneOpenGLDecorationRenderer*>(deleted->decorationRenderer())) {
-            return renderer->texture();
-        }
-    }
-    return nullptr;
-}
-
-WindowPixmap* SceneOpenGL::Window::createWindowPixmap()
-{
-    return new OpenGLWindowPixmap(this, m_scene);
-}
+// GLTexture *SceneOpenGL::Window::getDecorationTexture() const
+// {
+//     if (AbstractClient *client = dynamic_cast<AbstractClient *>(toplevel())) {
+//         if (client->noBorder()) {
+//             return nullptr;
+//         }
+//
+//         if (!client->isDecorated()) {
+//             return nullptr;
+//         }
+//         if (SceneOpenGLDecorationRenderer *renderer = static_cast<SceneOpenGLDecorationRenderer*>(client->decoratedClient()->renderer())) {
+//             renderer->render();
+//             return renderer->texture();
+//         }
+//     } else if (toplevel()->isDeleted()) {
+//         Deleted *deleted = static_cast<Deleted *>(toplevel());
+//         if (!deleted->wasClient() || deleted->noBorder()) {
+//             return nullptr;
+//         }
+//         if (const SceneOpenGLDecorationRenderer *renderer = static_cast<const SceneOpenGLDecorationRenderer*>(deleted->decorationRenderer())) {
+//             return renderer->texture();
+//         }
+//     }
+//     return nullptr;
+// }
 
 //***************************************
 // SceneOpenGL2Window
@@ -1280,43 +1278,6 @@ void SceneOpenGL2Window::setBlendEnabled(bool enabled)
     m_blendingEnabled = enabled;
 }
 
-void SceneOpenGL2Window::setupLeafNodes(LeafNode *nodes, const WindowQuadList *quads, const WindowPaintData &data)
-{
-    if (!quads[ShadowLeaf].isEmpty()) {
-        nodes[ShadowLeaf].texture = static_cast<SceneOpenGLShadow *>(m_shadow)->shadowTexture();
-        nodes[ShadowLeaf].opacity = data.opacity();
-        nodes[ShadowLeaf].hasAlpha = true;
-        nodes[ShadowLeaf].coordinateType = NormalizedCoordinates;
-    }
-
-    if (!quads[DecorationLeaf].isEmpty()) {
-        nodes[DecorationLeaf].texture = getDecorationTexture();
-        nodes[DecorationLeaf].opacity = data.opacity();
-        nodes[DecorationLeaf].hasAlpha = true;
-        nodes[DecorationLeaf].coordinateType = UnnormalizedCoordinates;
-    }
-
-    nodes[ContentLeaf].texture = s_frameTexture;
-    nodes[ContentLeaf].hasAlpha = !isOpaque();
-    // TODO: ARGB crsoofading is atm. a hack, playing on opacities for two dumb SrcOver operations
-    // Should be a shader
-    if (data.crossFadeProgress() != 1.0 && (data.opacity() < 0.95 || toplevel->hasAlpha())) {
-        const float opacity = 1.0 - data.crossFadeProgress();
-        nodes[ContentLeaf].opacity = data.opacity() * (1 - pow(opacity, 1.0f + 2.0f * data.opacity()));
-    } else {
-        nodes[ContentLeaf].opacity = data.opacity();
-    }
-    nodes[ContentLeaf].coordinateType = UnnormalizedCoordinates;
-
-    if (data.crossFadeProgress() != 1.0) {
-        OpenGLWindowPixmap *previous = previousWindowPixmap<OpenGLWindowPixmap>();
-        nodes[PreviousContentLeaf].texture = previous ? previous->texture() : nullptr;
-        nodes[PreviousContentLeaf].hasAlpha = !isOpaque();
-        nodes[PreviousContentLeaf].opacity = data.opacity() * (1.0 - data.crossFadeProgress());
-        nodes[PreviousContentLeaf].coordinateType = NormalizedCoordinates;
-    }
-}
-
 QMatrix4x4 SceneOpenGL2Window::modelViewProjectionMatrix(int mask, const WindowPaintData &data) const
 {
     SceneOpenGL2 *scene = static_cast<SceneOpenGL2 *>(m_scene);
@@ -1339,35 +1300,6 @@ QMatrix4x4 SceneOpenGL2Window::modelViewProjectionMatrix(int mask, const WindowP
         return scene->screenProjectionMatrix() * mvMatrix;
 
     return scene->projectionMatrix() * mvMatrix;
-}
-
-void SceneOpenGL2Window::renderSubSurface(GLShader *shader, const QMatrix4x4 &mvp, const QMatrix4x4 &windowMatrix, OpenGLWindowPixmap *pixmap, const QRegion &region, bool hardwareClipping)
-{
-    QMatrix4x4 newWindowMatrix = windowMatrix;
-    newWindowMatrix.translate(pixmap->subSurface()->position().x(), pixmap->subSurface()->position().y());
-
-    qreal scale = 1.0;
-    if (pixmap->surface()) {
-        scale = pixmap->surface()->scale();
-    }
-
-    if (!pixmap->texture()->isNull()) {
-        setBlendEnabled(pixmap->buffer() && pixmap->buffer()->hasAlphaChannel());
-        // render this texture
-        shader->setUniform(GLShader::ModelViewProjectionMatrix, mvp * newWindowMatrix);
-        auto texture = pixmap->texture();
-        texture->bind();
-        texture->render(region, QRect(0, 0, texture->width() / scale, texture->height() / scale), hardwareClipping);
-        texture->unbind();
-    }
-
-    const auto &children = pixmap->children();
-    for (auto pixmap : children) {
-        if (pixmap->subSurface().isNull() || pixmap->subSurface()->surface().isNull() || !pixmap->subSurface()->surface()->isMapped()) {
-            continue;
-        }
-        renderSubSurface(shader, mvp, newWindowMatrix, static_cast<OpenGLWindowPixmap*>(pixmap), region, hardwareClipping);
-    }
 }
 
 void SceneOpenGL2Window::performPaint(int mask, QRegion region, WindowPaintData data)
@@ -1430,30 +1362,6 @@ void SceneOpenGL2Window::performPaint(int mask, QRegion region, WindowPaintData 
         }
     }
 
-    if (data.crossFadeProgress() != 1.0) {
-        OpenGLWindowPixmap *previous = previousWindowPixmap<OpenGLWindowPixmap>();
-        if (previous) {
-            const QRect &oldGeometry = previous->contentsRect();
-            for (const WindowQuad &quad : quads[ContentLeaf]) {
-                // we need to create new window quads with normalize texture coordinates
-                // normal quads divide the x/y position by width/height. This would not work as the texture
-                // is larger than the visible content in case of a decorated Client resulting in garbage being shown.
-                // So we calculate the normalized texture coordinate in the Client's new content space and map it to
-                // the previous Client's content space.
-                WindowQuad newQuad(WindowQuadContents);
-                for (int i = 0; i < 4; ++i) {
-                    const qreal xFactor = qreal(quad[i].textureX() - toplevel->clientPos().x())/qreal(toplevel->clientSize().width());
-                    const qreal yFactor = qreal(quad[i].textureY() - toplevel->clientPos().y())/qreal(toplevel->clientSize().height());
-                    WindowVertex vertex(quad[i].x(), quad[i].y(),
-                                        (xFactor * oldGeometry.width() + oldGeometry.x())/qreal(previous->size().width()),
-                                        (yFactor * oldGeometry.height() + oldGeometry.y())/qreal(previous->size().height()));
-                    newQuad[i] = vertex;
-                }
-                quads[PreviousContentLeaf].append(newQuad);
-            }
-        }
-    }
-
     const bool indexedQuads = GLVertexBuffer::supportsIndexedQuads();
     const GLenum primitiveType = indexedQuads ? GL_QUADS : GL_TRIANGLES;
     const int verticesPerQuad = indexedQuads ? 4 : 6;
@@ -1465,7 +1373,6 @@ void SceneOpenGL2Window::performPaint(int mask, QRegion region, WindowPaintData 
     GLVertex2D *map = (GLVertex2D *) vbo->map(size);
 
     LeafNode nodes[LeafCount];
-    setupLeafNodes(nodes, quads, data);
 
     for (int i = 0, v = 0; i < LeafCount; i++) {
         if (quads[i].isEmpty() || !nodes[i].texture)
@@ -1509,124 +1416,12 @@ void SceneOpenGL2Window::performPaint(int mask, QRegion region, WindowPaintData 
 
     vbo->unbindArrays();
 
-    // render sub-surfaces
-    auto wp = windowPixmap<OpenGLWindowPixmap>();
-    const auto &children = wp ? wp->children() : QVector<WindowPixmap*>();
-    windowMatrix.translate(toplevel->clientPos().x(), toplevel->clientPos().y());
-    for (auto pixmap : children) {
-        if (pixmap->subSurface().isNull() || pixmap->subSurface()->surface().isNull() || !pixmap->subSurface()->surface()->isMapped()) {
-            continue;
-        }
-        renderSubSurface(shader, modelViewProjection, windowMatrix, static_cast<OpenGLWindowPixmap*>(pixmap), region, m_hardwareClipping);
-    }
-
     setBlendEnabled(false);
 
     if (!data.shader)
         ShaderManager::instance()->popShader();
 
     endRenderWindow();
-}
-
-
-//****************************************
-// OpenGLWindowPixmap
-//****************************************
-
-OpenGLWindowPixmap::OpenGLWindowPixmap(Scene::Window *window, SceneOpenGL* scene)
-    : WindowPixmap(window)
-    , m_texture(scene->createTexture())
-    , m_scene(scene)
-{
-}
-
-OpenGLWindowPixmap::OpenGLWindowPixmap(const QPointer<KWayland::Server::SubSurfaceInterface> &subSurface, WindowPixmap *parent, SceneOpenGL *scene)
-    : WindowPixmap(subSurface, parent)
-    , m_texture(scene->createTexture())
-    , m_scene(scene)
-{
-}
-
-OpenGLWindowPixmap::~OpenGLWindowPixmap()
-{
-}
-
-static bool needsPixmapUpdate(const OpenGLWindowPixmap *pixmap)
-{
-    // That's a regular Wayland client.
-    if (pixmap->surface()) {
-        return !pixmap->surface()->trackedDamage().isEmpty();
-    }
-
-    // That's an internal client with a raster buffer attached.
-    if (!pixmap->internalImage().isNull()) {
-        return !pixmap->toplevel()->damage().isEmpty();
-    }
-
-    // That's an internal client with an opengl framebuffer object attached.
-    if (!pixmap->fbo().isNull()) {
-        return !pixmap->toplevel()->damage().isEmpty();
-    }
-
-    // That's an X11 client.
-    return false;
-}
-
-bool OpenGLWindowPixmap::bind()
-{
-    if (!m_texture->isNull()) {
-        // always call updateBuffer to get the sub-surface tree updated
-        if (subSurface().isNull() && !toplevel()->damage().isEmpty()) {
-            updateBuffer();
-        }
-        if (needsPixmapUpdate(this)) {
-            m_texture->updateFromPixmap(this);
-            // mipmaps need to be updated
-            m_texture->setDirty();
-        }
-        if (subSurface().isNull()) {
-            toplevel()->resetDamage();
-        }
-        // also bind all children
-        for (auto it = children().constBegin(); it != children().constEnd(); ++it) {
-            static_cast<OpenGLWindowPixmap*>(*it)->bind();
-        }
-        return true;
-    }
-    // also bind all children, needs to be done before checking isValid
-    // as there might be valid children to render, see https://bugreports.qt.io/browse/QTBUG-52192
-    if (subSurface().isNull()) {
-        updateBuffer();
-    }
-    for (auto it = children().constBegin(); it != children().constEnd(); ++it) {
-        static_cast<OpenGLWindowPixmap*>(*it)->bind();
-    }
-    if (!isValid()) {
-        return false;
-    }
-
-    bool success = m_texture->load(this);
-
-    if (success) {
-        if (subSurface().isNull()) {
-            toplevel()->resetDamage();
-        }
-    } else
-        qCDebug(KWIN_OPENGL) << "Failed to bind window";
-    return success;
-}
-
-WindowPixmap *OpenGLWindowPixmap::createChild(const QPointer<KWayland::Server::SubSurfaceInterface> &subSurface)
-{
-    return new OpenGLWindowPixmap(subSurface, this, m_scene);
-}
-
-bool OpenGLWindowPixmap::isValid() const
-{
-    if (!m_texture->isNull()) {
-        return true;
-    }
-    return WindowPixmap::isValid();
 }
 
 //****************************************
@@ -2146,6 +1941,11 @@ SceneOpenGLShadow::~SceneOpenGLShadow()
         DecorationShadowTextureCache::instance().unregister(this);
         m_texture.reset();
     }
+}
+
+QSharedPointer<GLTexture> SceneOpenGLShadow::shadowTexture() const
+{
+    return m_texture;
 }
 
 static inline void distributeHorizontally(QRectF &leftRect, QRectF &rightRect)

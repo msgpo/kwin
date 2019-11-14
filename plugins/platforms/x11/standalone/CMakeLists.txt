@@ -4,6 +4,7 @@ set(X11PLATFORM_SOURCES
     effects_x11.cpp
     logging.cpp
     non_composited_outline.cpp
+    openglplatformtexture_glx.cpp
     overlaywindow_x11.cpp
     screenedges_filter.cpp
     screens_xrandr.cpp

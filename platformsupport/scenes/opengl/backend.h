@@ -64,7 +64,6 @@ public:
         return m_renderTimer.nsecsElapsed();
     }
     virtual void screenGeometryChanged(const QSize &size) = 0;
-    virtual SceneOpenGLTexturePrivate *createBackendTexture(SceneOpenGLTexture *texture) = 0;
 
     /**
      * @brief Backend specific code to prepare the rendering of a frame including flushing the
