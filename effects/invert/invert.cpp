@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 *********************************************************************/
 
 #include "invert.h"
+#include "invertconfig.h"
 
 #include <kwinglutils.h>
 #include <kwinglplatform.h>
@@ -37,6 +38,9 @@ namespace KWin
 
 InvertEffect::InvertEffect()
 {
+    initConfig<InvertConfig>();
+    reconfigure(ReconfigureAll);
+
     const QKeySequence defaultToggleScreenShortcut { Qt::CTRL + Qt::META + Qt::Key_I };
     const QKeySequence defaultToggleWindowShortcut { Qt::CTRL + Qt::META + Qt::Key_U };
 
@@ -64,18 +68,45 @@ InvertEffect::~InvertEffect()
     delete m_shader;
 }
 
+void InvertEffect::reconfigure(ReconfigureFlags flags)
+{
+    Q_UNUSED(flags)
+
+    delete m_shader;
+    m_shader = nullptr;
+    m_isInited = false;
+    m_isValid = true;
+
+    InvertConfig::self()->read();
+    m_mode = Mode(InvertConfig::self()->mode());
+}
+
 bool InvertEffect::supported()
 {
     return effects->compositingType() == OpenGL2Compositing;
 }
 
+static QString shaderFileName(InvertEffect::Mode mode)
+{
+    switch (mode) {
+    case InvertEffect::NaiveMode:
+        return QStringLiteral("invert-naive.frag");
+    case InvertEffect::ShiftMode:
+    default:
+        return QStringLiteral("invert-shift.frag");
+    }
+}
+
 bool InvertEffect::initializeShader()
 {
+    const QString fragmentShaderFileName = shaderFileName(m_mode);
+
     m_isInited = true;
 
-    m_shader = ShaderManager::instance()->generateShaderFromResources(ShaderTrait::MapTexture, QString(), QStringLiteral("invert.frag"));
+    m_shader = ShaderManager::instance()->generateShaderFromResources(ShaderTrait::MapTexture, QString(),
+                                                                      fragmentShaderFileName);
     if (!m_shader->isValid()) {
-        qCCritical(KWINEFFECTS) << "The shader failed to load!";
+        qCCritical(KWINEFFECTS) << "Could not load fragment shader" << fragmentShaderFileName;
         return false;
     }
 

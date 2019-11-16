@@ -5,6 +5,7 @@
 # Config
 set(kwin_invert_config_SRCS invert_config.cpp)
 qt5_add_dbus_interface(kwin_invert_config_SRCS ${kwin_effects_dbus_xml} kwineffects_interface)
+kconfig_add_kcfg_files(kwin_invert_config_SRCS invertconfig.kcfgc)
 
 add_library(kwin_invert_config MODULE ${kwin_invert_config_SRCS})
 

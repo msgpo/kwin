@@ -1,0 +1,5 @@
+File=invert.kcfg
+ClassName=InvertConfig
+NameSpace=KWin
+Singleton=true
+Mutators=true

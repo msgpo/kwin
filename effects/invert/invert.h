@@ -40,6 +40,21 @@ public:
     InvertEffect();
     ~InvertEffect() override;
 
+    /**
+     * This enum type is used to specify how exactly colors have to be inverted.
+     */
+    enum Mode {
+        /**
+         * Colors are inverted by flipping values in each color channel.
+         */
+        NaiveMode = 0,
+        /**
+         * The algorithm is taken from https://github.com/vn971/linux-color-inversion.
+         */
+        ShiftMode = 1,
+    };
+
+    void reconfigure(ReconfigureFlags flags) override;
     void drawWindow(EffectWindow *w, int mask, const QRegion &region, WindowPaintData &data) override;
     void paintEffectFrame(EffectFrame *frame, const QRegion &region, double opacity, double frameOpacity) override;
     bool isActive() const override;
@@ -58,6 +73,7 @@ private:
 
     GLShader *m_shader = nullptr;
     QList<EffectWindow *> m_windows;
+    Mode m_mode = NaiveMode;
     bool m_isInited = false;
     bool m_isValid = true;
     bool m_invertAllWindows = false;

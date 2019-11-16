@@ -118,6 +118,7 @@ kconfig_add_kcfg_files(kwin4_effect_builtins_sources
     fallapart/fallapartconfig.kcfgc
     flipswitch/flipswitchconfig.kcfgc
     glide/glideconfig.kcfgc
+    invert/invertconfig.kcfgc
     lookingglass/lookingglassconfig.kcfgc
     magiclamp/magiclampconfig.kcfgc
     magnifier/magnifierconfig.kcfgc
