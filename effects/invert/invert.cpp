@@ -21,40 +21,40 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "invert.h"
 
-#include <QAction>
-#include <QFile>
 #include <kwinglutils.h>
 #include <kwinglplatform.h>
+
 #include <KGlobalAccel>
 #include <KLocalizedString>
-#include <QStandardPaths>
 
+#include <QAction>
+#include <QFile>
 #include <QMatrix4x4>
+#include <QStandardPaths>
 
 namespace KWin
 {
 
 InvertEffect::InvertEffect()
-    :   m_inited(false),
-        m_valid(true),
-        m_shader(nullptr),
-        m_allWindows(false)
 {
-    QAction* a = new QAction(this);
-    a->setObjectName(QStringLiteral("Invert"));
-    a->setText(i18n("Toggle Invert Effect"));
-    KGlobalAccel::self()->setDefaultShortcut(a, QList<QKeySequence>() << Qt::CTRL + Qt::META + Qt::Key_I);
-    KGlobalAccel::self()->setShortcut(a, QList<QKeySequence>() << Qt::CTRL + Qt::META + Qt::Key_I);
-    effects->registerGlobalShortcut(Qt::CTRL + Qt::META + Qt::Key_I, a);
-    connect(a, &QAction::triggered, this, &InvertEffect::toggleScreenInversion);
+    const QKeySequence defaultToggleScreenShortcut { Qt::CTRL + Qt::META + Qt::Key_I };
+    const QKeySequence defaultToggleWindowShortcut { Qt::CTRL + Qt::META + Qt::Key_U };
 
-    QAction* b = new QAction(this);
-    b->setObjectName(QStringLiteral("InvertWindow"));
-    b->setText(i18n("Toggle Invert Effect on Window"));
-    KGlobalAccel::self()->setDefaultShortcut(b, QList<QKeySequence>() << Qt::CTRL + Qt::META + Qt::Key_U);
-    KGlobalAccel::self()->setShortcut(b, QList<QKeySequence>() << Qt::CTRL + Qt::META + Qt::Key_U);
-    effects->registerGlobalShortcut(Qt::CTRL + Qt::META + Qt::Key_U, b);
-    connect(b, &QAction::triggered, this, &InvertEffect::toggleWindow);
+    QAction *toggleScreenAction = new QAction(this);
+    toggleScreenAction->setObjectName(QStringLiteral("Invert"));
+    toggleScreenAction->setText(i18n("Toggle Invert Effect"));
+    KGlobalAccel::self()->setDefaultShortcut(toggleScreenAction, { defaultToggleScreenShortcut });
+    KGlobalAccel::self()->setShortcut(toggleScreenAction, { defaultToggleScreenShortcut });
+    effects->registerGlobalShortcut(defaultToggleScreenShortcut, toggleScreenAction);
+    connect(toggleScreenAction, &QAction::triggered, this, &InvertEffect::toggleScreenInversion);
+
+    QAction *toggleWindowAction = new QAction(this);
+    toggleWindowAction->setObjectName(QStringLiteral("InvertWindow"));
+    toggleWindowAction->setText(i18n("Toggle Invert Effect on Window"));
+    KGlobalAccel::self()->setDefaultShortcut(toggleWindowAction, { defaultToggleWindowShortcut });
+    KGlobalAccel::self()->setShortcut(toggleWindowAction, { defaultToggleWindowShortcut });
+    effects->registerGlobalShortcut(defaultToggleWindowShortcut, toggleWindowAction);
+    connect(toggleWindowAction, &QAction::triggered, this, &InvertEffect::toggleWindowInversion);
 
     connect(effects, &EffectsHandler::windowClosed, this, &InvertEffect::slotWindowClosed);
 }
@@ -69,9 +69,9 @@ bool InvertEffect::supported()
     return effects->compositingType() == OpenGL2Compositing;
 }
 
-bool InvertEffect::loadData()
+bool InvertEffect::initializeShader()
 {
-    m_inited = true;
+    m_isInited = true;
 
     m_shader = ShaderManager::instance()->generateShaderFromResources(ShaderTrait::MapTexture, QString(), QStringLiteral("invert.frag"));
     if (!m_shader->isValid()) {
@@ -82,17 +82,17 @@ bool InvertEffect::loadData()
     return true;
 }
 
-void InvertEffect::drawWindow(EffectWindow* w, int mask, const QRegion &region, WindowPaintData& data)
+void InvertEffect::drawWindow(EffectWindow *w, int mask, const QRegion &region, WindowPaintData &data)
 {
     // Load if we haven't already
-    if (m_valid && !m_inited)
-        m_valid = loadData();
+    if (m_isValid && !m_isInited) {
+        m_isValid = initializeShader();
+    }
 
-    bool useShader = m_valid && (m_allWindows != m_windows.contains(w));
+    const bool useShader = m_isValid && (m_invertAllWindows != m_windows.contains(w));
     if (useShader) {
         ShaderManager *shaderManager = ShaderManager::instance();
         shaderManager->pushShader(m_shader);
-
         data.shader = m_shader;
     }
 
@@ -103,9 +103,9 @@ void InvertEffect::drawWindow(EffectWindow* w, int mask, const QRegion &region, 
     }
 }
 
-void InvertEffect::paintEffectFrame(KWin::EffectFrame* frame, const QRegion &region, double opacity, double frameOpacity)
+void InvertEffect::paintEffectFrame(EffectFrame *frame, const QRegion &region, double opacity, double frameOpacity)
 {
-    if (m_valid && m_allWindows) {
+    if (m_isValid && m_invertAllWindows) {
         frame->setShader(m_shader);
         ShaderBinder binder(m_shader);
         effects->paintEffectFrame(frame, region, opacity, frameOpacity);
@@ -114,38 +114,39 @@ void InvertEffect::paintEffectFrame(KWin::EffectFrame* frame, const QRegion &reg
     }
 }
 
-void InvertEffect::slotWindowClosed(EffectWindow* w)
+void InvertEffect::slotWindowClosed(EffectWindow *w)
 {
     m_windows.removeOne(w);
 }
 
 void InvertEffect::toggleScreenInversion()
 {
-    m_allWindows = !m_allWindows;
+    m_invertAllWindows = !m_invertAllWindows;
     effects->addRepaintFull();
 }
 
-void InvertEffect::toggleWindow()
+void InvertEffect::toggleWindowInversion()
 {
     if (!effects->activeWindow()) {
         return;
     }
-    if (!m_windows.contains(effects->activeWindow()))
+    if (!m_windows.contains(effects->activeWindow())) {
         m_windows.append(effects->activeWindow());
-    else
+    } else {
         m_windows.removeOne(effects->activeWindow());
+    }
     effects->activeWindow()->addRepaintFull();
 }
 
 bool InvertEffect::isActive() const
 {
-    return m_valid && (m_allWindows || !m_windows.isEmpty());
+    return m_isValid && (m_invertAllWindows || !m_windows.isEmpty());
 }
 
-bool InvertEffect::provides(Feature f)
+bool InvertEffect::provides(Feature feature)
 {
-    return f == ScreenInversion;
+    return feature == ScreenInversion;
 }
 
-} // namespace
+} // namespace KWin
 

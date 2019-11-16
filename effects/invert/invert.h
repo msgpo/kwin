@@ -32,37 +32,35 @@ class GLShader;
 /**
  * Inverts desktop's colors
  */
-class InvertEffect
-    : public Effect
+class InvertEffect : public Effect
 {
     Q_OBJECT
+
 public:
     InvertEffect();
     ~InvertEffect() override;
 
-    void drawWindow(EffectWindow* w, int mask, const QRegion &region, WindowPaintData& data) override;
-    void paintEffectFrame(KWin::EffectFrame* frame, const QRegion &region, double opacity, double frameOpacity) override;
+    void drawWindow(EffectWindow *w, int mask, const QRegion &region, WindowPaintData &data) override;
+    void paintEffectFrame(EffectFrame *frame, const QRegion &region, double opacity, double frameOpacity) override;
     bool isActive() const override;
     bool provides(Feature) override;
-
     int requestedEffectChainPosition() const override;
 
     static bool supported();
 
 public Q_SLOTS:
     void toggleScreenInversion();
-    void toggleWindow();
-    void slotWindowClosed(KWin::EffectWindow *w);
-
-protected:
-    bool loadData();
+    void toggleWindowInversion();
+    void slotWindowClosed(EffectWindow *w);
 
 private:
-    bool m_inited;
-    bool m_valid;
-    GLShader* m_shader;
-    bool m_allWindows;
-    QList<EffectWindow*> m_windows;
+    bool initializeShader();
+
+    GLShader *m_shader = nullptr;
+    QList<EffectWindow *> m_windows;
+    bool m_isInited = false;
+    bool m_isValid = true;
+    bool m_invertAllWindows = false;
 };
 
 inline int InvertEffect::requestedEffectChainPosition() const
@@ -70,6 +68,6 @@ inline int InvertEffect::requestedEffectChainPosition() const
     return 99;
 }
 
-} // namespace
+} // namespace KWin
 
 #endif
