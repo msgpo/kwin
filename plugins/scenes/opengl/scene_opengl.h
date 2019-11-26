@@ -4,6 +4,7 @@
 
 Copyright (C) 2006 Lubos Lunak <l.lunak@kde.org>
 Copyright (C) 2009, 2010, 2011 Martin Gräßlin <mgraesslin@kde.org>
+Copyright (C) 2019 Vlad Zahorodnii <vladzzag@gmail.com>
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -27,11 +28,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "kwinglutils.h"
 
-#include "decorations/decorationrenderer.h"
 #include "platformsupport/scenes/opengl/backend.h"
 
 namespace KWin
 {
+
 class LanczosFilter;
 class OpenGLBackend;
 class SyncManager;
@@ -142,97 +143,6 @@ private:
     GLuint vao;
 };
 
-class SceneOpenGL::Window
-    : public Scene::Window
-{
-public:
-    ~Window() override;
-    bool beginRenderWindow(int mask, const QRegion &region, WindowPaintData &data);
-    void performPaint(int mask, QRegion region, WindowPaintData data) override = 0;
-    void endRenderWindow();
-    bool bindTexture();
-    void setScene(SceneOpenGL *scene) {
-        m_scene = scene;
-    }
-
-protected:
-    WindowPixmap* createWindowPixmap() override;
-    Window(Toplevel* c);
-    enum TextureType {
-        Content,
-        Decoration,
-        Shadow
-    };
-
-    QMatrix4x4 transformation(int mask, const WindowPaintData &data) const;
-    GLTexture *getDecorationTexture() const;
-
-protected:
-    SceneOpenGL *m_scene;
-    bool m_hardwareClipping;
-};
-
-class OpenGLWindowPixmap;
-
-class SceneOpenGL2Window : public SceneOpenGL::Window
-{
-public:
-    enum Leaf { ShadowLeaf = 0, DecorationLeaf, ContentLeaf, PreviousContentLeaf, LeafCount };
-
-    struct LeafNode
-    {
-        LeafNode()
-            : texture(nullptr),
-              firstVertex(0),
-              vertexCount(0),
-              opacity(1.0),
-              hasAlpha(false),
-              coordinateType(UnnormalizedCoordinates)
-        {
-        }
-
-        GLTexture *texture;
-        int firstVertex;
-        int vertexCount;
-        float opacity;
-        bool hasAlpha;
-        TextureCoordinateType coordinateType;
-    };
-
-    explicit SceneOpenGL2Window(Toplevel *c);
-    ~SceneOpenGL2Window() override;
-
-protected:
-    QMatrix4x4 modelViewProjectionMatrix(int mask, const WindowPaintData &data) const;
-    QVector4D modulate(float opacity, float brightness) const;
-    void setBlendEnabled(bool enabled);
-    void setupLeafNodes(LeafNode *nodes, const WindowQuadList *quads, const WindowPaintData &data);
-    void performPaint(int mask, QRegion region, WindowPaintData data) override;
-
-private:
-    void renderSubSurface(GLShader *shader, const QMatrix4x4 &mvp, const QMatrix4x4 &windowMatrix, OpenGLWindowPixmap *pixmap, const QRegion &region, bool hardwareClipping);
-    /**
-     * Whether prepareStates enabled blending and restore states should disable again.
-     */
-    bool m_blendingEnabled;
-};
-
-class OpenGLWindowPixmap : public WindowPixmap
-{
-public:
-    explicit OpenGLWindowPixmap(Scene::Window *window, SceneOpenGL *scene);
-    ~OpenGLWindowPixmap() override;
-    SceneOpenGLTexture *texture() const;
-    bool bind();
-    bool isValid() const override;
-protected:
-    WindowPixmap *createChild(const QPointer<KWayland::Server::SubSurfaceInterface> &subSurface) override;
-private:
-    explicit OpenGLWindowPixmap(const QPointer<KWayland::Server::SubSurfaceInterface> &subSurface, WindowPixmap *parent, SceneOpenGL *scene);
-    QScopedPointer<SceneOpenGLTexture> m_texture;
-    SceneOpenGL *m_scene;
-};
-
 class SceneOpenGL::EffectFrame
     : public Scene::EffectFrame
 {
@@ -294,35 +204,6 @@ private:
     QSharedPointer<GLTexture> m_texture;
 };
 
-class SceneOpenGLDecorationRenderer : public Decoration::Renderer
-{
-    Q_OBJECT
-public:
-    enum class DecorationPart : int {
-        Left,
-        Top,
-        Right,
-        Bottom,
-        Count
-    };
-    explicit SceneOpenGLDecorationRenderer(Decoration::DecoratedClientImpl *client);
-    ~SceneOpenGLDecorationRenderer() override;
-
-    void render() override;
-    void reparent(Deleted *deleted) override;
-
-    GLTexture *texture() {
-        return m_texture.data();
-    }
-    GLTexture *texture() const {
-        return m_texture.data();
-    }
-
-private:
-    void resizeTexture();
-    QScopedPointer<GLTexture> m_texture;
-};
-
 inline bool SceneOpenGL::hasPendingFlush() const
 {
     return m_backend->hasPendingFlush();
@@ -331,11 +212,6 @@ inline bool SceneOpenGL::hasPendingFlush() const
 inline bool SceneOpenGL::usesOverlayWindow() const
 {
     return m_backend->usesOverlayWindow();
-}
-
-inline SceneOpenGLTexture* OpenGLWindowPixmap::texture() const
-{
-    return m_texture.data();
 }
 
 class KWIN_EXPORT OpenGLFactory : public SceneFactory

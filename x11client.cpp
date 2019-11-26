@@ -102,7 +102,7 @@ const NET::WindowTypes SUPPORTED_MANAGED_WINDOW_TYPES_MASK = NET::NormalMask | N
  * is done in manage().
  */
 X11Client::X11Client()
-    : AbstractClient()
+    : AbstractClient(Protocol::X11)
     , m_client()
     , m_wrapper()
     , m_frame()
@@ -174,7 +174,8 @@ X11Client::X11Client()
         }
     });
 
-    // SELI TODO: Initialize xsizehints??
+    connect(this, &X11Client::geometryShapeChanged, this, &X11Client::discardShape);
+    connect(this, &X11Client::shapedChanged, this, &X11Client::discardShape);
 }
 
 /**
@@ -502,7 +503,7 @@ QRect X11Client::transparentRect() const
 
 void X11Client::detectNoBorder()
 {
-    if (shape()) {
+    if (isShaped()) {
         noborder = true;
         app_noborder = true;
         return;
@@ -646,7 +647,7 @@ bool X11Client::wantsShadowToBeRendered() const
 
 void X11Client::updateShape()
 {
-    if (shape()) {
+    if (isShaped()) {
         // Workaround for #19644 - Shaped windows shouldn't have decoration
         if (!app_noborder) {
             // Only when shape is detected for the first time, still let the user to override
@@ -1986,11 +1987,6 @@ xcb_window_t X11Client::frameId() const
 QRect X11Client::bufferGeometry() const
 {
     return m_bufferGeometry;
-}
-
-QMargins X11Client::bufferMargins() const
-{
-    return QMargins(borderLeft(), borderTop(), borderRight(), borderBottom());
 }
 
 QPoint X11Client::framePosToClientPos(const QPoint &point) const

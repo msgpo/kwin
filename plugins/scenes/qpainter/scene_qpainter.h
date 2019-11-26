@@ -75,10 +75,14 @@ class SceneQPainter::Window : public Scene::Window
 {
 public:
     Window(SceneQPainter *scene, Toplevel *c);
-    ~Window() override;
-    void performPaint(int mask, QRegion region, WindowPaintData data) override;
-protected:
-    WindowPixmap *createWindowPixmap() override;
+    ~Window() override final;
+
+    void performPaint(int mask, QRegion region, WindowPaintData data) override final;
+    WindowPixmap *createWindowPixmap() override final;
+    ShadowSceneNode *createShadowNode() override final;
+    DecorationSceneNode *createDecorationNode() override final;
+    SurfaceSceneNode *createSurfaceNode() override final;
+
 private:
     void renderShadow(QPainter *painter);
     void renderWindowDecorations(QPainter *painter);
@@ -90,16 +94,14 @@ class QPainterWindowPixmap : public WindowPixmap
 public:
     explicit QPainterWindowPixmap(Scene::Window *window);
     ~QPainterWindowPixmap() override;
+
     void create() override;
     bool isValid() const override;
-
     void updateBuffer() override;
+
     const QImage &image();
 
-protected:
-    WindowPixmap *createChild(const QPointer<KWayland::Server::SubSurfaceInterface> &subSurface) override;
 private:
-    explicit QPainterWindowPixmap(const QPointer<KWayland::Server::SubSurfaceInterface> &subSurface, WindowPixmap *parent);
     QImage m_image;
 };
 

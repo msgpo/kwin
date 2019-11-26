@@ -3,6 +3,7 @@
  This file is part of the KDE project.
 
 Copyright (C) 2006 Lubos Lunak <l.lunak@kde.org>
+Copyright (C) 2019 Vlad Zahorodnii <vladzzag@gmail.com>
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -35,7 +36,6 @@ namespace KWayland
 namespace Server
 {
 class BufferInterface;
-class SubSurfaceInterface;
 }
 }
 
@@ -96,6 +96,14 @@ public:
      * @note You can remove a toplevel from the scene only once.
      */
     void removeToplevel(Toplevel *toplevel);
+
+    /**
+     * Replaces the Toplevel with an instance of the Deleted class.
+     *
+     * @param toplevel The Toplevel instance about to be replaced
+     * @param deleted The replacement
+     */
+    void replaceToplevel(Toplevel *toplevel, Deleted *deleted);
 
     /**
      * @brief Creates the Scene backend of an EffectFrame.
@@ -200,11 +208,6 @@ Q_SIGNALS:
     void frameRendered();
     void resetCompositing();
 
-public Q_SLOTS:
-    // shape/size of a window changed
-    void windowGeometryShapeChanged(KWin::Toplevel* c);
-    // a window has been closed
-    void windowClosed(KWin::Toplevel* c, KWin::Deleted* deleted);
 protected:
     virtual Window *createWindow(Toplevel *toplevel) = 0;
     void createStackingOrder(QList<Toplevel *> toplevels);
@@ -286,6 +289,333 @@ protected:
     explicit SceneFactory(QObject *parent);
 };
 
+/**
+ * The SceneNode class is a base class for scene nodes.
+ *
+ * A window may be composed of a bunch of elements, for example, a server-side drop-shadow,
+ * a server-side decoration, and the client surface(s) with the actual contents. All those
+ * components are represented with scene nodes.
+ *
+ * The scene nodes form a tree, with RootSceneNode being at the top of it. The scene window
+ * always has a root node and at least one surface node. The shadow node and the decoration
+ * node may be not present.
+ *
+ * The child nodes are rendered in the order they were added to the scene, from left to
+ * right, from parent to child.
+ */
+class KWIN_EXPORT SceneNode
+{
+public:
+    virtual ~SceneNode();
+
+    enum NodeType {
+        RootNodeType,
+        ShadowNodeType,
+        DecorationNodeType,
+        SurfaceNodeType,
+    };
+
+    /**
+     * Returns the internal type of this node.
+     */
+    NodeType type() const;
+
+    /**
+     * Returns the parent node of this node, or @c null if that's the root node.
+     */
+    SceneNode *parent() const;
+
+    /**
+     * Returns the first child of this node, or @c null if there are no children.
+     */
+    SceneNode *firstChild() const;
+
+    /**
+     * Returns the last child of this node, or @c null if there are no children.
+     */
+    SceneNode *lastChild() const;
+
+    /**
+     * Returns the node immediately preceding this node in the parent's list of children.
+     */
+    SceneNode *previousSibling() const;
+
+    /**
+     * Returns the node immediately following this node in the parent's list of children.
+     */
+    SceneNode *nextSibling() const;
+
+    /**
+     * Returns all nodes stored in the subtree of this node.
+     *
+     * Note that the returned list of nodes is DFS ordered.
+     */
+    QVector<SceneNode *> subtreeNodes() const;
+
+    /**
+     * Adds the given @p node to the beginning of this node's list of children.
+     */
+    void prependChildNode(SceneNode *node);
+
+    /**
+     * Adds the given @p node to the end of this node's list of children.
+     */
+    void appendChildNode(SceneNode *node);
+
+    /**
+     * Removes the given @p node from the list of children of this node.
+     */
+    void removeChildNode(SceneNode *node);
+
+    /**
+     * Inserts @p node to this node's list of children after the reference node @p after.
+     */
+    void insertChildNodeAfter(SceneNode *node, SceneNode *after);
+
+    /**
+     * Inserts @p node to this node's list of children before the reference node @p before.
+     */
+    void insertChildNodeBefore(SceneNode *node, SceneNode *before);
+
+    /**
+     * Returns the Scene::Window associated with this scene node.
+     */
+    Scene::Window *sceneWindow() const;
+
+    /**
+     * Returns the Toplevel associated with this scene node.
+     */
+    Toplevel *toplevel() const;
+
+    /**
+     * Sets the Toplevel associated with this scene node to @p toplevel.
+     *
+     * The child nodes will be reparented to @p toplevel together with this node.
+     */
+    void setToplevel(Toplevel *toplevel);
+
+    /**
+     * Returns the list of window quads that specify the area occupied by the node.
+     */
+    WindowQuadList windowQuads() const;
+
+    /**
+     * Sets the list of window quads to @p windowQuads.
+     *
+     * The window vertices must be relative to the top-left corner of the parent node.
+     */
+    void setWindowQuads(const WindowQuadList &windowQuads);
+
+    /**
+     * Returns the position of this node, relative to the top-left corner of the parent node.
+     */
+    QPoint position() const;
+
+    /**
+     * Sets the position of this node to @p position, relative to the parent node.
+     */
+    void setPosition(const QPoint &position);
+
+    /**
+     * Returns the position of this node relative to the top-left corner of the frame.
+     */
+    QPoint combinedPosition() const;
+
+    /**
+     * Sets the position of this node relative to the top-left corner of the frame.
+     */
+    void setCombinedPosition(const QPoint &position);
+
+    /**
+     * Returns the dimensions of the area occupied by this node in device independent pixels.
+     */
+    QSize size() const;
+
+    /**
+     * Sets the dimensions of the area occupied by this node to @p size.
+     */
+    void setSize(const QSize &size);
+
+    /**
+     * Returns the internal geometry of the node.
+     */
+    QRect rect() const;
+
+    QRegion shape() const;
+
+    void setShape(const QRegion &shape);
+
+    /**
+     * Returns the id of this node. The node id is used to identify window quads.
+     */
+    int id() const;
+
+    /**
+     * Sets the id of this node to @p id. The id must be the node's painting order index.
+     */
+    void setId(int id);
+
+    /**
+     * Returns @c true if the node is visible.
+     */
+    bool isVisible() const;
+
+    /**
+     * Sets the visible status of the node to @p visible.
+     */
+    void setVisible(bool visible);
+
+    void forEachChild(std::function<void (SceneNode *child)> func);
+
+    virtual void updateChildren();
+    virtual void updateQuads();
+    virtual void updateTexture();
+
+protected:
+    explicit SceneNode(Toplevel *toplevel, NodeType nodeType);
+
+private:
+    Toplevel *m_toplevel = nullptr;
+    SceneNode *m_parent = nullptr;
+    SceneNode *m_firstChild = nullptr;
+    SceneNode *m_lastChild = nullptr;
+    SceneNode *m_previousSibling = nullptr;
+    SceneNode *m_nextSibling = nullptr;
+    WindowQuadList m_windowQuads;
+    QRegion m_shape;
+    QSize m_size;
+    QPoint m_position;
+    QPoint m_combinedPosition;
+    NodeType m_nodeType;
+    bool m_isVisible = false;
+    int m_id = -1;
+};
+
+/**
+ * The ShadowSceneNode class represents a server-side drop-shadow in the scene.
+ */
+class KWIN_EXPORT ShadowSceneNode : public SceneNode
+{
+public:
+    explicit ShadowSceneNode(Toplevel *toplevel);
+
+    /**
+     * Returns the internal server-side drop-shadow.
+     */
+    Shadow *shadow() const;
+
+    /**
+     * Sets the internal server-side drop-shadow to @p shadow.
+     */
+    void setShadow(Shadow *shadow);
+
+    void updateQuads() override final;
+
+private:
+    QScopedPointer<Shadow> m_shadow;
+};
+
+/**
+ * The DecorationSceneNode class represents a server-side decoration in the scene.
+ */
+class KWIN_EXPORT DecorationSceneNode : public SceneNode
+{
+public:
+    explicit DecorationSceneNode(Toplevel *toplevel);
+
+    void updateQuads() override final;
+};
+
+/**
+ * The SurfaceSceneNode class represents a surface with pixel data in the scene.
+ */
+class KWIN_EXPORT SurfaceSceneNode : public SceneNode
+{
+public:
+    explicit SurfaceSceneNode(Toplevel *toplevel);
+
+    /**
+     * Returns the wayland surface associated with the SurfaceSceneNode.
+     *
+     * Note that this method may return @c null if the node represents an X11 pixmap.
+     */
+    KWayland::Server::SurfaceInterface *surface() const;
+
+    /**
+     * Sets the wayland surface to @p surface.
+     */
+    void setSurface(KWayland::Server::SurfaceInterface *surface);
+
+    void updateChildren() override final;
+    void updateQuads() override final;
+
+private:
+    SceneNode *fetchChildNode(int childIndex, SceneNode *currentNode) const;
+
+    QPointer<KWayland::Server::SurfaceInterface> m_surface;
+};
+
+/**
+ * The RootSceneNode class represents the root node of the scene window.
+ */
+class KWIN_EXPORT RootSceneNode : public SceneNode
+{
+public:
+    explicit RootSceneNode(Toplevel *toplevel);
+
+    /**
+     * Returns the ShadowSceneNode that represents the server-side drop-shadow.
+     *
+     * Note that this method may return @c null.
+     */
+    ShadowSceneNode *shadowNode() const;
+
+    /**
+     * Returns the DecorationSceneNode that represents the server-side decoration.
+     *
+     * Note that this method may return @c null.
+     */
+    DecorationSceneNode *decorationNode() const;
+
+    /**
+     * Returns the SurfaceSceneNode that represents the main surface.
+     */
+    SurfaceSceneNode *surfaceNode() const;
+
+    void updateChildren() override final;
+
+private:
+    ShadowSceneNode *m_shadowNode = nullptr;
+    DecorationSceneNode *m_decorationNode = nullptr;
+    SurfaceSceneNode *m_surfaceNode = nullptr;
+};
+
+/**
+ * @brief The SceneNodeUpdater class
+ */
+class SceneNodeUpdater
+{
+public:
+    explicit SceneNodeUpdater(Scene::Window *window);
+
+    void update(int dirtyAttributes);
+
+private:
+    void enterShadowNode(ShadowSceneNode *shadowNode);
+    void leaveShadowNode(ShadowSceneNode *shadowNode);
+    void enterDecorationNode(DecorationSceneNode *decorationNode);
+    void leaveDecorationNode(DecorationSceneNode *decorationNode);
+    void enterSurfaceNode(SurfaceSceneNode *surfaceNode);
+    void leaveSurfaceNode(SurfaceSceneNode *surfaceNode);
+
+    void visitNode(SceneNode *node);
+    void visitChildren(SceneNode *node);
+
+    Scene::Window *m_window = nullptr;
+    int m_dirtyAttributes = 0;
+    int m_lastNodeId = 0;
+};
+
 // The base class for windows representations in composite backends
 class Scene::Window
 {
@@ -294,8 +624,6 @@ public:
     virtual ~Window();
     // perform the actual painting of the window
     virtual void performPaint(int mask, QRegion region, WindowPaintData data) = 0;
-    // do any cleanup needed when the window's composite pixmap is discarded
-    void pixmapDiscarded();
     int x() const;
     int y() const;
     int width() const;
@@ -329,59 +657,94 @@ public:
     bool isVisible() const;
     // is the window fully opaque
     bool isOpaque() const;
-    // shape of the window
-    QRegion bufferShape() const;
-    QRegion clientShape() const;
-    QRegion decorationShape() const;
-    QPoint bufferOffset() const;
-    void discardShape();
     void updateToplevel(Toplevel* c);
-    // creates initial quad list for the window
-    virtual WindowQuadList buildQuads(bool force = false) const;
     void updateShadow(Shadow* shadow);
     const Shadow* shadow() const;
     Shadow* shadow();
-    void referencePreviousPixmap();
-    void unreferencePreviousPixmap();
-    void invalidateQuadsCache();
-protected:
-    WindowQuadList makeDecorationQuads(const QRect *rects, const QRegion &region, qreal textureScale = 1.0) const;
-    WindowQuadList makeContentsQuads() const;
+
+    enum AttributeFlag {
+        Geometry = 1 << 1,
+        Shape = 1 << 2,
+        Children = 1 << 3,
+        Quads = 1 << 4,
+        Pixmap = 1 << 5,
+        Visibility = 1 << 6,
+
+        GenericUpdateMask = Geometry | Shape | Children | Visibility,
+        QuadsUpdateMask = GenericUpdateMask | Quads,
+        AllUpdateMask = GenericUpdateMask | Quads | Pixmap,
+    };
+
     /**
-     * @brief Returns the WindowPixmap for this Window.
+     * Notifies the scene window that the given @p attributes of some node must be updated.
      *
-     * If the WindowPixmap does not yet exist, this method will invoke createWindowPixmap.
-     * If the WindowPixmap is not valid it tries to create it, in case this succeeds the WindowPixmap is
-     * returned. In case it fails, the previous (and still valid) WindowPixmap is returned.
-     *
-     * @note This method can return @c NULL as there might neither be a valid previous nor current WindowPixmap
-     * around.
-     *
-     * The WindowPixmap gets casted to the type passed in as a template parameter. That way this class does not
-     * need to know the actual WindowPixmap subclass used by the concrete Scene implementations.
-     *
-     * @return The WindowPixmap casted to T* or @c NULL if there is no valid window pixmap.
+     * The attributes are not updated immediately but the next time the scene window is painted.
      */
-    template<typename T> T *windowPixmap();
-    template<typename T> T *previousWindowPixmap();
+    void markDirtyAttributes(int attributes);
+
+    void updateDirtyAttributes();
+
+    /**
+     * Returns the root scene node.
+     */
+    RootSceneNode *rootNode() const;
+
+    /**
+     * @brief windowQuads
+     * @return
+     */
+    WindowQuadList windowQuads() const;
+
+    /**
+     * Returns the scene nodes in the painting order, from left to right.
+     */
+    QVector<SceneNode *> paintOrderNodes() const;
+
     /**
      * @brief Factory method to create a WindowPixmap.
      *
-     * The inheriting classes need to implement this method to create a new instance of their WindowPixmap subclass.
-     * @note Do not use WindowPixmap::create on the created instance. The Scene will take care of that.
+     * The inheriting classes need to implement this method to create a new instance of
+     * their WindowPixmap subclass. Do not use WindowPixmap::create on the created instance.
+     * The Scene will take care of that.
      */
     virtual WindowPixmap *createWindowPixmap() = 0;
+
+    /**
+     * Factory method to create an instance of the ShadowSceneNode class.
+     *
+     * The inheriting classes need to implement this method to create a new instance of
+     * their ShadowSceneNode subclasses.
+     */
+    virtual ShadowSceneNode *createShadowNode() = 0;
+
+    /**
+     * Factory method to create an instance of the DecorationSceneNode class.
+     *
+     * The inheriting classes need to implement this method to create a new instance of
+     * their DecorationSceneNode subclasses.
+     */
+    virtual DecorationSceneNode *createDecorationNode() = 0;
+
+    /**
+     * Factory method to create an instance of the SurfaceSceneNode class.
+     *
+     * The inheriting classes need to implement this method to create a new instance of
+     * their SurfaceSceneNode subclasses.
+     */
+    virtual SurfaceSceneNode *createSurfaceNode() = 0;
+
+protected:
     Toplevel* toplevel;
-    ImageFilterType filter;
-    Shadow *m_shadow;
+    ImageFilterType filter = ImageFilterFast;
+    Shadow *m_shadow = nullptr;
+
 private:
-    QScopedPointer<WindowPixmap> m_currentPixmap;
-    QScopedPointer<WindowPixmap> m_previousPixmap;
-    int m_referencePixmapCounter;
-    int disable_painting;
-    mutable QRegion m_bufferShape;
-    mutable bool m_bufferShapeIsValid = false;
-    mutable QScopedPointer<WindowQuadList> cached_quad_list;
+    SceneNodeUpdater *m_nodeUpdater;
+    QVector<SceneNode *> m_paintOrderNodes;
+    RootSceneNode *m_rootNode = nullptr;
+    WindowQuadList m_windowQuads;
+    int m_dirtyAttributes = AllUpdateMask;
+    int m_disablePainting = 0;
     Q_DISABLE_COPY(Window)
 };
 
@@ -430,56 +793,10 @@ public:
     const QSharedPointer<QOpenGLFramebufferObject> &fbo() const;
     QImage internalImage() const;
     /**
-     * @brief Whether this WindowPixmap is considered as discarded. This means the window has changed in a way that a new
-     * WindowPixmap should have been created already.
-     *
-     * @return @c true if this WindowPixmap is considered as discarded, @c false otherwise.
-     * @see markAsDiscarded
-     */
-    bool isDiscarded() const;
-    /**
-     * @brief Marks this WindowPixmap as discarded. From now on isDiscarded will return @c true. This method should
-     * only be used by the Window when it changes in a way that a new pixmap is required.
-     *
-     * @see isDiscarded
-     */
-    void markAsDiscarded();
-    /**
-     * The size of the pixmap.
-     */
-    const QSize &size() const;
-    /**
-     * The geometry of the Client's content inside the pixmap. In case of a decorated Client the
-     * pixmap also contains the decoration which is not rendered into this pixmap, though. This
-     * contentsRect tells where inside the complete pixmap the real content is.
-     */
-    const QRect &contentsRect() const;
-    /**
      * @brief Returns the Toplevel this WindowPixmap belongs to.
      * Note: the Toplevel can change over the lifetime of the WindowPixmap in case the Toplevel is copied to Deleted.
      */
     Toplevel *toplevel() const;
-
-    /**
-     * @returns the parent WindowPixmap in the sub-surface tree
-     */
-    WindowPixmap *parent() const {
-        return m_parent;
-    }
-
-    /**
-     * @returns the current sub-surface tree
-     */
-    QVector<WindowPixmap*> children() const {
-        return m_children;
-    }
-
-    /**
-     * @returns the subsurface this WindowPixmap is for if it is not for a root window
-     */
-    QPointer<KWayland::Server::SubSurfaceInterface> subSurface() const {
-        return m_subSurface;
-    }
 
     /**
      * @returns the surface this WindowPixmap references, might be @c null.
@@ -488,8 +805,7 @@ public:
 
 protected:
     explicit WindowPixmap(Scene::Window *window);
-    explicit WindowPixmap(const QPointer<KWayland::Server::SubSurfaceInterface> &subSurface, WindowPixmap *parent);
-    virtual WindowPixmap *createChild(const QPointer<KWayland::Server::SubSurfaceInterface> &subSurface);
+
     /**
      * @return The Window this WindowPixmap belongs to
      */
@@ -501,25 +817,13 @@ protected:
      */
     virtual void updateBuffer();
 
-    /**
-     * Sets the sub-surface tree to @p children.
-     */
-    void setChildren(const QVector<WindowPixmap*> &children) {
-        m_children = children;
-    }
-
 private:
     Scene::Window *m_window;
-    xcb_pixmap_t m_pixmap;
-    QSize m_pixmapSize;
-    bool m_discarded;
-    QRect m_contentsRect;
+    xcb_pixmap_t m_pixmap = XCB_PIXMAP_NONE;
     QPointer<KWayland::Server::BufferInterface> m_buffer;
+    QPointer<KWayland::Server::SurfaceInterface> m_surface;
     QSharedPointer<QOpenGLFramebufferObject> m_fbo;
     QImage m_internalImage;
-    WindowPixmap *m_parent = nullptr;
-    QVector<WindowPixmap*> m_children;
-    QPointer<KWayland::Server::SubSurfaceInterface> m_subSurface;
 };
 
 class Scene::EffectFrame
@@ -629,31 +933,6 @@ QImage WindowPixmap::internalImage() const
     return m_internalImage;
 }
 
-template <typename T>
-inline
-T* Scene::Window::windowPixmap()
-{
-    if (m_currentPixmap.isNull()) {
-        m_currentPixmap.reset(createWindowPixmap());
-    }
-    if (m_currentPixmap->isValid()) {
-        return static_cast<T*>(m_currentPixmap.data());
-    }
-    m_currentPixmap->create();
-    if (m_currentPixmap->isValid()) {
-        return static_cast<T*>(m_currentPixmap.data());
-    } else {
-        return static_cast<T*>(m_previousPixmap.data());
-    }
-}
-
-template <typename T>
-inline
-T* Scene::Window::previousWindowPixmap()
-{
-    return static_cast<T*>(m_previousPixmap.data());
-}
-
 inline
 Toplevel* WindowPixmap::toplevel() const
 {
@@ -664,31 +943,6 @@ inline
 xcb_pixmap_t WindowPixmap::pixmap() const
 {
     return m_pixmap;
-}
-
-inline
-bool WindowPixmap::isDiscarded() const
-{
-    return m_discarded;
-}
-
-inline
-void WindowPixmap::markAsDiscarded()
-{
-    m_discarded = true;
-    m_window->referencePreviousPixmap();
-}
-
-inline
-const QRect &WindowPixmap::contentsRect() const
-{
-    return m_contentsRect;
-}
-
-inline
-const QSize &WindowPixmap::size() const
-{
-    return m_pixmapSize;
 }
 
 } // namespace

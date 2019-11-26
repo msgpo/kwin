@@ -43,9 +43,11 @@ const NET::WindowTypes SUPPORTED_UNMANAGED_WINDOW_TYPES_MASK = NET::NormalMask |
         | NET::CriticalNotificationMask;
 
 Unmanaged::Unmanaged()
-    : Toplevel()
+    : Toplevel(Protocol::X11)
 {
     connect(this, SIGNAL(geometryShapeChanged(KWin::Toplevel*,QRect)), SIGNAL(geometryChanged()));
+    connect(this, &Unmanaged::geometryShapeChanged, this, &Unmanaged::discardShape);
+    connect(this, &Unmanaged::shapedChanged, this, &Unmanaged::discardShape);
     QTimer::singleShot(50, this, SLOT(setReadyForPainting()));
 }
 

@@ -1297,6 +1297,29 @@ WindowQuadList WindowQuadList::filterOut(WindowQuadType type) const
     return *this; // nothing to filter out
 }
 
+WindowQuadList WindowQuadList::intersected(const QRegion &region) const
+{
+    WindowQuadList intersection;
+    intersection.reserve(count());
+
+    for (const WindowQuad &quad : *this) {
+        const QRectF quadRect(QPointF(quad.left(), quad.top()), QPointF(quad.right(), quad.bottom()));
+        for (const QRectF &regionRect : region) {
+            const QRectF intersected = regionRect & quadRect;
+            if (!intersected.isValid()) {
+                continue;
+            }
+            if (quadRect != intersected) {
+                intersection << quad.makeSubQuad(intersected);
+            } else {
+                intersection << quad;
+            }
+        }
+    }
+
+    return intersection;
+}
+
 bool WindowQuadList::smoothNeeded() const
 {
     foreach (const WindowQuad & q, *this)

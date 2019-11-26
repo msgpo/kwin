@@ -18,6 +18,9 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 *********************************************************************/
 #include "scene_qpainter.h"
+#include "qpainterdecorationscenenode.h"
+#include "qpaintershadowscenenode.h"
+#include "qpaintersurfacescenenode.h"
 // KWin
 #include "x11client.h"
 #include "composite.h"
@@ -225,24 +228,6 @@ SceneQPainter::Window::~Window()
 {
 }
 
-static void paintSubSurface(QPainter *painter, const QPoint &pos, QPainterWindowPixmap *pixmap)
-{
-    QPoint p = pos;
-    if (!pixmap->subSurface().isNull()) {
-        p += pixmap->subSurface()->position();
-    }
-
-    painter->drawImage(QRect(pos, pixmap->size()), pixmap->image());
-    const auto &children = pixmap->children();
-    for (auto it = children.begin(); it != children.end(); ++it) {
-        auto pixmap = static_cast<QPainterWindowPixmap*>(*it);
-        if (pixmap->subSurface().isNull() || pixmap->subSurface()->surface().isNull() || !pixmap->subSurface()->surface()->isMapped()) {
-            continue;
-        }
-        paintSubSurface(painter, p, pixmap);
-    }
-}
-
 void SceneQPainter::Window::performPaint(int mask, QRegion region, WindowPaintData data)
 {
     if (!(mask & (PAINT_WINDOW_TRANSFORMED | PAINT_SCREEN_TRANSFORMED)))
@@ -250,7 +235,7 @@ void SceneQPainter::Window::performPaint(int mask, QRegion region, WindowPaintDa
 
     if (region.isEmpty())
         return;
-    QPainterWindowPixmap *pixmap = windowPixmap<QPainterWindowPixmap>();
+    QPainterWindowPixmap *pixmap = nullptr; // windowPixmap<QPainterWindowPixmap>();
     if (!pixmap || !pixmap->isValid()) {
         return;
     }
@@ -298,15 +283,6 @@ void SceneQPainter::Window::performPaint(int mask, QRegion region, WindowPaintDa
         target = toplevel->bufferGeometry().translated(-pos());
     }
     painter->drawImage(target, pixmap->image(), source);
-
-    // render subsurfaces
-    const auto &children = pixmap->children();
-    for (auto pixmap : children) {
-        if (pixmap->subSurface().isNull() || pixmap->subSurface()->surface().isNull() || !pixmap->subSurface()->surface()->isMapped()) {
-            continue;
-        }
-        paintSubSurface(painter, bufferOffset(), static_cast<QPainterWindowPixmap*>(pixmap));
-    }
 
     if (!opaque) {
         tempPainter.restore();
@@ -391,16 +367,26 @@ Decoration::Renderer *SceneQPainter::createDecorationRenderer(Decoration::Decora
     return new SceneQPainterDecorationRenderer(impl);
 }
 
+ShadowSceneNode *SceneQPainter::Window::createShadowNode()
+{
+    return new QPainterShadowSceneNode(toplevel);
+}
+
+DecorationSceneNode *SceneQPainter::Window::createDecorationNode()
+{
+    return new QPainterDecorationSceneNode(toplevel);
+}
+
+SurfaceSceneNode *SceneQPainter::Window::createSurfaceNode()
+{
+    return new QPainterSurfaceSceneNode(toplevel);
+}
+
 //****************************************
 // QPainterWindowPixmap
 //****************************************
 QPainterWindowPixmap::QPainterWindowPixmap(Scene::Window *window)
     : WindowPixmap(window)
-{
-}
-
-QPainterWindowPixmap::QPainterWindowPixmap(const QPointer<KWayland::Server::SubSurfaceInterface> &subSurface, WindowPixmap *parent)
-    : WindowPixmap(subSurface, parent)
 {
 }
 
@@ -427,11 +413,6 @@ void QPainterWindowPixmap::create()
     if (auto s = surface()) {
         s->resetTrackedDamage();
     }
-}
-
-WindowPixmap *QPainterWindowPixmap::createChild(const QPointer<KWayland::Server::SubSurfaceInterface> &subSurface)
-{
-    return new QPainterWindowPixmap(subSurface, this);
 }
 
 void QPainterWindowPixmap::updateBuffer()

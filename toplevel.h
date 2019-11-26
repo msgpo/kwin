@@ -65,6 +65,16 @@ enum class ReleaseReason {
     KWinShutsDown ///< Release on KWin Shutdown (window still valid)
 };
 
+/**
+ * This enum type is used to specify what protocol the client uses for communication.
+ */
+enum class Protocol {
+    Unknown,
+    Internal,
+    Wayland,
+    X11,
+};
+
 class KWIN_EXPORT Toplevel : public QObject
 {
     Q_OBJECT
@@ -260,7 +270,7 @@ class KWIN_EXPORT Toplevel : public QObject
     /**
      * Whether the window has an own shape
      */
-    Q_PROPERTY(bool shaped READ shape NOTIFY shapedChanged)
+    Q_PROPERTY(bool shaped READ isShaped NOTIFY shapedChanged)
 
     /**
      * Whether the window does not want to be animated on window close.
@@ -299,7 +309,7 @@ class KWIN_EXPORT Toplevel : public QObject
     Q_PROPERTY(QUuid internalId READ internalId CONSTANT)
 
 public:
-    explicit Toplevel();
+    explicit Toplevel(Protocol protocol);
     virtual xcb_window_t frameId() const;
     xcb_window_t window() const;
     /**
@@ -315,16 +325,6 @@ public:
      * occupies on the screen, in global screen coordinates.
      */
     virtual QRect bufferGeometry() const = 0;
-    /**
-     * Returns the extents of invisible portions in the pixmap.
-     *
-     * An X11 pixmap may contain invisible space around the actual contents of the
-     * client. That space is reserved for server-side decoration, which we usually
-     * want to skip when building contents window quads.
-     *
-     * Default implementation returns a margins object with all margins set to 0.
-     */
-    virtual QMargins bufferMargins() const;
     /**
      * Returns the geometry of the Toplevel, excluding invisible portions, e.g.
      * server-side and client-side drop shadows, etc.
@@ -346,6 +346,10 @@ public:
      * Default implementation returns same as geometry.
      */
     virtual QRect inputGeometry() const;
+    /**
+     * Returns the protocol that is used for communication with the client.
+     */
+    Protocol protocol() const;
     QSize size() const;
     QPoint pos() const;
     QRect rect() const;
@@ -437,7 +441,8 @@ public:
 
     bool readyForPainting() const; // true if the window has been already painted its contents
     xcb_visualid_t visual() const;
-    bool shape() const;
+    bool isShaped() const;
+    QRegion shape() const;
     QRegion inputShape() const;
     virtual void setOpacity(double opacity);
     virtual double opacity() const;
@@ -668,6 +673,7 @@ protected:
     virtual void damageNotifyEvent();
     virtual void clientMessageEvent(xcb_client_message_event_t *e);
     void discardWindowPixmap();
+    void discardShape();
     void addDamageFull();
     virtual void addDamage(const QRegion &damage);
     Xcb::Property fetchWmClientLeader() const;
@@ -714,11 +720,13 @@ protected:
 
 private:
     // when adding new data members, check also copyToDeleted()
+    mutable QRegion m_shape;
+    mutable bool m_shapeIsValid = false;
     QUuid m_internalId;
     Xcb::Window m_client;
     xcb_damage_damage_t damage_handle;
     QRegion damage_region; // damage is really damaged window (XDamage) and texture needs
-    bool is_shape;
+    bool m_isShaped;
     EffectWindowImpl* effect_window;
     QByteArray resource_name;
     QByteArray resource_class;
@@ -733,6 +741,7 @@ private:
     KWayland::Server::SurfaceInterface *m_surface = nullptr;
     // when adding new data members, check also copyToDeleted()
     qreal m_screenScale = 1.0;
+    Protocol m_protocol;
 };
 
 inline xcb_window_t Toplevel::window() const
@@ -901,9 +910,9 @@ inline QRegion Toplevel::repaints() const
     return repaints_region.translated(pos()) | layer_repaints_region;
 }
 
-inline bool Toplevel::shape() const
+inline bool Toplevel::isShaped() const
 {
-    return is_shape;
+    return m_isShaped;
 }
 
 inline int Toplevel::depth() const

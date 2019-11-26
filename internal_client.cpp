@@ -36,7 +36,8 @@ namespace KWin
 {
 
 InternalClient::InternalClient(QWindow *window)
-    : m_internalWindow(window)
+    : AbstractClient(Protocol::Internal)
+    , m_internalWindow(window)
     , m_clientSize(window->size())
     , m_windowId(window->winId())
     , m_internalWindowFlags(window->flags())

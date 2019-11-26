@@ -1,4 +1,9 @@
-set(SCENE_XRENDER_SRCS scene_xrender.cpp)
+set(SCENE_XRENDER_SRCS
+    scene_xrender.cpp
+    xrenderdecorationscenenode.cpp
+    xrendershadowscenenode.cpp
+    xrendersurfacescenenode.cpp
+)
 
 include(ECMQtDeclareLoggingCategory)
 ecm_qt_declare_logging_category(

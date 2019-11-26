@@ -920,7 +920,7 @@ Q_SIGNALS:
     void unresponsiveChanged(bool);
 
 protected:
-    AbstractClient();
+    AbstractClient(Protocol protocol);
     void setFirstInTabBox(bool enable) {
         m_firstInTabBox = enable;
     }

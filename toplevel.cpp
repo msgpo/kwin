@@ -39,7 +39,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 namespace KWin
 {
 
-Toplevel::Toplevel()
+Toplevel::Toplevel(Protocol protocol)
     : m_visual(XCB_NONE)
     , bit_depth(24)
     , info(nullptr)
@@ -48,13 +48,14 @@ Toplevel::Toplevel()
     , m_internalId(QUuid::createUuid())
     , m_client()
     , damage_handle(XCB_NONE)
-    , is_shape(false)
+    , m_isShaped(false)
     , effect_window(nullptr)
     , m_clientMachine(new ClientMachine(this))
     , m_wmClientLeader(XCB_WINDOW_NONE)
     , m_damageReplyPending(false)
     , m_screen(0)
     , m_skipCloseAnimation(false)
+    , m_protocol(protocol)
 {
     connect(this, SIGNAL(damaged(KWin::Toplevel*,QRect)), SIGNAL(needsRepaint()));
     connect(screens(), SIGNAL(changed()), SLOT(checkScreen()));
@@ -83,11 +84,41 @@ QRect Toplevel::decorationRect() const
 
 void Toplevel::detectShape(xcb_window_t id)
 {
-    const bool wasShape = is_shape;
-    is_shape = Xcb::Extensions::self()->hasShape(id);
-    if (wasShape != is_shape) {
+    const bool wasShaped = m_isShaped;
+    m_isShaped = Xcb::Extensions::self()->hasShape(id);
+    if (wasShaped != m_isShaped) {
         emit shapedChanged();
     }
+}
+
+QRegion Toplevel::shape() const
+{
+    if (!m_shapeIsValid) {
+        if (m_isShaped) {
+            auto cookie = xcb_shape_get_rectangles_unchecked(connection(), frameId(), XCB_SHAPE_SK_BOUNDING);
+            ScopedCPointer<xcb_shape_get_rectangles_reply_t> reply(xcb_shape_get_rectangles_reply(connection(), cookie, nullptr));
+            if (!reply.isNull()) {
+                m_shape = QRegion();
+                const xcb_rectangle_t *rects = xcb_shape_get_rectangles_rectangles(reply.data());
+                const int rectCount = xcb_shape_get_rectangles_rectangles_length(reply.data());
+                for (int i = 0; i < rectCount; ++i) {
+                    m_shape += QRegion(rects[i].x, rects[i].y, rects[i].width, rects[i].height);
+                }
+                // make sure the shape is sane (X is async, maybe even XShape is broken)
+                const QRect rect = bufferGeometry();
+                m_shape &= QRegion(0, 0, rect.width(), rect.height());
+            } else {
+                m_shape = QRegion();
+            }
+        }
+    }
+    m_shapeIsValid = true;
+    return m_shape;
+}
+
+void Toplevel::discardShape()
+{
+    m_shapeIsValid = false;
 }
 
 // used only by Deleted::copy()
@@ -104,7 +135,7 @@ void Toplevel::copyToDeleted(Toplevel* c)
     damage_region = c->damage_region;
     repaints_region = c->repaints_region;
     layer_repaints_region = c->layer_repaints_region;
-    is_shape = c->is_shape;
+    m_isShaped = c->m_isShaped;
     effect_window = c->effect_window;
     if (effect_window != nullptr)
         effect_window->setWindow(this);
@@ -118,6 +149,7 @@ void Toplevel::copyToDeleted(Toplevel* c)
     m_skipCloseAnimation = c->m_skipCloseAnimation;
     m_internalFBO = c->m_internalFBO;
     m_internalImage = c->m_internalImage;
+    m_protocol = c->m_protocol;
 }
 
 // before being deleted, remove references to everything that's now
@@ -258,7 +290,7 @@ bool Toplevel::setupCompositing()
 
     if (kwinApp()->operationMode() == Application::OperationModeX11 && !surface()) {
         damage_handle = xcb_generate_id(connection());
-        xcb_damage_create(connection(), damage_handle, frameId(), XCB_DAMAGE_REPORT_LEVEL_NON_EMPTY);
+        xcb_damage_create(connection(), damage_handle, windowId(), XCB_DAMAGE_REPORT_LEVEL_NON_EMPTY);
     }
 
     damage_region = QRegion(0, 0, width(), height());
@@ -292,8 +324,7 @@ void Toplevel::finishCompositing(ReleaseReason releaseReason)
 void Toplevel::discardWindowPixmap()
 {
     addDamageFull();
-    if (effectWindow() != nullptr && effectWindow()->sceneWindow() != nullptr)
-        effectWindow()->sceneWindow()->pixmapDiscarded();
+    // FIXME: Discard pixmap.
 }
 
 void Toplevel::damageNotifyEvent()
@@ -791,14 +822,14 @@ bool Toplevel::isLocalhost() const
     return m_clientMachine->isLocal();
 }
 
-QMargins Toplevel::bufferMargins() const
+QMargins Toplevel::frameMargins() const
 {
     return QMargins();
 }
 
-QMargins Toplevel::frameMargins() const
+Protocol Toplevel::protocol() const
 {
-    return QMargins();
+    return m_protocol;
 }
 
 } // namespace

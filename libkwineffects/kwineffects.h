@@ -2552,6 +2552,7 @@ class KWINEFFECTS_EXPORT WindowQuad
 public:
     explicit WindowQuad(WindowQuadType type, int id = -1);
     WindowQuad makeSubQuad(double x1, double y1, double x2, double y2) const;
+    WindowQuad makeSubQuad(const QRectF &rect) const;
     WindowVertex& operator[](int index);
     const WindowVertex& operator[](int index) const;
     WindowQuadType type() const;
@@ -2588,6 +2589,7 @@ public:
     WindowQuadList makeRegularGrid(int xSubdivisions, int ySubdivisions) const;
     WindowQuadList select(WindowQuadType type) const;
     WindowQuadList filterOut(WindowQuadType type) const;
+    WindowQuadList intersected(const QRegion &region) const;
     bool smoothNeeded() const;
     void makeInterleavedArrays(unsigned int type, GLVertex2D *vertices, const QMatrix4x4 &matrix) const;
     void makeArrays(float** vertices, float** texcoords, const QSizeF &size, bool yInverted) const;
@@ -3832,6 +3834,12 @@ WindowQuad::WindowQuad(WindowQuadType t, int id)
     , uvSwapped(false)
     , quadID(id)
 {
+}
+
+inline
+WindowQuad WindowQuad::makeSubQuad(const QRectF &rect) const
+{
+    return makeSubQuad(rect.left(), rect.top(), rect.right(), rect.bottom());
 }
 
 inline

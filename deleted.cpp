@@ -35,7 +35,7 @@ namespace KWin
 {
 
 Deleted::Deleted()
-    : Toplevel()
+    : Toplevel(Protocol::Unknown)
     , delete_refcount(1)
     , m_frame(XCB_WINDOW_NONE)
     , no_border(true)
@@ -95,7 +95,6 @@ void Deleted::copyToDeleted(Toplevel* c)
     Q_ASSERT(dynamic_cast< Deleted* >(c) == nullptr);
     Toplevel::copyToDeleted(c);
     m_bufferGeometry = c->bufferGeometry();
-    m_bufferMargins = c->bufferMargins();
     m_frameMargins = c->frameMargins();
     m_bufferScale = c->bufferScale();
     desk = c->desktop();
@@ -169,11 +168,6 @@ void Deleted::unrefWindow()
 QRect Deleted::bufferGeometry() const
 {
     return m_bufferGeometry;
-}
-
-QMargins Deleted::bufferMargins() const
-{
-    return m_bufferMargins;
 }
 
 QMargins Deleted::frameMargins() const

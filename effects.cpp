@@ -1850,7 +1850,7 @@ TOPLEVEL_HELPER(bool, isOnScreenDisplay, isOnScreenDisplay)
 TOPLEVEL_HELPER(bool, isComboBox, isComboBox)
 TOPLEVEL_HELPER(bool, isDNDIcon, isDNDIcon)
 TOPLEVEL_HELPER(bool, isDeleted, isDeleted)
-TOPLEVEL_HELPER(bool, hasOwnShape, shape)
+TOPLEVEL_HELPER(bool, hasOwnShape, isShaped)
 TOPLEVEL_HELPER(QString, windowRole, windowRole)
 TOPLEVEL_HELPER(QStringList, activities, activities)
 TOPLEVEL_HELPER(bool, skipsCloseAnimation, skipsCloseAnimation)
@@ -1951,9 +1951,7 @@ void EffectWindowImpl::setSceneWindow(Scene::Window* w)
 
 QRegion EffectWindowImpl::shape() const
 {
-    if (isX11Client() && sceneWindow()) {
-        return sceneWindow()->bufferShape();
-    }
+    // FIXME: Return shape.
     return geometry();
 }
 
@@ -2027,7 +2025,8 @@ EffectWindowList EffectWindowImpl::mainWindows() const
 
 WindowQuadList EffectWindowImpl::buildQuads(bool force) const
 {
-    return sceneWindow()->buildQuads(force);
+    Q_UNUSED(force)
+    return sceneWindow()->windowQuads();
 }
 
 void EffectWindowImpl::setData(int role, const QVariant &data)
@@ -2126,16 +2125,12 @@ void EffectWindowImpl::closeWindow()
 
 void EffectWindowImpl::referencePreviousWindowPixmap()
 {
-    if (sw) {
-        sw->referencePreviousPixmap();
-    }
+    // TODO: Reference the previous node tree.
 }
 
 void EffectWindowImpl::unreferencePreviousWindowPixmap()
 {
-    if (sw) {
-        sw->unreferencePreviousPixmap();
-    }
+    // TODO: Unreference the previous node tree.
 }
 
 bool EffectWindowImpl::isManaged() const

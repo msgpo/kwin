@@ -1,6 +1,11 @@
-set(SCENE_QPAINTER_SRCS scene_qpainter.cpp)
+set(SCENE_QPAINTER_SRCS
+    qpainterdecorationscenenode.cpp
+    qpaintershadowscenenode.cpp
+    qpaintersurfacescenenode.cpp
+    scene_qpainter.cpp
+)
 
-add_library(KWinSceneQPainter MODULE scene_qpainter.cpp)
+add_library(KWinSceneQPainter MODULE ${SCENE_QPAINTER_SRCS})
 set_target_properties(KWinSceneQPainter PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/org.kde.kwin.scenes/")
 target_link_libraries(KWinSceneQPainter
     kwin

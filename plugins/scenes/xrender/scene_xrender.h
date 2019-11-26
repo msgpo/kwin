@@ -192,12 +192,17 @@ class SceneXrender::Window
 public:
     Window(Toplevel* c, SceneXrender *scene);
     ~Window() override;
-    void performPaint(int mask, QRegion region, WindowPaintData data) override;
+
+    void performPaint(int mask, QRegion region, WindowPaintData data) override final;
+    WindowPixmap *createWindowPixmap() override final;
+    ShadowSceneNode *createShadowNode() override final;
+    DecorationSceneNode *createDecorationNode() override final;
+    SurfaceSceneNode *createSurfaceNode() override final;
+
     QRegion transformedShape() const;
     void setTransformedShape(const QRegion& shape);
     static void cleanup();
-protected:
-    WindowPixmap* createWindowPixmap() override;
+
 private:
     QRect mapToScreen(int mask, const WindowPaintData &data, const QRect &rect) const;
     QPoint mapToScreen(int mask, const WindowPaintData &data, const QPoint &point) const;

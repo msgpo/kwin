@@ -66,7 +66,7 @@ namespace KWin
 {
 
 XdgShellClient::XdgShellClient(XdgShellSurfaceInterface *surface)
-    : AbstractClient()
+    : AbstractClient(Protocol::Wayland)
     , m_xdgShellSurface(surface)
     , m_xdgShellPopup(nullptr)
 {
@@ -75,7 +75,7 @@ XdgShellClient::XdgShellClient(XdgShellSurfaceInterface *surface)
 }
 
 XdgShellClient::XdgShellClient(XdgShellPopupInterface *surface)
-    : AbstractClient()
+    : AbstractClient(Protocol::Wayland)
     , m_xdgShellSurface(nullptr)
     , m_xdgShellPopup(surface)
 {

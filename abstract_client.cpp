@@ -52,8 +52,8 @@ namespace KWin
 QHash<QString, std::weak_ptr<Decoration::DecorationPalette>> AbstractClient::s_palettes;
 std::shared_ptr<Decoration::DecorationPalette> AbstractClient::s_defaultPalette;
 
-AbstractClient::AbstractClient()
-    : Toplevel()
+AbstractClient::AbstractClient(Protocol protocol)
+    : Toplevel(protocol)
 #ifdef KWIN_BUILD_TABBOX
     , m_tabBoxClient(QSharedPointer<TabBox::TabBoxClientImpl>(new TabBox::TabBoxClientImpl(this)))
 #endif
