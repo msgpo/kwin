@@ -2843,13 +2843,7 @@ void AbstractClient::sendToScreen(int newScreen)
         keepInArea(screenArea);
     }
 
-    // align geom_restore - checkWorkspacePosition operates on it
-    setGeometryRestore(frameGeometry());
-
     checkWorkspacePosition(oldGeom);
-
-    // re-align geom_restore to constrained geometry
-    setGeometryRestore(frameGeometry());
 
     // finally reset special states
     // NOTICE that MaximizeRestore/QuickTileFlag::None checks are required.
@@ -2932,12 +2926,12 @@ void AbstractClient::checkWorkspacePosition(QRect oldGeometry, int oldDesktop, Q
     int oldRightMax = oldScreenArea.x() + oldScreenArea.width();
     int oldBottomMax = oldScreenArea.y() + oldScreenArea.height();
     int oldLeftMax = oldScreenArea.x();
-    const QRect screenArea = workspace()->clientArea(ScreenArea, geometryRestore().center(), desktop());
+    const QRect screenArea = workspace()->clientArea(ScreenArea, frameGeometry().center(), desktop());
     int topMax = screenArea.y();
     int rightMax = screenArea.x() + screenArea.width();
     int bottomMax = screenArea.y() + screenArea.height();
     int leftMax = screenArea.x();
-    QRect newGeom = geometryRestore(); // geometry();
+    QRect newGeom = frameGeometry();
     QRect newClientGeom = newGeom.adjusted(border[Left], border[Top], -border[Right], -border[Bottom]);
     const QRect newGeomTall = QRect(newGeom.x(), screenArea.y(), newGeom.width(), screenArea.height());   // Full screen height
     const QRect newGeomWide = QRect(screenArea.x(), newGeom.y(), screenArea.width(), newGeom.height());   // Full screen width
