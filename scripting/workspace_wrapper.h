@@ -164,6 +164,9 @@ Q_SIGNALS:
      */
     void virtualScreenGeometryChanged();
 
+    void aboutToResizeWorkspace();
+    void workspaceResized();
+
 public:
 //------------------------------------------------------------------
 //enums copy&pasted from kwinglobals.h because qtscript is evil
@@ -221,6 +224,8 @@ void setter( rettype val );
     QSize displaySize() const;
     int activeScreen() const;
     int numScreens() const;
+    Q_SCRIPTABLE int screenAt(const QPoint &point) const;
+    Q_SCRIPTABLE int screenAt(int x, int y) const;
     QString currentActivity() const;
     QStringList activityList() const;
     QSize virtualScreenSize() const;

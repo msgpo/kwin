@@ -534,6 +534,9 @@ Q_SIGNALS:
      */
     void internalClientRemoved(KWin::InternalClient *client);
 
+    void aboutToResizeWorkspace();
+    void workspaceResized();
+
 private:
     void init();
     void initWithX11();

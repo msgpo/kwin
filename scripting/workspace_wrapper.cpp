@@ -49,6 +49,8 @@ WorkspaceWrapper::WorkspaceWrapper(QObject* parent) : QObject(parent)
     connect(vds, SIGNAL(countChanged(uint,uint)), SIGNAL(numberDesktopsChanged(uint)));
     connect(vds, SIGNAL(layoutChanged(int,int)), SIGNAL(desktopLayoutChanged()));
     connect(ws, &Workspace::clientDemandsAttentionChanged, this, &WorkspaceWrapper::clientDemandsAttentionChanged);
+    connect(ws, &Workspace::aboutToResizeWorkspace, this, &WorkspaceWrapper::aboutToResizeWorkspace);
+    connect(ws, &Workspace::workspaceResized, this, &WorkspaceWrapper::workspaceResized);
 #ifdef KWIN_BUILD_ACTIVITIES
     if (KWin::Activities *activities = KWin::Activities::self()) {
         connect(activities, SIGNAL(currentChanged(QString)), SIGNAL(currentActivityChanged(QString)));
@@ -335,6 +337,23 @@ int WorkspaceWrapper::numScreens() const
 int WorkspaceWrapper::activeScreen() const
 {
     return screens()->current();
+}
+
+int WorkspaceWrapper::screenAt(const QPoint &point) const
+{
+    const int screenCount = screens()->count();
+    for (int i = 0; i < screenCount; ++i) {
+        const QRect screenGeometry = screens()->geometry(i);
+        if (screenGeometry.contains(point)) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+int WorkspaceWrapper::screenAt(int x, int y) const
+{
+    return screenAt(QPoint(x, y));
 }
 
 QRect WorkspaceWrapper::virtualScreenGeometry() const

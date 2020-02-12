@@ -1943,6 +1943,8 @@ void Workspace::checkTransients(xcb_window_t w)
  */
 void Workspace::desktopResized()
 {
+    emit aboutToResizeWorkspace();
+
     QRect geom = screens()->geometry();
     if (rootInfo()) {
         NETSize desktop_geometry;
@@ -1960,6 +1962,8 @@ void Workspace::desktopResized()
     if (effects) {
         static_cast<EffectsHandlerImpl*>(effects)->desktopResized(geom.size());
     }
+
+    emit workspaceResized();
 }
 
 void Workspace::saveOldScreenSizes()
