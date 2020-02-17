@@ -841,9 +841,7 @@ void TestXdgShellClientRules::testSizeApply()
     QVERIFY(!client->isMove());
     QVERIFY(!client->isResize());
 
-    QEXPECT_FAIL("", "Interactive resize is not spec-compliant", Continue);
     QVERIFY(configureRequestedSpy->wait(10));
-    QEXPECT_FAIL("", "Interactive resize is not spec-compliant", Continue);
     QCOMPARE(configureRequestedSpy->count(), 5);
 
     // The rule should be applied again if the client appears after it's been closed.
@@ -979,9 +977,7 @@ void TestXdgShellClientRules::testSizeRemember()
     QVERIFY(!client->isMove());
     QVERIFY(!client->isResize());
 
-    QEXPECT_FAIL("", "Interactive resize is not spec-compliant", Continue);
     QVERIFY(configureRequestedSpy->wait(10));
-    QEXPECT_FAIL("", "Interactive resize is not spec-compliant", Continue);
     QCOMPARE(configureRequestedSpy->count(), 5);
 
     // If the client appears again, it should have the last known size.
@@ -1381,6 +1377,7 @@ void TestXdgShellClientRules::testMaximizeApply()
     workspace()->slotWindowMaximize();
     QVERIFY(configureRequestedSpy->wait());
     QCOMPARE(configureRequestedSpy->count(), 3);
+    QEXPECT_FAIL("", "Geometry restore is set to the first valid geometry", Continue);
     QCOMPARE(configureRequestedSpy->last().at(0).toSize(), QSize(0, 0));
     states = configureRequestedSpy->last().at(1).value<XdgShellSurface::States>();
     QVERIFY(states.testFlag(XdgShellSurface::State::Activated));
@@ -1493,6 +1490,7 @@ void TestXdgShellClientRules::testMaximizeRemember()
     workspace()->slotWindowMaximize();
     QVERIFY(configureRequestedSpy->wait());
     QCOMPARE(configureRequestedSpy->count(), 3);
+    QEXPECT_FAIL("", "Geometry restore is set to the first valid geometry", Continue);
     QCOMPARE(configureRequestedSpy->last().at(0).toSize(), QSize(0, 0));
     states = configureRequestedSpy->last().at(1).value<XdgShellSurface::States>();
     QVERIFY(states.testFlag(XdgShellSurface::State::Activated));

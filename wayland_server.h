@@ -62,8 +62,6 @@ class PlasmaWindowManagementInterface;
 class QtSurfaceExtensionInterface;
 class OutputManagementInterface;
 class OutputConfigurationInterface;
-class XdgDecorationManagerInterface;
-class XdgShellInterface;
 class XdgForeignInterface;
 class XdgOutputManagerInterface;
 class KeyStateInterface;
@@ -74,10 +72,18 @@ class LinuxDmabufUnstableV1Buffer;
 
 namespace KWin
 {
-class XdgShellClient;
 
 class AbstractClient;
 class Toplevel;
+class XdgDecorationManagerV1Interface;
+class XdgPopupInterface;
+class XdgPopupV6Interface;
+class XdgShellInterface;
+class XdgShellV6Interface;
+class XdgToplevelClient;
+class XdgToplevelInterface;
+class XdgToplevelV6Client;
+class XdgToplevelV6Interface;
 
 class KWIN_EXPORT WaylandServer : public QObject
 {
@@ -128,7 +134,8 @@ public:
     void removeClient(AbstractClient *c);
     AbstractClient *findClient(quint32 id) const;
     AbstractClient *findClient(KWayland::Server::SurfaceInterface *surface) const;
-    XdgShellClient *findXdgShellClient(KWayland::Server::SurfaceInterface *surface) const;
+    XdgToplevelV6Client *findXdgToplevelV6Client(KWayland::Server::SurfaceInterface *surface) const;
+    XdgToplevelClient *findXdgToplevelClient(KWayland::Server::SurfaceInterface *surface) const;
 
     /**
      * @returns a transient parent of a surface imported with the foreign protocol, if any
@@ -240,15 +247,16 @@ private:
     void shellClientShown(Toplevel *t);
     quint16 createClientId(KWayland::Server::ClientConnection *c);
     void destroyInternalConnection();
-    template <class T>
-    void createSurface(T *surface);
     void initScreenLocker();
+    void createXdgToplevelV6Client(XdgToplevelV6Interface *shellSurface);
+    void createXdgPopupV6Client(XdgPopupV6Interface *shellSurface);
+    void createXdgToplevelClient(XdgToplevelInterface *shellSurface);
+    void createXdgPopupClient(XdgPopupInterface *shellSurface);
+    void registerShellClient(AbstractClient *client);
     KWayland::Server::Display *m_display = nullptr;
     KWayland::Server::CompositorInterface *m_compositor = nullptr;
     KWayland::Server::SeatInterface *m_seat = nullptr;
     KWayland::Server::DataDeviceManagerInterface *m_dataDeviceManager = nullptr;
-    KWayland::Server::XdgShellInterface *m_xdgShell6 = nullptr;
-    KWayland::Server::XdgShellInterface *m_xdgShell = nullptr;
     KWayland::Server::PlasmaShellInterface *m_plasmaShell = nullptr;
     KWayland::Server::PlasmaWindowManagementInterface *m_windowManagement = nullptr;
     KWayland::Server::PlasmaVirtualDesktopManagementInterface *m_virtualDesktopManagement = nullptr;
@@ -258,7 +266,6 @@ private:
     KWayland::Server::ServerSideDecorationPaletteManagerInterface *m_paletteManager = nullptr;
     KWayland::Server::IdleInterface *m_idle = nullptr;
     KWayland::Server::XdgOutputManagerInterface *m_xdgOutputManager = nullptr;
-    KWayland::Server::XdgDecorationManagerInterface *m_xdgDecorationManager = nullptr;
     KWayland::Server::LinuxDmabufUnstableV1Interface *m_linuxDmabuf = nullptr;
     QSet<KWayland::Server::LinuxDmabufUnstableV1Buffer*> m_linuxDmabufBuffers;
     struct {
@@ -281,6 +288,9 @@ private:
     } m_internalConnection;
     KWayland::Server::XdgForeignInterface *m_XdgForeign = nullptr;
     KWayland::Server::KeyStateInterface *m_keyState = nullptr;
+    XdgShellInterface *m_xdgShell = nullptr;
+    XdgShellV6Interface *m_xdgShellV6 = nullptr;
+    XdgDecorationManagerV1Interface *m_xdgDecoration = nullptr;
     QList<AbstractClient *> m_clients;
     QHash<KWayland::Server::ClientConnection*, quint16> m_clientIds;
     InitalizationFlags m_initFlags;

@@ -1,30 +1,24 @@
-/********************************************************************
- KWin - the KDE window manager
- This file is part of the KDE project.
-
-Copyright (C) 2015 Martin Gräßlin <mgraesslin@kde.org>
-Copyright (C) 2018 David Edmundson <davidedmundson@kde.org>
-Copyright (C) 2019 Vlad Zahorodnii <vlad.zahorodnii@kde.org>
-
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*********************************************************************/
+/*
+ * Copyright (C) 2020 Vlad Zahorodnii <vlad.zahorodnii@kde.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
 #pragma once
 
 #include "shellsurfaceclient.h"
-#include "xdgdecorationv1interface.h"
-#include "xdgshellinterface.h"
+#include "xdgshellv6interface.h"
 
 #include <QQueue>
 #include <QTimer>
@@ -43,12 +37,12 @@ class ServerSideDecorationPaletteInterface;
 namespace KWin
 {
 
-class XdgSurfaceConfigure
+class XdgSurfaceV6Configure
 {
 public:
-    virtual ~XdgSurfaceConfigure();
+    virtual ~XdgSurfaceV6Configure();
 
-    void setGeometry(const QRect &rect);
+    void setGeometry(const QRect &geometry);
     QRect geometry() const;
 
     void setSerial(quint32 serial);
@@ -59,13 +53,13 @@ private:
     quint32 m_serial = 0;
 };
 
-class XdgSurfaceClient : public ShellSurfaceClient
+class XdgSurfaceV6Client : public ShellSurfaceClient
 {
     Q_OBJECT
 
 public:
-    XdgSurfaceClient(XdgSurfaceInterface *shellSurface);
-    ~XdgSurfaceClient() override;
+    XdgSurfaceV6Client(XdgSurfaceV6Interface *shellSurface);
+    ~XdgSurfaceV6Client() override;
 
     QRect inputGeometry() const override;
     QRect bufferGeometry() const override;
@@ -97,10 +91,10 @@ Q_SIGNALS:
 protected:
     void addDamage(const QRegion &damage) override;
 
-    virtual XdgSurfaceConfigure *sendRoleConfigure() const = 0;
+    virtual XdgSurfaceV6Configure *sendRoleConfigure() const = 0;
     virtual void handleRoleCommit();
 
-    XdgSurfaceConfigure *lastAcknowledgedConfigure() const;
+    XdgSurfaceV6Configure *lastAcknowledgedConfigure() const;
     void scheduleConfigure();
     void sendConfigure();
     void requestGeometry(const QRect &rect);
@@ -123,10 +117,10 @@ private:
     void cleanGrouping();
     void cleanTabBox();
 
-    XdgSurfaceInterface *m_shellSurface;
+    XdgSurfaceV6Interface *m_shellSurface;
     QTimer *m_configureTimer;
-    QQueue<XdgSurfaceConfigure *> m_configureEvents;
-    XdgSurfaceConfigure *m_lastAcknowledgedConfigure = nullptr;
+    QQueue<XdgSurfaceV6Configure *> m_configureEvents;
+    XdgSurfaceV6Configure *m_lastAcknowledgedConfigure = nullptr;
     QRect m_windowGeometry;
     QRect m_requestedFrameGeometry;
     QRect m_bufferGeometry;
@@ -138,17 +132,17 @@ private:
     bool m_haveNextWindowGeometry = false;
 };
 
-class XdgToplevelConfigure : public XdgSurfaceConfigure
+class XdgToplevelV6Configure : public XdgSurfaceV6Configure
 {
 public:
-    void setStates(const XdgToplevelInterface::States &states);
-    XdgToplevelInterface::States states() const;
+    void setStates(const XdgToplevelV6Interface::States &states);
+    XdgToplevelV6Interface::States states() const;
 
 private:
-    XdgToplevelInterface::States m_states;
+    XdgToplevelV6Interface::States m_states;
 };
 
-class XdgToplevelClient : public XdgSurfaceClient
+class XdgToplevelV6Client : public XdgSurfaceV6Client
 {
     Q_OBJECT
 
@@ -158,8 +152,8 @@ class XdgToplevelClient : public XdgSurfaceClient
     };
 
 public:
-    XdgToplevelClient(XdgToplevelInterface *shellSurface);
-    ~XdgToplevelClient() override;
+    XdgToplevelV6Client(XdgToplevelV6Interface *shellSurface);
+    ~XdgToplevelV6Client() override;
 
     void debug(QDebug &stream) const override;
     NET::WindowType windowType(bool direct = false, int supported_types = 0) const override;
@@ -196,10 +190,9 @@ public:
     void installServerDecoration(KWayland::Server::ServerSideDecorationInterface *decoration);
     void installPalette(KWayland::Server::ServerSideDecorationPaletteInterface *palette);
     void installPlasmaShellSurface(KWayland::Server::PlasmaShellSurfaceInterface *shellSurface);
-    void installXdgDecoration(XdgToplevelDecorationV1Interface *decoration);
 
 protected:
-    XdgSurfaceConfigure *sendRoleConfigure() const override;
+    XdgSurfaceV6Configure *sendRoleConfigure() const override;
     void handleRoleCommit() override;
     void doMinimize() override;
     void doResizeSync() override;
@@ -215,8 +208,8 @@ private:
                                    const QPoint &surfacePos, quint32 serial);
     void handleMoveRequested(KWayland::Server::SeatInterface *seat, quint32 serial);
     void handleResizeRequested(KWayland::Server::SeatInterface *seat,
-                               Qt::Edges, quint32 serial);
-    void handleStatesAcknowledged(const XdgToplevelInterface::States &states);
+                               Qt::Edges edges, quint32 serial);
+    void handleStatesAcknowledged(const XdgToplevelV6Interface::States &states);
     void handleMaximizeRequested();
     void handleUnmaximizeRequested();
     void handleFullscreenRequested(KWayland::Server::OutputInterface *output);
@@ -239,9 +232,8 @@ private:
     QPointer<KWayland::Server::AppMenuInterface> m_appMenuInterface;
     QPointer<KWayland::Server::ServerSideDecorationPaletteInterface> m_paletteInterface;
     QPointer<KWayland::Server::ServerSideDecorationInterface> m_serverDecoration;
-    QPointer<XdgToplevelDecorationV1Interface> m_xdgDecoration;
-    XdgToplevelInterface *m_shellSurface;
-    XdgToplevelInterface::States m_lastAcknowledgedStates;
+    XdgToplevelV6Interface *m_shellSurface;
+    XdgToplevelV6Interface::States m_lastAcknowledgedStates;
     QMap<quint32, PingReason> m_pings;
     QRect m_fullScreenGeometryRestore;
     NET::WindowType m_windowType = NET::Normal;
@@ -253,13 +245,13 @@ private:
     bool m_isInitialized = false;
 };
 
-class XdgPopupClient : public XdgSurfaceClient
+class XdgPopupV6Client : public XdgSurfaceV6Client
 {
     Q_OBJECT
 
 public:
-    XdgPopupClient(XdgPopupInterface *shellSurface);
-    ~XdgPopupClient() override;
+    XdgPopupV6Client(XdgPopupV6Interface *shellSurface);
+    ~XdgPopupV6Client() override;
 
     void debug(QDebug &stream) const override;
     NET::WindowType windowType(bool direct = false, int supported_types = 0) const override;
@@ -286,13 +278,13 @@ public:
 
 protected:
     bool acceptsFocus() const override;
-    XdgSurfaceConfigure *sendRoleConfigure() const override;
+    XdgSurfaceV6Configure *sendRoleConfigure() const override;
 
 private:
     void handleGrabRequested(KWayland::Server::SeatInterface *seat, quint32 serial);
     void initialize();
 
-    XdgPopupInterface *m_shellSurface;
+    XdgPopupV6Interface *m_shellSurface;
     bool m_haveExplicitGrab = false;
 };
 

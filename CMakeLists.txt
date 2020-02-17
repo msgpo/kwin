@@ -163,7 +163,7 @@ if (epoxy_HAS_GLX)
     endif()
 endif()
 
-find_package(Wayland 1.2 REQUIRED COMPONENTS Cursor OPTIONAL_COMPONENTS Egl)
+find_package(Wayland 1.2 REQUIRED COMPONENTS Cursor Server OPTIONAL_COMPONENTS Egl)
 set_package_properties(Wayland PROPERTIES
     TYPE REQUIRED
     PURPOSE "Required for building KWin with Wayland support"
@@ -294,6 +294,12 @@ set_package_properties(hwdata PROPERTIES
     URL "https://github.com/vcrhonek/hwdata"
 )
 set(HAVE_HWDATA ${hwdata_FOUND})
+
+find_package(QtWaylandScanner)
+set_package_properties(QtWaylandScanner PROPERTIES TYPE REQUIRED)
+
+find_package(WaylandProtocols 1.15)
+set_package_properties(WaylandProtocols PROPERTIES TYPE REQUIRED)
 
 include(ECMQMLModules)
 ecm_find_qmlmodule(QtQuick 2.3)
@@ -481,11 +487,13 @@ set(kwin_SRCS
     scripting/timer.cpp
     scripting/workspace_wrapper.cpp
     shadow.cpp
+    shellsurfaceclient.cpp
     sm.cpp
+    subsurfacetreemonitor.cpp
+    tablet_input.cpp
     thumbnailitem.cpp
     toplevel.cpp
     touch_hide_cursor_spy.cpp
-    tablet_input.cpp
     touch_input.cpp
     udev.cpp
     unmanaged.cpp
@@ -503,9 +511,28 @@ set(kwin_SRCS
     x11client.cpp
     x11eventfilter.cpp
     xcbutils.cpp
+    xdgdecorationv1interface.cpp
     xdgshellclient.cpp
+    xdgshellinterface.cpp
+    xdgshellv6client.cpp
+    xdgshellv6interface.cpp
     xkb.cpp
     xwl/xwayland_interface.cpp
+)
+
+ecm_add_qtwayland_server_protocol(kwin_SRCS
+    PROTOCOL ${WaylandProtocols_DATADIR}/stable/xdg-shell/xdg-shell.xml
+    BASENAME xdg-shell
+)
+
+ecm_add_qtwayland_server_protocol(kwin_SRCS
+    PROTOCOL ${WaylandProtocols_DATADIR}/unstable/xdg-shell/xdg-shell-unstable-v6.xml
+    BASENAME xdg-shell-unstable-v6
+)
+
+ecm_add_qtwayland_server_protocol(kwin_SRCS
+    PROTOCOL ${WaylandProtocols_DATADIR}/unstable/xdg-decoration/xdg-decoration-unstable-v1.xml
+    BASENAME xdg-decoration-unstable-v1
 )
 
 if (CMAKE_SYSTEM_NAME MATCHES "Linux")
@@ -632,6 +659,7 @@ set(kwin_WAYLAND_LIBS
     KF5::WaylandClient
     KF5::WaylandServer
     Wayland::Cursor
+    Wayland::Server
     XKB::XKB
     ${CMAKE_THREAD_LIBS_INIT}
 )

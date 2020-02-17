@@ -55,7 +55,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "composite.h"
 #include "xcbutils.h"
 #include "platform.h"
-#include "xdgshellclient.h"
+#include "shellsurfaceclient.h"
 #include "wayland_server.h"
 
 #include "decorations/decorationbridge.h"
@@ -1743,7 +1743,7 @@ EffectWindowImpl::EffectWindowImpl(Toplevel *toplevel)
     // can still figure out whether it is/was a managed window.
     managed = toplevel->isClient();
 
-    waylandClient = qobject_cast<KWin::XdgShellClient *>(toplevel) != nullptr;
+    waylandClient = qobject_cast<KWin::ShellSurfaceClient *>(toplevel) != nullptr;
     x11Client = qobject_cast<KWin::X11Client *>(toplevel) != nullptr ||
         qobject_cast<KWin::Unmanaged *>(toplevel) != nullptr;
 }
