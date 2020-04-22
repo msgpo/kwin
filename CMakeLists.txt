@@ -485,6 +485,7 @@ set(kwin_SRCS
     scripting/workspace_wrapper.cpp
     shadow.cpp
     sm.cpp
+    subsurfacemonitor.cpp
     thumbnailitem.cpp
     toplevel.cpp
     touch_hide_cursor_spy.cpp
