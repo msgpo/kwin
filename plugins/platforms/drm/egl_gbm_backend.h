@@ -22,6 +22,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "abstract_egl_backend.h"
 #include "remoteaccess_manager.h"
 
+#include <kwinglutils.h>
+
 #include <memory>
 
 struct gbm_surface;
@@ -43,7 +45,9 @@ public:
     EglGbmBackend(DrmBackend *drmBackend);
     ~EglGbmBackend() override;
     void screenGeometryChanged(const QSize &size) override;
-    SceneOpenGLTexturePrivate *createBackendTexture(SceneOpenGLTexture *texture) override;
+    BufferX11Private *createBufferX11Private() override;
+    BufferInternalPrivate *createBufferInternalPrivate() override;
+    BufferWaylandPrivate *createBufferWaylandPrivate() override;
     QRegion prepareRenderingFrame() override;
     void endRenderingFrame(const QRegion &renderedRegion, const QRegion &damagedRegion) override;
     void endRenderingFrameForScreen(int screenId, const QRegion &damage, const QRegion &damagedRegion) override;
@@ -103,19 +107,6 @@ private:
     QVector<Output> m_outputs;
     QScopedPointer<RemoteAccessManager> m_remoteaccessManager;
     friend class EglGbmTexture;
-};
-
-/**
- * @brief Texture using an EGLImageKHR.
- */
-class EglGbmTexture : public AbstractEglTexture
-{
-public:
-    ~EglGbmTexture() override;
-
-private:
-    friend class EglGbmBackend;
-    EglGbmTexture(SceneOpenGLTexture *texture, EglGbmBackend *backend);
 };
 
 } // namespace

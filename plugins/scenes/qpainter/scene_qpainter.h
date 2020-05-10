@@ -43,6 +43,8 @@ public:
     EffectFrame *createEffectFrame(EffectFrameImpl *frame) override;
     Shadow *createShadow(Toplevel *toplevel) override;
     Decoration::Renderer *createDecorationRenderer(Decoration::DecoratedClientImpl *impl) override;
+    BufferInternalPrivate *createBufferInternalPrivate() override;
+    BufferWaylandPrivate *createBufferWaylandPrivate() override;
     void screenGeometryChanged(const QSize &size) override;
 
     bool animationsSupported() const override {
@@ -90,8 +92,6 @@ class QPainterWindowPixmap : public WindowPixmap
 public:
     explicit QPainterWindowPixmap(Scene::Window *window);
     ~QPainterWindowPixmap() override;
-    void create() override;
-    void update() override;
     bool isValid() const override;
 
     const QImage &image();

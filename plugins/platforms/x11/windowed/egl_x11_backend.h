@@ -34,6 +34,9 @@ class EglX11Backend : public EglOnXBackend
 public:
     explicit EglX11Backend(X11WindowedBackend *backend);
     ~EglX11Backend() override;
+    BufferX11Private *createBufferX11Private() override;
+    BufferInternalPrivate *createBufferInternalPrivate() override;
+    BufferWaylandPrivate *createBufferWaylandPrivate() override;
     QRegion prepareRenderingFrame() override;
     void endRenderingFrame(const QRegion &damage, const QRegion &damagedRegion) override;
     bool usesOverlayWindow() const override;

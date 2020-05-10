@@ -21,6 +21,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define WL_EGL_PLATFORM 1
 
 #include "egl_wayland_backend.h"
+#include "eglbuffer_internal_p.h"
+#include "eglbuffer_wayland_p.h"
 
 #include "wayland_backend.h"
 #include "wayland_output.h"
@@ -124,6 +126,21 @@ EglWaylandBackend::EglWaylandBackend(WaylandBackend *b)
 EglWaylandBackend::~EglWaylandBackend()
 {
     cleanup();
+}
+
+BufferX11Private *EglWaylandBackend::createBufferX11Private()
+{
+    return nullptr;
+}
+
+BufferInternalPrivate *EglWaylandBackend::createBufferInternalPrivate()
+{
+    return new EGLBufferInternalPrivate(this);
+}
+
+BufferWaylandPrivate *EglWaylandBackend::createBufferWaylandPrivate()
+{
+    return new EGLBufferWaylandPrivate(this);
 }
 
 void EglWaylandBackend::cleanupSurfaces()
@@ -315,11 +332,6 @@ void EglWaylandBackend::screenGeometryChanged(const QSize &size)
     }
 }
 
-SceneOpenGLTexturePrivate *EglWaylandBackend::createBackendTexture(SceneOpenGLTexture *texture)
-{
-    return new EglWaylandTexture(texture, this);
-}
-
 QRegion EglWaylandBackend::prepareRenderingFrame()
 {
     eglWaitNative(EGL_CORE_NATIVE_ENGINE);
@@ -398,17 +410,6 @@ bool EglWaylandBackend::perScreenRendering() const
 {
     return true;
 }
-
-/************************************************
- * EglTexture
- ************************************************/
-
-EglWaylandTexture::EglWaylandTexture(KWin::SceneOpenGLTexture *texture, KWin::Wayland::EglWaylandBackend *backend)
-    : AbstractEglTexture(texture, backend)
-{
-}
-
-EglWaylandTexture::~EglWaylandTexture() = default;
 
 }
 }

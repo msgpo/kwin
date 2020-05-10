@@ -1144,7 +1144,7 @@ void MoveResizeWindowTest::testUnmapMoveClient()
     // Unmap the client while we're moving it.
     QSignalSpy hiddenSpy(client, &AbstractClient::windowHidden);
     QVERIFY(hiddenSpy.isValid());
-    surface->attachBuffer(Buffer::Ptr());
+    surface->attachBuffer(KWayland::Client::Buffer::Ptr());
     surface->commit(Surface::CommitFlag::None);
     QVERIFY(hiddenSpy.wait());
     QCOMPARE(clientFinishUserMovedResizedSpy.count(), 0);
@@ -1190,7 +1190,7 @@ void MoveResizeWindowTest::testUnmapResizeClient()
     // Unmap the client while we're resizing it.
     QSignalSpy hiddenSpy(client, &AbstractClient::windowHidden);
     QVERIFY(hiddenSpy.isValid());
-    surface->attachBuffer(Buffer::Ptr());
+    surface->attachBuffer(KWayland::Client::Buffer::Ptr());
     surface->commit(Surface::CommitFlag::None);
     QVERIFY(hiddenSpy.wait());
     QCOMPARE(clientFinishUserMovedResizedSpy.count(), 0);

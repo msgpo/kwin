@@ -144,6 +144,8 @@ public:
      */
     static bool supportsFormatRG();
 
+    static bool supportsARGB32();
+
 protected:
     QExplicitlySharedDataPointer<GLTexturePrivate> d_ptr;
     GLTexture(GLTexturePrivate& dd);

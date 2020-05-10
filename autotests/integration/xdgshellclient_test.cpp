@@ -217,7 +217,7 @@ void TestXdgShellClient::testMapUnmapMap()
     QVERIFY(hiddenSpy.isValid());
     QSignalSpy windowClosedSpy(client, &AbstractClient::windowClosed);
     QVERIFY(windowClosedSpy.isValid());
-    surface->attachBuffer(Buffer::Ptr());
+    surface->attachBuffer(KWayland::Client::Buffer::Ptr());
     surface->commit(Surface::CommitFlag::None);
     QVERIFY(hiddenSpy.wait());
     QCOMPARE(client->readyForPainting(), true);
@@ -243,7 +243,7 @@ void TestXdgShellClient::testMapUnmapMap()
     QCOMPARE(effectsWindowShownSpy.first().first().value<EffectWindow*>(), client->effectWindow());
 
     // let's unmap again
-    surface->attachBuffer(Buffer::Ptr());
+    surface->attachBuffer(KWayland::Client::Buffer::Ptr());
     surface->commit(Surface::CommitFlag::None);
     QVERIFY(hiddenSpy.wait());
     QCOMPARE(hiddenSpy.count(), 2);
@@ -318,7 +318,7 @@ void TestXdgShellClient::testTransientPositionAfterRemap()
     // unmap the transient
     QSignalSpy windowHiddenSpy(transient, &AbstractClient::windowHidden);
     QVERIFY(windowHiddenSpy.isValid());
-    transientSurface->attachBuffer(Buffer::Ptr());
+    transientSurface->attachBuffer(KWayland::Client::Buffer::Ptr());
     transientSurface->commit(Surface::CommitFlag::None);
     QVERIFY(windowHiddenSpy.wait());
 

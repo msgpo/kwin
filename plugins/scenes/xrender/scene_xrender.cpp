@@ -310,6 +310,11 @@ Decoration::Renderer *SceneXrender::createDecorationRenderer(Decoration::Decorat
     return new SceneXRenderDecorationRenderer(client);
 }
 
+BufferX11Private *SceneXrender::createBufferX11Private()
+{
+    return nullptr;
+}
+
 //****************************************
 // SceneXrender::Window
 //****************************************

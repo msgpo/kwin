@@ -18,6 +18,8 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 *********************************************************************/
 #include "egl_hwcomposer_backend.h"
+#include "eglbuffer_internal_p.h"
+#include "eglbuffer_wayland_p.h"
 #include "hwcomposer_backend.h"
 #include "logging.h"
 
@@ -36,6 +38,21 @@ EglHwcomposerBackend::EglHwcomposerBackend(HwcomposerBackend *backend)
 EglHwcomposerBackend::~EglHwcomposerBackend()
 {
     cleanup();
+}
+
+BufferX11Private *EglHwcomposerBackend::createBufferX11Private()
+{
+    return nullptr;
+}
+
+BufferInternalPrivate *EglHwcomposerBackend::createBufferInternalPrivate()
+{
+    return new EGLBufferInternalPrivate(this);
+}
+
+BufferWaylandPrivate *EglHwcomposerBackend::createBufferWaylandPrivate()
+{
+    return new EGLBufferWaylandPrivate(this);
 }
 
 bool EglHwcomposerBackend::initializeEgl()
@@ -166,22 +183,5 @@ void EglHwcomposerBackend::endRenderingFrame(const QRegion &renderedRegion, cons
     Q_UNUSED(damagedRegion)
     setLastDamage(renderedRegion);
 }
-
-SceneOpenGLTexturePrivate *EglHwcomposerBackend::createBackendTexture(SceneOpenGLTexture *texture)
-{
-    return new EglHwcomposerTexture(texture, this);
-}
-
-bool EglHwcomposerBackend::usesOverlayWindow() const
-{
-    return false;
-}
-
-EglHwcomposerTexture::EglHwcomposerTexture(SceneOpenGLTexture *texture, EglHwcomposerBackend *backend)
-    : AbstractEglTexture(texture, backend)
-{
-}
-
-EglHwcomposerTexture::~EglHwcomposerTexture() = default;
 
 }

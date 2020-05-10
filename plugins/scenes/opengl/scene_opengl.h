@@ -68,12 +68,9 @@ public:
     bool debug() const { return m_debug; }
     void initDebugOutput();
 
-    /**
-     * @brief Factory method to create a backend specific texture.
-     *
-     * @return :SceneOpenGL::Texture*
-     */
-    SceneOpenGLTexture *createTexture();
+    BufferX11Private *createBufferX11Private() override;
+    BufferInternalPrivate *createBufferInternalPrivate() override;
+    BufferWaylandPrivate *createBufferWaylandPrivate() override;
 
     OpenGLBackend *backend() const {
         return m_backend;
@@ -209,14 +206,12 @@ class OpenGLWindowPixmap : public WindowPixmap
 public:
     explicit OpenGLWindowPixmap(Scene::Window *window, SceneOpenGL *scene);
     ~OpenGLWindowPixmap() override;
-    SceneOpenGLTexture *texture() const;
     bool bind();
     bool isValid() const override;
 protected:
     WindowPixmap *createChild(const QPointer<KWaylandServer::SubSurfaceInterface> &subSurface) override;
 private:
     explicit OpenGLWindowPixmap(const QPointer<KWaylandServer::SubSurfaceInterface> &subSurface, WindowPixmap *parent, SceneOpenGL *scene);
-    QScopedPointer<SceneOpenGLTexture> m_texture;
     SceneOpenGL *m_scene;
 };
 
@@ -318,11 +313,6 @@ inline bool SceneOpenGL::hasPendingFlush() const
 inline bool SceneOpenGL::usesOverlayWindow() const
 {
     return m_backend->usesOverlayWindow();
-}
-
-inline SceneOpenGLTexture* OpenGLWindowPixmap::texture() const
-{
-    return m_texture.data();
 }
 
 class KWIN_EXPORT OpenGLFactory : public SceneFactory

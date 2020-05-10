@@ -20,9 +20,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #ifndef KWIN_GLX_BACKEND_H
 #define KWIN_GLX_BACKEND_H
 #include "backend.h"
-#include "texture.h"
 #include "swap_profiler.h"
 #include "x11eventfilter.h"
+
+#include <QHash>
 
 #include <xcb/glx.h>
 #include <epoxy/glx.h>
@@ -71,7 +72,9 @@ public:
     GlxBackend(Display *display);
     ~GlxBackend() override;
     void screenGeometryChanged(const QSize &size) override;
-    SceneOpenGLTexturePrivate *createBackendTexture(SceneOpenGLTexture *texture) override;
+    BufferX11Private *createBufferX11Private() override;
+    BufferInternalPrivate *createBufferInternalPrivate() override;
+    BufferWaylandPrivate *createBufferWaylandPrivate() override;
     QRegion prepareRenderingFrame() override;
     void endRenderingFrame(const QRegion &damage, const QRegion &damagedRegion) override;
     bool makeCurrent() override;
@@ -123,6 +126,7 @@ private:
     friend class GlxTexture;
 };
 
+#if 0
 /**
  * @brief Texture using an GLXPixmap.
  */
@@ -145,6 +149,7 @@ private:
     GlxBackend *m_backend;
     GLXPixmap m_glxpixmap; // the glx pixmap the texture is bound to
 };
+#endif
 
 } // namespace
 #endif // KWIN_GLX_BACKEND_H

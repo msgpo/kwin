@@ -71,6 +71,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <QQuickWindow>
 #include <QVector2D>
 
+#include "buffer_internal.h"
+#include "buffer_wayland.h"
+#include "buffer_x11.h"
 #include "x11client.h"
 #include "deleted.h"
 #include "effects.h"
@@ -698,6 +701,21 @@ QVector<QByteArray> Scene::openGLPlatformInterfaceExtensions() const
     return QVector<QByteArray>{};
 }
 
+BufferX11Private *Scene::createBufferX11Private()
+{
+    return nullptr;
+}
+
+BufferInternalPrivate *Scene::createBufferInternalPrivate()
+{
+    return nullptr;
+}
+
+BufferWaylandPrivate *Scene::createBufferWaylandPrivate()
+{
+    return nullptr;
+}
+
 //****************************************
 // Scene::Window
 //****************************************
@@ -1095,32 +1113,21 @@ void Scene::Window::preprocess()
 //****************************************
 WindowPixmap::WindowPixmap(Scene::Window *window)
     : m_window(window)
-    , m_pixmap(XCB_PIXMAP_NONE)
     , m_discarded(false)
 {
 }
 
 WindowPixmap::WindowPixmap(const QPointer<KWaylandServer::SubSurfaceInterface> &subSurface, WindowPixmap *parent)
     : m_window(parent->m_window)
-    , m_pixmap(XCB_PIXMAP_NONE)
-    , m_discarded(false)
     , m_parent(parent)
     , m_subSurface(subSurface)
+    , m_discarded(false)
 {
 }
 
 WindowPixmap::~WindowPixmap()
 {
     qDeleteAll(m_children);
-
-    if (m_pixmap != XCB_WINDOW_NONE) {
-        xcb_free_pixmap(connection(), m_pixmap);
-    }
-    if (m_buffer) {
-        using namespace KWaylandServer;
-        QObject::disconnect(m_buffer.data(), &BufferInterface::aboutToBeDestroyed, m_buffer.data(), &BufferInterface::unref);
-        m_buffer->unref();
-    }
 }
 
 void WindowPixmap::create()
@@ -1137,92 +1144,15 @@ void WindowPixmap::create()
         }
         return;
     }
-    XServerGrabber grabber;
-    xcb_pixmap_t pix = xcb_generate_id(connection());
-    xcb_void_cookie_t namePixmapCookie = xcb_composite_name_window_pixmap_checked(connection(), toplevel()->frameId(), pix);
-    Xcb::WindowAttributes windowAttributes(toplevel()->frameId());
-    Xcb::WindowGeometry windowGeometry(toplevel()->frameId());
-    if (xcb_generic_error_t *error = xcb_request_check(connection(), namePixmapCookie)) {
-        qCDebug(KWIN_CORE) << "Creating window pixmap failed: " << error->error_code;
-        free(error);
-        return;
-    }
-    // check that the received pixmap is valid and actually matches what we
-    // know about the window (i.e. size)
-    if (!windowAttributes || windowAttributes->map_state != XCB_MAP_STATE_VIEWABLE) {
-        qCDebug(KWIN_CORE) << "Creating window pixmap failed: " << this;
-        xcb_free_pixmap(connection(), pix);
-        return;
-    }
-    const QRect bufferGeometry = toplevel()->bufferGeometry();
-    if (windowGeometry.size() != bufferGeometry.size()) {
-        qCDebug(KWIN_CORE) << "Creating window pixmap failed: " << this;
-        xcb_free_pixmap(connection(), pix);
-        return;
-    }
-    m_pixmap = pix;
-    m_pixmapSize = bufferGeometry.size();
-    m_contentsRect = QRect(toplevel()->clientPos(), toplevel()->clientSize());
     m_window->unreferencePreviousPixmap();
 }
 
 void WindowPixmap::update()
 {
-    using namespace KWaylandServer;
-    if (SurfaceInterface *s = surface()) {
-        QVector<WindowPixmap*> oldTree = m_children;
-        QVector<WindowPixmap*> children;
-        using namespace KWaylandServer;
-        const auto subSurfaces = s->childSubSurfaces();
-        for (const auto &subSurface : subSurfaces) {
-            if (subSurface.isNull()) {
-                continue;
-            }
-            auto it = std::find_if(oldTree.begin(), oldTree.end(), [subSurface] (WindowPixmap *p) { return p->m_subSurface == subSurface; });
-            if (it != oldTree.end()) {
-                children << *it;
-                (*it)->update();
-                oldTree.erase(it);
-            } else {
-                WindowPixmap *p = createChild(subSurface);
-                if (p) {
-                    p->create();
-                    children << p;
-                }
-            }
-        }
-        setChildren(children);
-        qDeleteAll(oldTree);
-        if (auto b = s->buffer()) {
-            if (b == m_buffer) {
-                // no change
-                return;
-            }
-            if (m_buffer) {
-                QObject::disconnect(m_buffer.data(), &BufferInterface::aboutToBeDestroyed, m_buffer.data(), &BufferInterface::unref);
-                m_buffer->unref();
-            }
-            m_buffer = b;
-            m_buffer->ref();
-            QObject::connect(m_buffer.data(), &BufferInterface::aboutToBeDestroyed, m_buffer.data(), &BufferInterface::unref);
-        } else if (m_subSurface) {
-            if (m_buffer) {
-                QObject::disconnect(m_buffer.data(), &BufferInterface::aboutToBeDestroyed, m_buffer.data(), &BufferInterface::unref);
-                m_buffer->unref();
-                m_buffer.clear();
-            }
-        }
-    } else if (toplevel()->internalFramebufferObject()) {
-        m_fbo = toplevel()->internalFramebufferObject();
-    } else if (!toplevel()->internalImageObject().isNull()) {
-        m_internalImage = toplevel()->internalImageObject();
-    } else {
-        if (m_buffer) {
-            QObject::disconnect(m_buffer.data(), &BufferInterface::aboutToBeDestroyed, m_buffer.data(), &BufferInterface::unref);
-            m_buffer->unref();
-            m_buffer.clear();
-        }
-    }
+    m_buffer->update();
+
+    for (WindowPixmap *child : m_children)
+        child->update();
 }
 
 WindowPixmap *WindowPixmap::createChild(const QPointer<KWaylandServer::SubSurfaceInterface> &subSurface)
@@ -1233,10 +1163,12 @@ WindowPixmap *WindowPixmap::createChild(const QPointer<KWaylandServer::SubSurfac
 
 bool WindowPixmap::isValid() const
 {
-    if (!m_buffer.isNull() || !m_fbo.isNull() || !m_internalImage.isNull()) {
-        return true;
-    }
-    return m_pixmap != XCB_PIXMAP_NONE;
+    return m_buffer && m_buffer->isValid();
+}
+
+QSharedPointer<Buffer> WindowPixmap::buffer() const
+{
+    return m_buffer;
 }
 
 bool WindowPixmap::isRoot() const
@@ -1267,23 +1199,17 @@ QPoint WindowPixmap::framePosition() const
 
 qreal WindowPixmap::scale() const
 {
-    if (surface())
-        return surface()->scale();
-    return toplevel()->bufferScale();
+    return m_buffer->scale();
 }
 
 QRegion WindowPixmap::shape() const
 {
-    if (subSurface())
-        return QRect(QPoint(), surface()->size());
-    return m_window->clientShape();
+    return m_buffer->shape();
 }
 
 bool WindowPixmap::hasAlphaChannel() const
 {
-    if (buffer())
-        return buffer()->hasAlphaChannel();
-    return toplevel()->hasAlpha();
+    return m_buffer->hasAlphaChannel();
 }
 
 //****************************************

@@ -166,6 +166,7 @@ public:
         return m_backend->usesOverlayWindow();
     }
     Decoration::Renderer *createDecorationRenderer(Decoration::DecoratedClientImpl *client) override;
+    BufferX11Private *createBufferX11Private() override;
 
     bool animationsSupported() const override {
         return true;

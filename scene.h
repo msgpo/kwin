@@ -46,6 +46,10 @@ class Renderer;
 }
 
 class AbstractThumbnailItem;
+class Buffer;
+class BufferX11Private;
+class BufferInternalPrivate;
+class BufferWaylandPrivate;
 class Deleted;
 class EffectFrameImpl;
 class EffectWindowImpl;
@@ -194,6 +198,10 @@ public:
      * Default implementation returns empty list
      */
     virtual QVector<QByteArray> openGLPlatformInterfaceExtensions() const;
+
+    virtual BufferX11Private *createBufferX11Private();
+    virtual BufferInternalPrivate *createBufferInternalPrivate();
+    virtual BufferWaylandPrivate *createBufferWaylandPrivate();
 
 Q_SIGNALS:
     void frameRendered();
@@ -427,19 +435,13 @@ public:
      */
     virtual bool isValid() const;
     /**
+     * Returns the buffer attached to this WindowPixmap or @c null if no buffer is attached.
+     */
+    QSharedPointer<Buffer> buffer() const;
+    /**
      * Returns @c true if this is the root window pixmap; otherwise returns @c false.
      */
     bool isRoot() const;
-    /**
-     * @return The native X11 pixmap handle
-     */
-    xcb_pixmap_t pixmap() const;
-    /**
-     * @return The Wayland BufferInterface for this WindowPixmap.
-     */
-    QPointer<KWaylandServer::BufferInterface> buffer() const;
-    const QSharedPointer<QOpenGLFramebufferObject> &fbo() const;
-    QImage internalImage() const;
     /**
      * @brief Whether this WindowPixmap is considered as discarded. This means the window has changed in a way that a new
      * WindowPixmap should have been created already.
@@ -488,12 +490,6 @@ public:
      */
     QRegion shape() const;
     /**
-     * The geometry of the Client's content inside the pixmap. In case of a decorated Client the
-     * pixmap also contains the decoration which is not rendered into this pixmap, though. This
-     * contentsRect tells where inside the complete pixmap the real content is.
-     */
-    const QRect &contentsRect() const;
-    /**
      * @brief Returns the Toplevel this WindowPixmap belongs to.
      * Note: the Toplevel can change over the lifetime of the WindowPixmap in case the Toplevel is copied to Deleted.
      */
@@ -538,25 +534,13 @@ protected:
      */
     Scene::Window *window();
 
-    /**
-     * Sets the sub-surface tree to @p children.
-     */
-    void setChildren(const QVector<WindowPixmap*> &children) {
-        m_children = children;
-    }
-
 private:
     Scene::Window *m_window;
-    xcb_pixmap_t m_pixmap;
-    QSize m_pixmapSize;
-    bool m_discarded;
-    QRect m_contentsRect;
-    QPointer<KWaylandServer::BufferInterface> m_buffer;
-    QSharedPointer<QOpenGLFramebufferObject> m_fbo;
-    QImage m_internalImage;
     WindowPixmap *m_parent = nullptr;
     QVector<WindowPixmap*> m_children;
     QPointer<KWaylandServer::SubSurfaceInterface> m_subSurface;
+    QSharedPointer<Buffer> m_buffer;
+    bool m_discarded;
 };
 
 class Scene::EffectFrame
@@ -648,24 +632,6 @@ Shadow* Scene::Window::shadow()
     return m_shadow;
 }
 
-inline
-QPointer<KWaylandServer::BufferInterface> WindowPixmap::buffer() const
-{
-    return m_buffer;
-}
-
-inline
-const QSharedPointer<QOpenGLFramebufferObject> &WindowPixmap::fbo() const
-{
-    return m_fbo;
-}
-
-inline
-QImage WindowPixmap::internalImage() const
-{
-    return m_internalImage;
-}
-
 template <typename T>
 inline
 T *Scene::Window::windowPixmap() const
@@ -691,12 +657,6 @@ Toplevel* WindowPixmap::toplevel() const
 }
 
 inline
-xcb_pixmap_t WindowPixmap::pixmap() const
-{
-    return m_pixmap;
-}
-
-inline
 bool WindowPixmap::isDiscarded() const
 {
     return m_discarded;
@@ -707,18 +667,6 @@ void WindowPixmap::markAsDiscarded()
 {
     m_discarded = true;
     m_window->referencePreviousPixmap();
-}
-
-inline
-const QRect &WindowPixmap::contentsRect() const
-{
-    return m_contentsRect;
-}
-
-inline
-const QSize &WindowPixmap::size() const
-{
-    return m_pixmapSize;
 }
 
 } // namespace

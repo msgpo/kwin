@@ -680,4 +680,9 @@ bool GLTexture::supportsFormatRG()
     return GLTexturePrivate::s_supportsTextureFormatRG;
 }
 
+bool GLTexture::supportsARGB32()
+{
+    return GLTexturePrivate::s_supportsARGB32;
+}
+
 } // namespace KWin

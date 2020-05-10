@@ -204,6 +204,16 @@ Shadow *SceneQPainter::createShadow(Toplevel *toplevel)
     return new SceneQPainterShadow(toplevel);
 }
 
+BufferInternalPrivate *SceneQPainter::createBufferInternalPrivate()
+{
+    return nullptr;
+}
+
+BufferWaylandPrivate *SceneQPainter::createBufferWaylandPrivate()
+{
+    return nullptr;
+}
+
 void SceneQPainter::screenGeometryChanged(const QSize &size)
 {
     Scene::screenGeometryChanged(size);
@@ -422,54 +432,9 @@ QPainterWindowPixmap::~QPainterWindowPixmap()
 {
 }
 
-void QPainterWindowPixmap::create()
-{
-    if (isValid()) {
-        return;
-    }
-    KWin::WindowPixmap::create();
-    if (!isValid()) {
-        return;
-    }
-    if (!surface()) {
-        // That's an internal client.
-        m_image = internalImage();
-        return;
-    }
-    // performing deep copy, this could probably be improved
-    m_image = buffer()->data().copy();
-    if (auto s = surface()) {
-        s->resetTrackedDamage();
-    }
-}
-
 WindowPixmap *QPainterWindowPixmap::createChild(const QPointer<KWaylandServer::SubSurfaceInterface> &subSurface)
 {
     return new QPainterWindowPixmap(subSurface, this);
-}
-
-void QPainterWindowPixmap::update()
-{
-    const auto oldBuffer = buffer();
-    WindowPixmap::update();
-    const auto &b = buffer();
-    if (!surface()) {
-        // That's an internal client.
-        m_image = internalImage();
-        return;
-    }
-    if (b.isNull()) {
-        m_image = QImage();
-        return;
-    }
-    if (b == oldBuffer) {
-        return;
-    }
-    // perform deep copy
-    m_image = b->data().copy();
-    if (auto s = surface()) {
-        s->resetTrackedDamage();
-    }
 }
 
 bool QPainterWindowPixmap::isValid() const

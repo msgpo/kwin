@@ -26,7 +26,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "scene.h"
 #include "screens.h"
 #include "xcbutils.h"
-#include "texture.h"
 // kwin libs
 #include <kwinglplatform.h>
 #include <kwinglutils.h>
@@ -92,6 +91,21 @@ EglOnXBackend::~EglOnXBackend()
         }
         delete m_overlayWindow;
     }
+}
+
+BufferX11Private *EglOnXBackend::createBufferX11Private()
+{
+    return nullptr;
+}
+
+BufferInternalPrivate *EglOnXBackend::createBufferInternalPrivate()
+{
+    return nullptr;
+}
+
+BufferWaylandPrivate *EglOnXBackend::createBufferWaylandPrivate()
+{
+    return nullptr;
 }
 
 void EglOnXBackend::init()
@@ -390,11 +404,6 @@ void EglOnXBackend::screenGeometryChanged(const QSize &size)
     m_bufferAge = 0;
 }
 
-SceneOpenGLTexturePrivate *EglOnXBackend::createBackendTexture(SceneOpenGLTexture *texture)
-{
-    return new EglTexture(texture, this);
-}
-
 QRegion EglOnXBackend::prepareRenderingFrame()
 {
     QRegion repaint;
@@ -473,6 +482,7 @@ bool EglOnXBackend::makeContextCurrent(const EGLSurface &surface)
     return eglMakeCurrent(eglDisplay(), surface, surface, context()) == EGL_TRUE;
 }
 
+#if 0
 /************************************************
  * EglTexture
  ************************************************/
@@ -540,5 +550,6 @@ void KWin::EglTexture::onDamage()
     }
     GLTexturePrivate::onDamage();
 }
+#endif
 
 } // namespace

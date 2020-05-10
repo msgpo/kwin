@@ -36,7 +36,9 @@ public:
     EglGbmBackend(VirtualBackend *b);
     ~EglGbmBackend() override;
     void screenGeometryChanged(const QSize &size) override;
-    SceneOpenGLTexturePrivate *createBackendTexture(SceneOpenGLTexture *texture) override;
+    BufferX11Private *createBufferX11Private() override;
+    BufferInternalPrivate *createBufferInternalPrivate() override;
+    BufferWaylandPrivate *createBufferWaylandPrivate() override;
     QRegion prepareRenderingFrame() override;
     void endRenderingFrame(const QRegion &renderedRegion, const QRegion &damagedRegion) override;
     bool usesOverlayWindow() const override;
@@ -54,19 +56,6 @@ private:
     GLRenderTarget *m_fbo = nullptr;
     int m_frameCounter = 0;
     friend class EglGbmTexture;
-};
-
-/**
- * @brief Texture using an EGLImageKHR.
- */
-class EglGbmTexture : public AbstractEglTexture
-{
-public:
-    ~EglGbmTexture() override;
-
-private:
-    friend class EglGbmBackend;
-    EglGbmTexture(SceneOpenGLTexture *texture, EglGbmBackend *backend);
 };
 
 } // namespace

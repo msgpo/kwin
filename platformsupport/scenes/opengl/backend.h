@@ -28,11 +28,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 namespace KWin
 {
+class BufferInternalPrivate;
+class BufferWaylandPrivate;
+class BufferX11Private;
 class OpenGLBackend;
 class OverlayWindow;
 class SceneOpenGL;
-class SceneOpenGLTexture;
-class SceneOpenGLTexturePrivate;
 class WindowPixmap;
 
 /**
@@ -64,7 +65,9 @@ public:
         return m_renderTimer.nsecsElapsed();
     }
     virtual void screenGeometryChanged(const QSize &size) = 0;
-    virtual SceneOpenGLTexturePrivate *createBackendTexture(SceneOpenGLTexture *texture) = 0;
+    virtual BufferInternalPrivate *createBufferInternalPrivate();
+    virtual BufferWaylandPrivate *createBufferWaylandPrivate();
+    virtual BufferX11Private *createBufferX11Private();
 
     /**
      * @brief Backend specific code to prepare the rendering of a frame including flushing the

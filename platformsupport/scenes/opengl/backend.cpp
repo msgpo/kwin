@@ -42,6 +42,21 @@ OpenGLBackend::~OpenGLBackend()
 {
 }
 
+BufferInternalPrivate *OpenGLBackend::createBufferInternalPrivate()
+{
+    return nullptr;
+}
+
+BufferWaylandPrivate *OpenGLBackend::createBufferWaylandPrivate()
+{
+    return nullptr;
+}
+
+BufferX11Private *OpenGLBackend::createBufferX11Private()
+{
+    return nullptr;
+}
+
 void OpenGLBackend::setFailed(const QString &reason)
 {
     qCWarning(KWIN_OPENGL) << "Creating the OpenGL rendering failed: " << reason;

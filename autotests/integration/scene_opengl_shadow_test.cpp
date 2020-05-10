@@ -710,19 +710,19 @@ void SceneOpenGLShadowTest::testNoCornerShadowTiles()
 
     auto *shmPool = Test::waylandShmPool();
 
-    Buffer::Ptr bufferTop = shmPool->createBuffer(
+    KWayland::Client::Buffer::Ptr bufferTop = shmPool->createBuffer(
         referenceShadowTexture.copy(QRect(128, 0, 1, 128)));
     clientShadow->attachTop(bufferTop);
 
-    Buffer::Ptr bufferRight = shmPool->createBuffer(
+    KWayland::Client::Buffer::Ptr bufferRight = shmPool->createBuffer(
         referenceShadowTexture.copy(QRect(128 + 1, 128, 128, 1)));
     clientShadow->attachRight(bufferRight);
 
-    Buffer::Ptr bufferBottom = shmPool->createBuffer(
+    KWayland::Client::Buffer::Ptr bufferBottom = shmPool->createBuffer(
         referenceShadowTexture.copy(QRect(128, 128 + 1, 1, 128)));
     clientShadow->attachBottom(bufferBottom);
 
-    Buffer::Ptr bufferLeft = shmPool->createBuffer(
+    KWayland::Client::Buffer::Ptr bufferLeft = shmPool->createBuffer(
         referenceShadowTexture.copy(QRect(0, 128, 128, 1)));
     clientShadow->attachLeft(bufferLeft);
 
@@ -800,10 +800,10 @@ void SceneOpenGLShadowTest::testDistributeHugeCornerTiles()
 
     auto *shmPool = Test::waylandShmPool();
 
-    Buffer::Ptr bufferTopLeft = shmPool->createBuffer(referenceTileTexture);
+    KWayland::Client::Buffer::Ptr bufferTopLeft = shmPool->createBuffer(referenceTileTexture);
     clientShadow->attachTopLeft(bufferTopLeft);
 
-    Buffer::Ptr bufferTopRight = shmPool->createBuffer(referenceTileTexture);
+    KWayland::Client::Buffer::Ptr bufferTopRight = shmPool->createBuffer(referenceTileTexture);
     clientShadow->attachTopRight(bufferTopRight);
 
     clientShadow->setOffsets(QMarginsF(256, 256, 256, 0));

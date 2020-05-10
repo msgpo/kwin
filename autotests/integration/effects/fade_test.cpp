@@ -146,7 +146,7 @@ void FadeTest::testWindowCloseAfterWindowHidden()
     QTRY_COMPARE(m_fadeEffect->isActive(), false);
 
     // now unmap the surface
-    surface->attachBuffer(Buffer::Ptr());
+    surface->attachBuffer(KWayland::Client::Buffer::Ptr());
     surface->commit(Surface::CommitFlag::None);
     QVERIFY(windowHiddenSpy.wait());
     QCOMPARE(m_fadeEffect->isActive(), true);
@@ -161,7 +161,7 @@ void FadeTest::testWindowCloseAfterWindowHidden()
     QTRY_COMPARE(m_fadeEffect->isActive(), false);
 
     // and unmap once more
-    surface->attachBuffer(Buffer::Ptr());
+    surface->attachBuffer(KWayland::Client::Buffer::Ptr());
     surface->commit(Surface::CommitFlag::None);
     QVERIFY(windowHiddenSpy.wait());
     QCOMPARE(m_fadeEffect->isActive(), true);

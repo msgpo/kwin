@@ -211,7 +211,7 @@ if (HAVE_DRM AND gbm_FOUND)
     set(HAVE_GBM TRUE)
 endif()
 
-option(KWIN_BUILD_EGL_STREAM_BACKEND "Enable building of EGLStream based DRM backend" ON)
+option(KWIN_BUILD_EGL_STREAM_BACKEND "Enable building of EGLStream based DRM backend" OFF)
 if (HAVE_DRM AND KWIN_BUILD_EGL_STREAM_BACKEND)
     set(HAVE_EGL_STREAMS TRUE)
 endif()
@@ -414,6 +414,10 @@ set(kwin_SRCS
     activation.cpp
     appmenu.cpp
     atoms.cpp
+    buffer.cpp
+    buffer_internal.cpp
+    buffer_wayland.cpp
+    buffer_x11.cpp
     client_machine.cpp
     colorcorrection/clockskewnotifier.cpp
     colorcorrection/clockskewnotifierengine.cpp

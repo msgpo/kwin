@@ -31,7 +31,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "platform.h"
 #include "wayland_server.h"
-#include "platformsupport/scenes/opengl/texture.h"
 
 #include <kwinglplatform.h>
 #include <kwineffectquickview.h>
@@ -787,9 +786,19 @@ void SceneOpenGL::extendPaintRegion(QRegion &region, bool opaqueFullscreen)
     }
 }
 
-SceneOpenGLTexture *SceneOpenGL::createTexture()
+BufferX11Private *SceneOpenGL::createBufferX11Private()
 {
-    return new SceneOpenGLTexture(m_backend);
+    return m_backend->createBufferX11Private();
+}
+
+BufferInternalPrivate *SceneOpenGL::createBufferInternalPrivate()
+{
+    return m_backend->createBufferInternalPrivate();
+}
+
+BufferWaylandPrivate *SceneOpenGL::createBufferWaylandPrivate()
+{
+    return m_backend->createBufferWaylandPrivate();
 }
 
 bool SceneOpenGL::viewportLimitsMatched(const QSize &size) const {
@@ -1085,7 +1094,11 @@ bool OpenGLWindow::bindTexture()
         return false;
     }
     if (pixmap->isDiscarded()) {
+#if 0
         return !pixmap->texture()->isNull();
+#else
+        return false;
+#endif
     }
 
     if (!window()->damage().isEmpty())
@@ -1324,7 +1337,7 @@ void OpenGLWindow::initializeRenderContext(RenderContext &context, const WindowP
             continue;
 
         RenderNode &contentRenderNode = renderNodes[context.contentOffset + i++];
-        contentRenderNode.texture = windowPixmap->texture();
+        contentRenderNode.texture = nullptr; // windowPixmap->texture();
         contentRenderNode.hasAlpha = windowPixmap->hasAlphaChannel();
         contentRenderNode.opacity = contentOpacity;
         contentRenderNode.coordinateType = UnnormalizedCoordinates;
@@ -1335,6 +1348,7 @@ void OpenGLWindow::initializeRenderContext(RenderContext &context, const WindowP
             stack.push(child);
     }
 
+#if 0
     // Note that cross-fading is currently working properly only on X11. In order to make it
     // work on Wayland, we have to render the current and the previous window pixmap trees in
     // offscreen render targets, then use a cross-fading shader to blend those two layers.
@@ -1365,7 +1379,7 @@ void OpenGLWindow::initializeRenderContext(RenderContext &context, const WindowP
                 previousContentRenderNode.quads.append(newQuad);
             }
 
-            previousContentRenderNode.texture = previous->texture();
+            previousContentRenderNode.texture = nullptr; // previous->texture();
             previousContentRenderNode.hasAlpha = previous->hasAlphaChannel();
             previousContentRenderNode.opacity = data.opacity() * (1.0 - data.crossFadeProgress());
             previousContentRenderNode.coordinateType = NormalizedCoordinates;
@@ -1374,6 +1388,7 @@ void OpenGLWindow::initializeRenderContext(RenderContext &context, const WindowP
             context.quadCount += previousContentRenderNode.quads.count();
         }
     }
+#endif
 }
 
 QMatrix4x4 OpenGLWindow::modelViewProjectionMatrix(int mask, const WindowPaintData &data) const
@@ -1537,14 +1552,12 @@ void OpenGLWindow::performPaint(int mask, const QRegion &region, const WindowPai
 
 OpenGLWindowPixmap::OpenGLWindowPixmap(Scene::Window *window, SceneOpenGL* scene)
     : WindowPixmap(window)
-    , m_texture(scene->createTexture())
     , m_scene(scene)
 {
 }
 
 OpenGLWindowPixmap::OpenGLWindowPixmap(const QPointer<KWaylandServer::SubSurfaceInterface> &subSurface, WindowPixmap *parent, SceneOpenGL *scene)
     : WindowPixmap(subSurface, parent)
-    , m_texture(scene->createTexture())
     , m_scene(scene)
 {
 }
@@ -1553,6 +1566,7 @@ OpenGLWindowPixmap::~OpenGLWindowPixmap()
 {
 }
 
+#if 0
 static bool needsPixmapUpdate(const OpenGLWindowPixmap *pixmap)
 {
     // That's a regular Wayland client.
@@ -1573,9 +1587,11 @@ static bool needsPixmapUpdate(const OpenGLWindowPixmap *pixmap)
     // That's an X11 client.
     return false;
 }
+#endif
 
 bool OpenGLWindowPixmap::bind()
 {
+#if 0
     if (!m_texture->isNull()) {
         if (needsPixmapUpdate(this)) {
             m_texture->updateFromPixmap(this);
@@ -1607,6 +1623,8 @@ bool OpenGLWindowPixmap::bind()
     } else
         qCDebug(KWIN_OPENGL) << "Failed to bind window";
     return success;
+#endif
+    return false;
 }
 
 WindowPixmap *OpenGLWindowPixmap::createChild(const QPointer<KWaylandServer::SubSurfaceInterface> &subSurface)
@@ -1616,9 +1634,11 @@ WindowPixmap *OpenGLWindowPixmap::createChild(const QPointer<KWaylandServer::Sub
 
 bool OpenGLWindowPixmap::isValid() const
 {
+#if 0
     if (!m_texture->isNull()) {
         return true;
     }
+#endif
     return WindowPixmap::isValid();
 }
 

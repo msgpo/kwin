@@ -22,6 +22,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "composite.h"
 #include "drm_backend.h"
 #include "drm_output.h"
+#include "eglbuffer_internal_p.h"
+#include "eglbuffer_wayland_p.h"
 #include "gbm_surface.h"
 #include "logging.h"
 #include "options.h"
@@ -50,6 +52,21 @@ EglGbmBackend::EglGbmBackend(DrmBackend *drmBackend)
 EglGbmBackend::~EglGbmBackend()
 {
     cleanup();
+}
+
+BufferX11Private *EglGbmBackend::createBufferX11Private()
+{
+    return nullptr;
+}
+
+BufferInternalPrivate *EglGbmBackend::createBufferInternalPrivate()
+{
+    return new EGLBufferInternalPrivate(this);
+}
+
+BufferWaylandPrivate *EglGbmBackend::createBufferWaylandPrivate()
+{
+    return new EGLBufferWaylandPrivate(this);
 }
 
 void EglGbmBackend::cleanupSurfaces()
@@ -462,11 +479,6 @@ void EglGbmBackend::screenGeometryChanged(const QSize &size)
     // TODO, create new buffer?
 }
 
-SceneOpenGLTexturePrivate *EglGbmBackend::createBackendTexture(SceneOpenGLTexture *texture)
-{
-    return new EglGbmTexture(texture, this);
-}
-
 QRegion EglGbmBackend::prepareRenderingFrame()
 {
     startRenderTimer();
@@ -564,16 +576,5 @@ bool EglGbmBackend::perScreenRendering() const
 {
     return true;
 }
-
-/************************************************
- * EglTexture
- ************************************************/
-
-EglGbmTexture::EglGbmTexture(KWin::SceneOpenGLTexture *texture, EglGbmBackend *backend)
-    : AbstractEglTexture(texture, backend)
-{
-}
-
-EglGbmTexture::~EglGbmTexture() = default;
 
 }

@@ -18,6 +18,8 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 *********************************************************************/
 #include "egl_x11_backend.h"
+#include "eglbuffer_internal_p.h"
+#include "eglbuffer_wayland_p.h"
 // kwin
 #include "screens.h"
 #include "x11windowed_backend.h"
@@ -35,6 +37,21 @@ EglX11Backend::EglX11Backend(X11WindowedBackend *backend)
 }
 
 EglX11Backend::~EglX11Backend() = default;
+
+BufferX11Private *EglX11Backend::createBufferX11Private()
+{
+    return nullptr;
+}
+
+BufferInternalPrivate *EglX11Backend::createBufferInternalPrivate()
+{
+    return new EGLBufferInternalPrivate(this);
+}
+
+BufferWaylandPrivate *EglX11Backend::createBufferWaylandPrivate()
+{
+    return new EGLBufferWaylandPrivate(this);
+}
 
 void EglX11Backend::cleanupSurfaces()
 {

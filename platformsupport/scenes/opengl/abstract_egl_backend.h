@@ -20,7 +20,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #ifndef KWIN_ABSTRACT_EGL_BACKEND_H
 #define KWIN_ABSTRACT_EGL_BACKEND_H
 #include "backend.h"
-#include "texture.h"
 
 #include <QObject>
 #include <epoxy/egl.h>
@@ -87,6 +86,7 @@ private:
     EglDmabuf *m_dmaBuf = nullptr;
 };
 
+#if 0
 class KWIN_EXPORT AbstractEglTexture : public SceneOpenGLTexturePrivate
 {
 public:
@@ -121,6 +121,7 @@ private:
     AbstractEglBackend *m_backend;
     EGLImageKHR m_image;
 };
+#endif
 
 }
 

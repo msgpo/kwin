@@ -34,7 +34,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "scene.h"
 #include "screens.h"
 #include "xcbutils.h"
-#include "texture.h"
 // kwin libs
 #include <kwinglplatform.h>
 #include <kwinglutils.h>
@@ -158,6 +157,21 @@ GlxBackend::~GlxBackend()
 
     overlayWindow()->destroy();
     delete m_overlayWindow;
+}
+
+BufferX11Private *GlxBackend::createBufferX11Private()
+{
+    return nullptr;
+}
+
+BufferInternalPrivate *GlxBackend::createBufferInternalPrivate()
+{
+    return nullptr;
+}
+
+BufferWaylandPrivate *GlxBackend::createBufferWaylandPrivate()
+{
+    return nullptr;
 }
 
 typedef void (*glXFuncPtr)();
@@ -789,11 +803,6 @@ void GlxBackend::screenGeometryChanged(const QSize &size)
     m_bufferAge = 0;
 }
 
-SceneOpenGLTexturePrivate *GlxBackend::createBackendTexture(SceneOpenGLTexture *texture)
-{
-    return new GlxTexture(texture, this);
-}
-
 QRegion GlxBackend::prepareRenderingFrame()
 {
     QRegion repaint;
@@ -882,6 +891,7 @@ bool GlxBackend::usesOverlayWindow() const
     return true;
 }
 
+#if 0
 /********************************************************
  * GlxTexture
  *******************************************************/
@@ -968,5 +978,6 @@ OpenGLBackend *GlxTexture::backend()
 {
     return m_backend;
 }
+#endif
 
 } // namespace

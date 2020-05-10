@@ -18,6 +18,8 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 *********************************************************************/
 #include "egl_gbm_backend.h"
+#include "eglbuffer_internal_p.h"
+#include "eglbuffer_wayland_p.h"
 // kwin
 #include "composite.h"
 #include "virtual_backend.h"
@@ -53,6 +55,21 @@ EglGbmBackend::~EglGbmBackend()
     delete m_fbo;
     delete m_backBuffer;
     cleanup();
+}
+
+BufferX11Private *EglGbmBackend::createBufferX11Private()
+{
+    return nullptr;
+}
+
+BufferInternalPrivate *EglGbmBackend::createBufferInternalPrivate()
+{
+    return new EGLBufferInternalPrivate(this);
+}
+
+BufferWaylandPrivate *EglGbmBackend::createBufferWaylandPrivate()
+{
+    return new EGLBufferWaylandPrivate(this);
 }
 
 bool EglGbmBackend::initializeEgl()
@@ -170,11 +187,6 @@ void EglGbmBackend::screenGeometryChanged(const QSize &size)
     // TODO, create new buffer?
 }
 
-SceneOpenGLTexturePrivate *EglGbmBackend::createBackendTexture(SceneOpenGLTexture *texture)
-{
-    return new EglGbmTexture(texture, this);
-}
-
 QRegion EglGbmBackend::prepareRenderingFrame()
 {
     if (!lastDamage().isEmpty()) {
@@ -236,16 +248,5 @@ bool EglGbmBackend::usesOverlayWindow() const
 {
     return false;
 }
-
-/************************************************
- * EglTexture
- ************************************************/
-
-EglGbmTexture::EglGbmTexture(KWin::SceneOpenGLTexture *texture, EglGbmBackend *backend)
-    : AbstractEglTexture(texture, backend)
-{
-}
-
-EglGbmTexture::~EglGbmTexture() = default;
 
 } // namespace

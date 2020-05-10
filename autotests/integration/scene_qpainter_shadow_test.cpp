@@ -718,35 +718,35 @@ void SceneQPainterShadowTest::testShadowTextureReconstruction()
 
     auto *shmPool = Test::waylandShmPool();
 
-    Buffer::Ptr bufferTopLeft = shmPool->createBuffer(
+    KWayland::Client::Buffer::Ptr bufferTopLeft = shmPool->createBuffer(
         referenceShadowTexture.copy(QRect(0, 0, 128, 128)));
     clientShadow->attachTopLeft(bufferTopLeft);
 
-    Buffer::Ptr bufferTop = shmPool->createBuffer(
+    KWayland::Client::Buffer::Ptr bufferTop = shmPool->createBuffer(
         referenceShadowTexture.copy(QRect(128, 0, 1, 128)));
     clientShadow->attachTop(bufferTop);
 
-    Buffer::Ptr bufferTopRight = shmPool->createBuffer(
+    KWayland::Client::Buffer::Ptr bufferTopRight = shmPool->createBuffer(
         referenceShadowTexture.copy(QRect(128 + 1, 0, 128, 128)));
     clientShadow->attachTopRight(bufferTopRight);
 
-    Buffer::Ptr bufferRight = shmPool->createBuffer(
+    KWayland::Client::Buffer::Ptr bufferRight = shmPool->createBuffer(
         referenceShadowTexture.copy(QRect(128 + 1, 128, 128, 1)));
     clientShadow->attachRight(bufferRight);
 
-    Buffer::Ptr bufferBottomRight = shmPool->createBuffer(
+    KWayland::Client::Buffer::Ptr bufferBottomRight = shmPool->createBuffer(
         referenceShadowTexture.copy(QRect(128 + 1, 128 + 1, 128, 128)));
     clientShadow->attachBottomRight(bufferBottomRight);
 
-    Buffer::Ptr bufferBottom = shmPool->createBuffer(
+    KWayland::Client::Buffer::Ptr bufferBottom = shmPool->createBuffer(
         referenceShadowTexture.copy(QRect(128, 128 + 1, 1, 128)));
     clientShadow->attachBottom(bufferBottom);
 
-    Buffer::Ptr bufferBottomLeft = shmPool->createBuffer(
+    KWayland::Client::Buffer::Ptr bufferBottomLeft = shmPool->createBuffer(
         referenceShadowTexture.copy(QRect(0, 128 + 1, 128, 128)));
     clientShadow->attachBottomLeft(bufferBottomLeft);
 
-    Buffer::Ptr bufferLeft = shmPool->createBuffer(
+    KWayland::Client::Buffer::Ptr bufferLeft = shmPool->createBuffer(
         referenceShadowTexture.copy(QRect(0, 128, 128, 1)));
     clientShadow->attachLeft(bufferLeft);
 

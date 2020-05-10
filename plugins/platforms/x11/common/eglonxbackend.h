@@ -37,7 +37,9 @@ public:
     explicit EglOnXBackend(xcb_connection_t *connection, Display *display, xcb_window_t rootWindow, int screenNumber, xcb_window_t renderingWindow);
     ~EglOnXBackend() override;
     void screenGeometryChanged(const QSize &size) override;
-    SceneOpenGLTexturePrivate *createBackendTexture(SceneOpenGLTexture *texture) override;
+    BufferX11Private *createBufferX11Private() override;
+    BufferInternalPrivate *createBufferInternalPrivate() override;
+    BufferWaylandPrivate *createBufferWaylandPrivate() override;
     QRegion prepareRenderingFrame() override;
     void endRenderingFrame(const QRegion &damage, const QRegion &damagedRegion) override;
     OverlayWindow* overlayWindow() const override;
@@ -86,6 +88,7 @@ private:
     friend class EglTexture;
 };
 
+#if 0
 /**
  * @brief Texture using an EGLImageKHR.
  */
@@ -102,6 +105,7 @@ private:
     EglTexture(SceneOpenGLTexture *texture, EglOnXBackend *backend);
     EglOnXBackend *m_backend;
 };
+#endif
 
 } // namespace
 

@@ -2,8 +2,11 @@ set(SCENE_OPENGL_BACKEND_SRCS
     abstract_egl_backend.cpp
     backend.cpp
     egl_dmabuf.cpp
+    eglbuffer_internal.cpp
+    eglbuffer_wayland.cpp
+    openglbuffer_internal.cpp
+    openglbuffer_wayland.cpp
     swap_profiler.cpp
-    texture.cpp
 )
 
 include_directories(${CMAKE_SOURCE_DIR})
