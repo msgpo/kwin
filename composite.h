@@ -272,4 +272,9 @@ private:
     int m_xrrRefreshRate;
 };
 
+inline Compositor *compositor()
+{
+    return Compositor::self();
+}
+
 }
