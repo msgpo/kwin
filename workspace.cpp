@@ -1731,6 +1731,13 @@ Toplevel *Workspace::findToplevel(std::function<bool (const Toplevel*)> func) co
     return nullptr;
 }
 
+AbstractClient *Workspace::findClient(const QUuid &uuid) const
+{
+    return findAbstractClient([uuid](const AbstractClient *client) {
+        return client->internalId() == uuid;
+    });
+}
+
 void Workspace::forEachToplevel(std::function<void (Toplevel *)> func)
 {
     std::for_each(m_allClients.constBegin(), m_allClients.constEnd(), func);

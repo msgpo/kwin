@@ -32,6 +32,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "../thumbnailitem.h"
 #include "../options.h"
 #include "../workspace.h"
+#include "../qtquickintegration.h"
 // KDE
 #include <KConfigGroup>
 #include <KPackage/PackageLoader>
@@ -702,7 +703,11 @@ KWin::Scripting::Scripting(QObject *parent)
 void KWin::Scripting::init()
 {
     qmlRegisterType<DesktopThumbnailItem>("org.kde.kwin", 2, 0, "DesktopThumbnailItem");
+#if 0
     qmlRegisterType<WindowThumbnailItem>("org.kde.kwin", 2, 0, "ThumbnailItem");
+#else
+    qmlRegisterType<KQuickWindowThumbnailItem>("org.kde.kwin", 2, 0, "ThumbnailItem");
+#endif
     qmlRegisterType<DBusCall>("org.kde.kwin", 2, 0, "DBusCall");
     qmlRegisterType<ScreenEdgeItem>("org.kde.kwin", 2, 0, "ScreenEdgeItem");
     qmlRegisterType<KWin::ScriptingClientModel::ClientModel>();

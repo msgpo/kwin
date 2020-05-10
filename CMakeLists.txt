@@ -472,6 +472,7 @@ set(kwin_SRCS
     platform.cpp
     pointer_input.cpp
     popup_input_filter.cpp
+    qtquickintegration.cpp
     rootinfo_filter.cpp
     rules.cpp
     rulebooksettings.cpp

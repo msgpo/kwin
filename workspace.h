@@ -121,6 +121,10 @@ public:
      * @see findClient(std::function<bool (const X11Client *)>)
      */
     X11Client *findClient(Predicate predicate, xcb_window_t w) const;
+    /**
+     * Finds the Client with the given internal id @a uuid.
+     */
+    AbstractClient *findClient(const QUuid &uuid) const;
     void forEachClient(std::function<void (X11Client *)> func);
     void forEachAbstractClient(std::function<void (AbstractClient*)> func);
     Unmanaged *findUnmanaged(std::function<bool (const Unmanaged*)> func) const;
